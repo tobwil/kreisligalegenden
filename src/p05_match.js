@@ -124,6 +124,7 @@ function banner(txt, col = '#ffc83a', sub = '', dur = 1.6, big = false) { if (G.
 function place(p, x, y) { Object.assign(p, { x, y, z: 0, vx: 0, vy: 0, vz: 0, tx: x, ty: y, act: null, stun: 0, pose: 'idle' }); }
 function giveBall(p, quiet) {
   const b = G.ball, from = b.last;
+  if (G.tut && b.passer && b.passer.team === p.team && b.passer !== p) tutEvent({ k: 'recv', p, kind: b.kind });
   p.assistFrom = b.passer && b.passer !== p && b.passer.team === p.team && ['pass', 'through', 'lob', 'cross', 'head'].includes(b.kind) ? b.passer : null;
   if (b.passer && b.passer.team === p.team && b.passer !== p && b.kind && b.kind !== 'shot') G.stats.passOk[p.team]++;
   b.owner = p; b.state = 'held'; b.passTo = null; b.shot = null; b.passer = null; b.kind = ''; b.vz = 0; b.z = 0; b.spin = 0; b.plan = null;

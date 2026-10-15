@@ -58,6 +58,7 @@ const ACT = {
       <div class="btns menu-list">
         <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
         <button data-act="career">${ok ? 'SAISON FORTSETZEN' : 'SAISON'} <i>${ok ? `${esc(TEAMS[sv.team].short)} · ${seasonLabel(sv.year)}` : 'Kreisliga, Meisterschaft, Playoffs'}</i></button>
+        <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Spielzeit, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
@@ -91,7 +92,7 @@ const ACT = {
         <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, GRÄTSCHE, TACKLING. Mitspieler antippen = Pass zu ihm</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
-      <div class="row"><button class="main" data-act="back">ZURÜCK</button></div></div>`, { back: () => ACT.back() });
+      <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });
   },
   back() { if (INGAME_MENU) ACT.pause(); else ACT.main(); },
   exitGame() { if (PLATFORM.quit) PLATFORM.quit(); },
@@ -150,7 +151,7 @@ const ACT = {
   statsNow() { show(`<div class="panel narrow">${statsHTML()}<div class="row"><button class="main" data-act="pause">ZURÜCK</button></div></div>`, { back: ACT.pause }); },
   resume() { INGAME_MENU = false; hideMenu(); if (G) { G.paused = false; AU.ambience(true); } },
   wresume() { joinGame(); ACT.resume(); },
-  quit() { INGAME_MENU = false; const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
+  quit() { INGAME_MENU = false; hideTutBox(); const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
   // Taktik & Wechsel: Formation, Ausrichtung, Wechsel (erst Feldspieler, dann Bankspieler antippen)
   tactics(sel) {
     if (!G || G.human < 0) return;
@@ -206,7 +207,7 @@ const ACT = {
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
-  toMain() { G = null; startDemo(); ACT.main(); },
+  toMain() { hideTutBox(); G = null; startDemo(); ACT.main(); },
 };
 function renderQuick(focusSel) {
   const card = (side, tid) => { const T = TEAMS[tid], s = teamStr(tid); return `<div class="tcard ${side} ${QUICK.side === side ? 'active' : ''}" data-act="qside" data-arg="${side}" tabindex="-1">
@@ -267,7 +268,7 @@ function togglePause() { if (!G || G.demo) return; if (menu.hidden) ACT.pause();
 function startMatch(ta, tb, o) {
   INGAME_MENU = false; hideMenu(); AU.init(); AU.stopMusic();
   newMatch(ta, tb, o); G.opts = o;
-  if (!o.watch) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
+  if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
   track('spiel-start', { modus: o.career ? 'saison' : 'freundschaftsspiel' });
 }

@@ -2,7 +2,7 @@
 # Baut das Spiel aus den Quelldateien (Reihenfolge ist wichtig, alle Module teilen sich einen Script-Block).
 # Ergebnis: game/index.html. Die Startseite index.html im Hauptordner wird hier nicht erzeugt.
 cd "$(dirname "$0")"
-JS="p01_core.js p02_audio.js p03_sprites.js p04_pitch.js p05_match.js p06_actions.js p07_ai.js p08_rules.js p09_fx.js p10_render.js p11_menus.js p13_career.js p14_career_ui.js p12_main.js"
+JS="p01_core.js p02_audio.js p03_sprites.js p04_pitch.js p05_match.js p06_actions.js p07_ai.js p08_rules.js p09_fx.js p10_render.js p11_menus.js p13_career.js p14_career_ui.js p15_training.js p12_main.js"
 TITLE='Kreisliga-Legenden spielen – Fußball 11 gegen 11 im Retro-Pixel-Look'
 DESC='Fußball im Browser: Kreisliga im Retro-Pixel-Look mit den Vereinen aus dem Kreis Coburg, Saison mit Meisterschaft und Playoffs um die deutsche Kreisliga-Krone. Kostenlos, am Computer und am Handy.'
 mkdir -p ../game

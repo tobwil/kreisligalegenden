@@ -1293,6 +1293,7 @@ function banner(txt, col = '#ffc83a', sub = '', dur = 1.6, big = false) { if (G.
 function place(p, x, y) { Object.assign(p, { x, y, z: 0, vx: 0, vy: 0, vz: 0, tx: x, ty: y, act: null, stun: 0, pose: 'idle' }); }
 function giveBall(p, quiet) {
   const b = G.ball, from = b.last;
+  if (G.tut && b.passer && b.passer.team === p.team && b.passer !== p) tutEvent({ k: 'recv', p, kind: b.kind });
   p.assistFrom = b.passer && b.passer !== p && b.passer.team === p.team && ['pass', 'through', 'lob', 'cross', 'head'].includes(b.kind) ? b.passer : null;
   if (b.passer && b.passer.team === p.team && b.passer !== p && b.kind && b.kind !== 'shot') G.stats.passOk[p.team]++;
   b.owner = p; b.state = 'held'; b.passTo = null; b.shot = null; b.passer = null; b.kind = ''; b.vz = 0; b.z = 0; b.spin = 0; b.plan = null;
@@ -2160,6 +2161,7 @@ function step(dt) {
   G.shake = Math.max(0, G.shake - dt); G.excite = Math.max(0, G.excite - dt * 0.35); G.flagT = Math.max(0, (G.flagT || 0) - dt);
   if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
   updateParts(dt);
+  if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
   switch (G.phase) {
     case 'intro': if (G.phaseT > 0.3 && (IN.any || G.watch)) { G.phase = 'kickoff'; G.phaseT = 0; AU.whistle(1); clearEdges(); } return;
     case 'replay': return stepReplay(dt);
@@ -2167,7 +2169,7 @@ function step(dt) {
     case 'end': moveAll(dt); return;
     case 'pause': case 'etpause': return;
   }
-  if (G.phase === 'play') {
+  if (G.phase === 'play' && !G.tut) {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
     for (const p of G.players) if (!p.off) p.d.ms.min += dt;
     if (G.clock >= halfLen() + G.added * halfLen() / 45 && !G.so) {
@@ -2181,6 +2183,7 @@ function step(dt) {
   // Standards: CPU führt nach kurzer Pause aus, der Mensch wählt selbst
   if (G.phase === 'kickoff' || G.phase === 'setpiece' || G.phase === 'penalty') stepSetPiece(dt);
   if (G.phase === 'whistle' || G.phase === 'dead') { if (G.phaseT > (G.pending ? G.pending.t : 1)) resolvePending(); }
+  if (G.tut && G.phase === 'goal' && G.phaseT > 1.4) { tutSetup(); return; }
   if (G.phase === 'goal' && G.phaseT > 3.2) { if (G.so) return; startReplay(); return; }
   if (G.phase === 'play' || G.phase === 'whistle' || G.phase === 'dead' || G.phase === 'goal') {
     if (G.phase === 'play' && G.so) { for (const p of G.players) { p.tx = p.x; p.ty = p.y; p.urg = 0; } const g = G.pen ? G.pen.gk : null; if (g) gkAI(g, dt); }
@@ -2188,12 +2191,13 @@ function step(dt) {
     else if (G.phase === 'whistle') for (const p of G.players) p.urg = Math.min(p.urg, 0.15);
     else if (G.phase === 'dead' && G.pendSpots) for (const [p, sp] of G.pendSpots) { p.tx = sp[0]; p.ty = sp[1]; p.urg = 0.85; }
     else if (G.phase === 'goal') celebrate();
+    if (G.tut && G.phase === 'play') tutStep(dt);
     const own = G.ball.owner;
     if (G.phase === 'play' && own && !isHumanCtrl(own) && !G.so) carrierAI(own, dt);
   }
   moveAll(dt);
   updateBall(dt);
-  if (G.phase === 'play') { tryCollect(); checkBlocks(); }
+  if (G.phase === 'play') { checkBlocks(); tryCollect(); }
   recordFrame(dt);
   if (G.so) stepShootout(dt);
 }
@@ -2431,9 +2435,12 @@ function checkBlocks() {
     return;
   }
   if (!b.shot) return;
+  // jeder Verteidiger hat genau eine Chance auf den Block (Mauer: auch im Sprung bis 2,3 m)
+  if (b.triedFid !== b.fid) { b.triedFid = b.fid; b.tried = new Set(); }
   for (const o of G.players) {
-    if (o.off || o.team === b.shot.team || isGK(o)) continue;
-    if (dist(o.x, o.y, b.x, b.y) < 0.6 && b.z < 1.7 && Math.random() < 0.4) {
+    if (o.off || o.team === b.shot.team || isGK(o) || b.tried.has(o)) continue;
+    if (dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < (o.wall ? 2.3 : 1.8)) {
+      b.tried.add(o); if (Math.random() > (o.wall ? 0.4 : 0.45)) continue;
       b.blockChecked = b.fid; b.shot = null; b.plan = null; b.fid++; b.last = o; b.lastTeam = o.team; b.kind = 'block'; G.offs = null;
       const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(0.05, 0.55); b.vy = sg * rnd(sp * 0.5, sp * 1.1); b.vz = rnd(0.5, 3.5);
       AU.tackle(); if (!G.demo) { banner('GEBLOCKT', '#9cff57', o.d.name.toUpperCase(), 0.8); AU.ooh(0.6); }
@@ -2448,6 +2455,7 @@ function tryCollect() {
   for (const p of G.players) {
     if (p.off || p.stun > 0) continue;
     if (G.so && !isGK(p)) continue;
+    if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
     const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, r = gk ? 1.05 : b.z > 1.0 ? 0.8 : 0.62;
@@ -2509,6 +2517,7 @@ function offside(p) {
   G.phase = 'whistle'; G.phaseT = 0;
 }
 function ballOut(kind) {
+  if (tutOut()) return;
   const b = G.ball, last = b.lastTeam;
   if (G.so) return;
   b.passTo = null; b.plan = null; G.offs = null;
@@ -2533,6 +2542,7 @@ function ballOut(kind) {
   G.pendSpots = setPieceSpots(p.k, p.team, p.k === 'corner' ? (p.x === CW ? CW - 0.3 : 0.3) : p.x, p.k === 'throw' ? (p.y < MY ? 0 : CH) : p.y, null);
 }
 function resolvePending() {
+  if (G.tut) return tutSetup();
   const p = G.pending; G.pending = null; G.pendSpots = null;
   if (!p) { G.phase = 'play'; return; }
   autoSubs();
@@ -2617,6 +2627,7 @@ function scoreGoal(team, y, z) {
   const scorer = shooter || (last && last.team === team ? last : null), og = !scorer;
   G.netHit = { side: b.x > CW / 2 ? 1 : 0, y, z, t: 0 };
   AU.net(); b.plan = null;
+  if (G.tut) tutEvent({ k: 'goal', team });
   if (G.so) { G.so.res = 1; G.phase = 'goal'; G.phaseT = 0; return; }
   G.score[team]++;
   const min = minuteOf();
@@ -2914,6 +2925,7 @@ function render() {
   const t = G.t, excite = G.excite > 1.2 ? 2 : G.excite > 0.4 ? 1 : 0;
   drawBack(t, excite);
   drawPitch();
+  drawTutMarks();
   const items = [];
   const showSel = !G.demo && G.human >= 0 && !G.watch && G.phase !== 'replay';
   for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, showSel && p === G.ctrl ? (G.ball.owner === p ? '#ffc83a' : '#7cf2ff') : false) });
@@ -3146,6 +3158,7 @@ const ACT = {
       <div class="btns menu-list">
         <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
         <button data-act="career">${ok ? 'SAISON FORTSETZEN' : 'SAISON'} <i>${ok ? `${esc(TEAMS[sv.team].short)} · ${seasonLabel(sv.year)}` : 'Kreisliga, Meisterschaft, Playoffs'}</i></button>
+        <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Spielzeit, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
@@ -3179,7 +3192,7 @@ const ACT = {
         <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, GRÄTSCHE, TACKLING. Mitspieler antippen = Pass zu ihm</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
-      <div class="row"><button class="main" data-act="back">ZURÜCK</button></div></div>`, { back: () => ACT.back() });
+      <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });
   },
   back() { if (INGAME_MENU) ACT.pause(); else ACT.main(); },
   exitGame() { if (PLATFORM.quit) PLATFORM.quit(); },
@@ -3238,7 +3251,7 @@ const ACT = {
   statsNow() { show(`<div class="panel narrow">${statsHTML()}<div class="row"><button class="main" data-act="pause">ZURÜCK</button></div></div>`, { back: ACT.pause }); },
   resume() { INGAME_MENU = false; hideMenu(); if (G) { G.paused = false; AU.ambience(true); } },
   wresume() { joinGame(); ACT.resume(); },
-  quit() { INGAME_MENU = false; const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
+  quit() { INGAME_MENU = false; hideTutBox(); const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
   // Taktik & Wechsel: Formation, Ausrichtung, Wechsel (erst Feldspieler, dann Bankspieler antippen)
   tactics(sel) {
     if (!G || G.human < 0) return;
@@ -3294,7 +3307,7 @@ const ACT = {
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
-  toMain() { G = null; startDemo(); ACT.main(); },
+  toMain() { hideTutBox(); G = null; startDemo(); ACT.main(); },
 };
 function renderQuick(focusSel) {
   const card = (side, tid) => { const T = TEAMS[tid], s = teamStr(tid); return `<div class="tcard ${side} ${QUICK.side === side ? 'active' : ''}" data-act="qside" data-arg="${side}" tabindex="-1">
@@ -3355,7 +3368,7 @@ function togglePause() { if (!G || G.demo) return; if (menu.hidden) ACT.pause();
 function startMatch(ta, tb, o) {
   INGAME_MENU = false; hideMenu(); AU.init(); AU.stopMusic();
   newMatch(ta, tb, o); G.opts = o;
-  if (!o.watch) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
+  if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
   track('spiel-start', { modus: o.career ? 'saison' : 'freundschaftsspiel' });
 }
@@ -3958,6 +3971,120 @@ function clubHTML() {
   <h3>TROPHÄEN</h3><div class="tshelves">${tro}</div>
   <div class="row"><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>`;
 }
+// ================= Training: Lektionen zum Lernen der Steuerung =================
+// Ein normales Spiel mit wenigen Spielern, ohne Uhr. Jede Lektion stellt die Spieler auf, zählt Erfolge und setzt nach Tor, Aus oder Ballverlust neu an.
+const TUT_KEY = 'krl_tut';
+const tutKeys = () => LASTIN === 'touch'
+  ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS lang drücken', cross: 'HOCH', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING', slide: 'GRÄTSCHE', sw: 'WECHSEL' }
+  : LASTIN === 'pad'
+    ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'B', shot: 'X halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
+    : { move: 'die Pfeiltasten', sprint: 'Shift', pass: 'S', through: 'A', cross: 'D', shot: 'Leertaste halten und loslassen', aim: 'Pfeil hoch/runter', tackle: 'D', slide: 'Leertaste', sw: 'S' };
+const LESSONS = [
+  { t: 'LAUFEN', need: 3, txt: k => `Lauf mit ${k.move} zu den gelben Markierungen. ${k.sprint} = Sprint (kostet Kraft).`,
+    setup(T) { const p = tutUse(0, 'ST', CW / 2, MY); T.marks = [[CW / 2 + 12, MY - 10], [CW / 2 - 8, MY + 14], [CW / 2 + 22, MY + 6]]; G.ctrl = p; } },
+  { t: 'PASSEN', need: 4, txt: k => `${k.pass} spielt einen Pass in Laufrichtung – das blaue Dreieck zeigt, wer ihn bekommt. Spiel ${4} Pässe.`,
+    setup(T) { const p = tutUse(0, 'MF', CW / 2, MY); giveBall(p, true); tutHold(tutUse(0, 'MF', CW / 2 + 14, MY - 10, 1)); tutHold(tutUse(0, 'ST', CW / 2 + 14, MY + 10)); tutHold(tutUse(0, 'AB', CW / 2 - 10, MY + 2)); G.ctrl = p; },
+    on(T, e) { if (e.k === 'recv' && e.p.team === 0 && e.kind === 'pass') T.n++; } },
+  { t: 'STEILPASS', need: 2, txt: k => `${k.through} spielt den Ball in den Lauf deines Stürmers – hinter die Abwehr. Achte aufs Abseits!`,
+    setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'MF', gx - s * 36, MY); giveBall(p, true); tutUse(0, 'ST', gx - s * 23, MY); tutHold(tutUse(1, 'AB', gx - s * 20, MY - 9)); tutHold(tutUse(1, 'AB', gx - s * 20, MY + 9)); G.ctrl = p; },
+    on(T, e) { if (e.k === 'recv' && e.p.team === 0 && e.kind === 'through') { T.n++; T.reset = 1.2; } } },
+  { t: 'SCHIESSEN', need: 3, txt: k => `${k.shot}: kurz = flach, lang = hoch, zu lang = drüber. Mit ${k.aim} zielst du in die Ecke. Schieß 3 Tore.`,
+    setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'ST', gx - s * 19, MY + rnd(-6, 6)); giveBall(p, true); G.ctrl = p; G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 55); },
+    on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
+  { t: 'FLANKE & KOPFBALL', need: 2, txt: k => `Vom Flügel mit ${k.cross} flanken. Kommt der Ball zu deinem Stürmer, drück schnell ${k.shot.split(' ')[0]} für Kopfball oder Volley.`,
+    setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'MF', gx - s * 22, 6); giveBall(p, true); tutUse(0, 'ST', gx - s * 9, MY - 2); tutUse(0, 'ST', gx - s * 11, MY + 4); tutHold(tutUse(1, 'AB', gx - s * 5, MY + 8)); G.ctrl = p; G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 45); },
+    on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
+  { t: 'ABWEHR', need: 3, txt: k => `Hol dir den Ball: ${k.tackle} = Tackling (von vorn!), ${k.slide} = Grätsche (Ball zuerst treffen). ${k.sw} wechselt den Spieler.`,
+    setup(T) { const s = atkDir(0), ox = ownX(0), a = tutUse(1, 'ST', ox + s * 38, MY + rnd(-8, 8)); giveBall(a, true); a.think = 1.2; const d = tutUse(0, 'AB', ox + s * 26, MY); tutUse(0, 'AB', ox + s * 20, MY + 9, 1); G.ctrl = d; },
+    on(T, e) { if (e.k === 'win') { T.n++; T.reset = 1; } if (e.k === 'goal' && e.team === 1) T.reset = 0.1; } },
+  { t: 'STANDARDS', need: 2, txt: k => `Freistoß und Elfmeter: ${k.shot}, Richtung = Ecke. Triff zweimal.`,
+    setup(T) { const s = atkDir(0), gx = goalX(0); tutUse(0, 'ST', gx - s * 23, MY); for (let i = 0; i < 2; i++) tutUse(1, 'AB', gx - s * 14, MY + i); G.phase = 'play';
+      G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 50); if (T.n % 2 === 0) setupSetPiece('free', 0, gx - s * 20, MY + 7); else setupSetPiece('pen', 0, 0, 0); },
+    on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
+];
+function tutUse(team, grp, x, y) {
+  const p = G.players.find(q => q.team === team && !isGK(q) && q.off && grpOf(q) === grp) || G.players.find(q => q.team === team && !isGK(q) && q.off);
+  p.off = false; place(p, x, y); p.face = atkDir(team); p.tutHold = null; return p;
+}
+function tutHold(p) { p.tutHold = [p.x, p.y]; return p; }
+function startTraining(lesson = 0) {
+  const ids = KREIS_LIGEN[0].ids;
+  startMatch(MY_TEAM(), ids[1] === MY_TEAM() ? ids[2] : ids[1], { human: 0, tut: true, wx: {} });
+  G.tut = { i: lesson, n: 0, marks: [], reset: 0 };
+  G.phase = 'play';
+  tutSetup();
+}
+// Verein für Training und Freundschaftsspiel: der zuletzt gewählte, sonst Staffelstein
+const MY_TEAM = () => QUICK.a;
+function tutSetup() {
+  const T = G.tut, L = LESSONS[T.i];
+  for (const p of G.players) { if (!isGK(p)) { p.off = true; p.tutHold = null; } p.act = null; p.stun = 0; p.d.energy = 1; }
+  G.offs = null; G.sp = null; G.pending = null; G.pen = null; G.netHit = null; G.scorer = null; G.cut = null;
+  const b = G.ball; Object.assign(b, { owner: null, passTo: null, shot: null, plan: null, kind: '', vx: 0, vy: 0, vz: 0, z: 0, trail: [] });
+  for (const g of G.gk) { g.off = false; place(g, ownX(g.team) + atkDir(g.team) * 1, MY); }
+  G.phase = 'play'; G.phaseT = 0; T.marks = []; T.reset = 0; T.shotT = 0; T.idleT = 0; b.x = CW / 2; b.y = 4;
+  L.setup(T);
+  G.camSnap = true;
+  showTutBox();
+}
+function tutEvent(e) { const T = G && G.tut; if (!T) return; const L = LESSONS[T.i]; if (L.on) L.on(T, e); checkTutDone(); showTutBox(); }
+function checkTutDone() {
+  const T = G.tut, L = LESSONS[T.i];
+  if (T.n < L.need || T.done) return;
+  T.done = true; T.doneT = 1.6; AU.jingle('goal'); banner('GESCHAFFT!', '#3ddc84', L.t, 1.4, true);
+}
+function nextLesson() {
+  const T = G.tut; T.i++; T.n = 0; T.done = false;
+  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
+  tutSetup();
+}
+// pro Bild: Markierungen, Haltepositionen, Ballverlust, Neustart
+// läuft jedes Bild (auch außerhalb des Spielbetriebs): nach einer geschafften Lektion kurz warten, dann weiter
+function tutTick(dt) { const T = G.tut; if (T.done) { T.doneT -= dt; if (T.doneT <= 0) nextLesson(); } }
+function tutStep(dt) {
+  const T = G.tut, L = LESSONS[T.i], b = G.ball;
+  if (L.t === 'LAUFEN') {
+    const c = G.ctrl; T.marks = T.marks.filter(([x, y]) => { if (dist(c.x, c.y, x, y) < 1.6) { T.n++; AU.select(); showTutBox(); return false; } return true; });
+    checkTutDone();
+  }
+  for (const p of G.players) if (p.tutHold && !p.off && p !== G.ctrl && b.passTo !== p) { p.tx = p.tutHold[0]; p.ty = p.tutHold[1]; p.urg = 0.6; }
+  if (G.phase !== 'play' || T.done) return;
+  // Ball beim Torwart des Gegners, beim Gegner (außer Abwehr-Lektion) oder liegt lange: neu ansetzen
+  if (b.owner && isGK(b.owner) && b.owner.team === 1) T.reset = T.reset || 1;
+  if (L.t !== 'ABWEHR' && b.owner && b.owner.team === 1) T.reset = T.reset || 0.8;
+  if (L.t === 'ABWEHR' && b.owner && b.owner.team === 0) { tutEvent({ k: 'win' }); }
+  if (L.t === 'ABWEHR' && !b.owner && b.lastTeam === 0 && b.kind === 'loose') { tutEvent({ k: 'win' }); b.kind = 'won'; }
+  // nach einem Schuss ohne Tor oder wenn der Ball liegen bleibt: neu
+  if (b.kind === 'shot' || b.kind === 'parry' || b.kind === 'block') { T.shotT = (T.shotT || 0) + dt; if (T.shotT > 3 && !T.reset) T.reset = 0.3; } else T.shotT = 0;
+  if (!b.owner && Math.hypot(b.vx, b.vy) < 0.5) { T.idleT = (T.idleT || 0) + dt; if (T.idleT > 2.5 && !T.reset) T.reset = 0.3; } else T.idleT = 0;
+  if (T.reset) { T.reset -= dt; if (T.reset <= 0) tutSetup(); }
+}
+function tutOut() { if (!G.tut) return false; AU.whistle(1); G.tut.reset = 0.8; G.phase = 'play'; G.ball.vx = G.ball.vy = 0; return true; }
+function drawTutMarks() {
+  if (!G.tut) return;
+  for (const [x, y] of G.tut.marks) {
+    const px = sx(x, y), py = sy(y), b = Math.floor(G.t * 4) % 2;
+    ctx.fillStyle = '#000'; ctx.fillRect(px - 9, py - 3, 19, 7); ctx.fillStyle = '#ffd200'; ctx.fillRect(px - 8 - b, py - 2, 17 + b * 2, 5);
+    ctx.fillStyle = '#ffd200'; ctx.fillRect(px - 1, py - 22, 3, 20); ctx.fillStyle = '#e30613'; ctx.fillRect(px + 2, py - 22, 6, 4);
+  }
+}
+const tutBox = document.getElementById('tut');
+function showTutBox() {
+  const T = G && G.tut; if (!T) return hideTutBox();
+  const L = LESSONS[T.i]; if (!L) return;
+  tutBox.innerHTML = `<b>TRAINING ${T.i + 1}/${LESSONS.length}: ${L.t} · ${Math.min(T.n, L.need)}/${L.need}</b><span>${esc(L.txt(tutKeys()))}</span><button data-t="skip">ÜBERSPRINGEN</button><button data-t="end">BEENDEN</button>`;
+  tutBox.hidden = false;
+  tutBox.querySelectorAll('button').forEach(bt => bt.addEventListener('click', e => { e.stopPropagation(); AU.init(); if (bt.dataset.t === 'skip') { G.tut.done = false; nextLesson(); } else { hideTutBox(); ACT.toMain(); } }));
+}
+function hideTutBox() { tutBox.hidden = true; tutBox.innerHTML = ''; }
+Object.assign(ACT, {
+  training() { hideMenu(); startTraining(0); },
+  tutDone() {
+    show(`<div class="panel narrow"><h2>TRAINING GESCHAFFT!</h2><p>Du kennst jetzt Pass, Steilpass, Flanke, Schuss, Kopfball, Zweikampf und Standards. Der Trainer ist zufrieden – fast.</p>
+      <p class="muted">Tipp: F (Gamepad LB) ist der Haken, Q öffnet Taktik & Wechsel.</p>
+      <div class="row"><button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL</button><button data-act="career">SAISON</button><button data-act="toMain">HAUPTMENÜ</button></div></div>`, { back: ACT.toMain });
+  },
+});
 // ================= Touch, Hauptschleife, Start =================
 if (TOUCHDEV) document.body.classList.add('touch');
 fitView(); addEventListener('resize', fitView); addEventListener('orientationchange', () => setTimeout(fitView, 250));

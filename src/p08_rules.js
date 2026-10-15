@@ -21,6 +21,7 @@ function step(dt) {
   G.shake = Math.max(0, G.shake - dt); G.excite = Math.max(0, G.excite - dt * 0.35); G.flagT = Math.max(0, (G.flagT || 0) - dt);
   if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
   updateParts(dt);
+  if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
   switch (G.phase) {
     case 'intro': if (G.phaseT > 0.3 && (IN.any || G.watch)) { G.phase = 'kickoff'; G.phaseT = 0; AU.whistle(1); clearEdges(); } return;
     case 'replay': return stepReplay(dt);
@@ -28,7 +29,7 @@ function step(dt) {
     case 'end': moveAll(dt); return;
     case 'pause': case 'etpause': return;
   }
-  if (G.phase === 'play') {
+  if (G.phase === 'play' && !G.tut) {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
     for (const p of G.players) if (!p.off) p.d.ms.min += dt;
     if (G.clock >= halfLen() + G.added * halfLen() / 45 && !G.so) {
@@ -42,6 +43,7 @@ function step(dt) {
   // Standards: CPU führt nach kurzer Pause aus, der Mensch wählt selbst
   if (G.phase === 'kickoff' || G.phase === 'setpiece' || G.phase === 'penalty') stepSetPiece(dt);
   if (G.phase === 'whistle' || G.phase === 'dead') { if (G.phaseT > (G.pending ? G.pending.t : 1)) resolvePending(); }
+  if (G.tut && G.phase === 'goal' && G.phaseT > 1.4) { tutSetup(); return; }
   if (G.phase === 'goal' && G.phaseT > 3.2) { if (G.so) return; startReplay(); return; }
   if (G.phase === 'play' || G.phase === 'whistle' || G.phase === 'dead' || G.phase === 'goal') {
     if (G.phase === 'play' && G.so) { for (const p of G.players) { p.tx = p.x; p.ty = p.y; p.urg = 0; } const g = G.pen ? G.pen.gk : null; if (g) gkAI(g, dt); }
@@ -49,12 +51,13 @@ function step(dt) {
     else if (G.phase === 'whistle') for (const p of G.players) p.urg = Math.min(p.urg, 0.15);
     else if (G.phase === 'dead' && G.pendSpots) for (const [p, sp] of G.pendSpots) { p.tx = sp[0]; p.ty = sp[1]; p.urg = 0.85; }
     else if (G.phase === 'goal') celebrate();
+    if (G.tut && G.phase === 'play') tutStep(dt);
     const own = G.ball.owner;
     if (G.phase === 'play' && own && !isHumanCtrl(own) && !G.so) carrierAI(own, dt);
   }
   moveAll(dt);
   updateBall(dt);
-  if (G.phase === 'play') { tryCollect(); checkBlocks(); }
+  if (G.phase === 'play') { checkBlocks(); tryCollect(); }
   recordFrame(dt);
   if (G.so) stepShootout(dt);
 }
@@ -292,9 +295,12 @@ function checkBlocks() {
     return;
   }
   if (!b.shot) return;
+  // jeder Verteidiger hat genau eine Chance auf den Block (Mauer: auch im Sprung bis 2,3 m)
+  if (b.triedFid !== b.fid) { b.triedFid = b.fid; b.tried = new Set(); }
   for (const o of G.players) {
-    if (o.off || o.team === b.shot.team || isGK(o)) continue;
-    if (dist(o.x, o.y, b.x, b.y) < 0.6 && b.z < 1.7 && Math.random() < 0.4) {
+    if (o.off || o.team === b.shot.team || isGK(o) || b.tried.has(o)) continue;
+    if (dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < (o.wall ? 2.3 : 1.8)) {
+      b.tried.add(o); if (Math.random() > (o.wall ? 0.4 : 0.45)) continue;
       b.blockChecked = b.fid; b.shot = null; b.plan = null; b.fid++; b.last = o; b.lastTeam = o.team; b.kind = 'block'; G.offs = null;
       const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(0.05, 0.55); b.vy = sg * rnd(sp * 0.5, sp * 1.1); b.vz = rnd(0.5, 3.5);
       AU.tackle(); if (!G.demo) { banner('GEBLOCKT', '#9cff57', o.d.name.toUpperCase(), 0.8); AU.ooh(0.6); }
@@ -309,6 +315,7 @@ function tryCollect() {
   for (const p of G.players) {
     if (p.off || p.stun > 0) continue;
     if (G.so && !isGK(p)) continue;
+    if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
     const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, r = gk ? 1.05 : b.z > 1.0 ? 0.8 : 0.62;
@@ -370,6 +377,7 @@ function offside(p) {
   G.phase = 'whistle'; G.phaseT = 0;
 }
 function ballOut(kind) {
+  if (tutOut()) return;
   const b = G.ball, last = b.lastTeam;
   if (G.so) return;
   b.passTo = null; b.plan = null; G.offs = null;
@@ -394,6 +402,7 @@ function ballOut(kind) {
   G.pendSpots = setPieceSpots(p.k, p.team, p.k === 'corner' ? (p.x === CW ? CW - 0.3 : 0.3) : p.x, p.k === 'throw' ? (p.y < MY ? 0 : CH) : p.y, null);
 }
 function resolvePending() {
+  if (G.tut) return tutSetup();
   const p = G.pending; G.pending = null; G.pendSpots = null;
   if (!p) { G.phase = 'play'; return; }
   autoSubs();
@@ -478,6 +487,7 @@ function scoreGoal(team, y, z) {
   const scorer = shooter || (last && last.team === team ? last : null), og = !scorer;
   G.netHit = { side: b.x > CW / 2 ? 1 : 0, y, z, t: 0 };
   AU.net(); b.plan = null;
+  if (G.tut) tutEvent({ k: 'goal', team });
   if (G.so) { G.so.res = 1; G.phase = 'goal'; G.phaseT = 0; return; }
   G.score[team]++;
   const min = minuteOf();

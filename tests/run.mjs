@@ -302,6 +302,38 @@ test('Darstellung: alle Platzarten (Rasen, Kunstrasen, Hartplatz), Nacht im Fina
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+
+test('Training: alle 7 Lektionen mit der Tastatur durchspielbar (Laufen, Passen, Steilpass, Schießen, Flanke, Abwehr, Standards)', async () => {
+  const { page, ctx, errors } = await open();
+  const log = await page.evaluate(() => {
+  ACT.training(); G.paused = true; const log = [];
+  const keys = ['KeyS', 'KeyA', 'KeyD', 'Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft'];
+  const toward = (x, y) => { const c = G.ctrl; if (x - c.x > 0.5) KEY.ArrowRight = true; if (x - c.x < -0.5) KEY.ArrowLeft = true; if (y - c.y > 0.5) KEY.ArrowDown = true; if (y - c.y < -0.5) KEY.ArrowUp = true; };
+  let n = 0, lastI = -1, hold = 0, t0 = 0;
+  while (G && G.tut && n < 60 * 60 * 6) {
+    for (const k of keys) KEY[k] = false;
+    const T = G.tut, L = LESSONS[T.i], c = G.ctrl, b = G.ball; if (!L) break;
+    if (T.i !== lastI) { log.push(`${L.t} start @${Math.round(n / 60)}s`); lastI = T.i; t0 = n; }
+    if (n - t0 > 60 * 70) { log.push(`${L.t} TIMEOUT ${T.n}/${L.need}`); T.done = false; nextLesson(); continue; }
+    const f = n % 12 === 0;
+    if (L.t === 'LAUFEN' && T.marks[0]) toward(...T.marks[0]);
+    else if (L.t === 'PASSEN' && b.owner === c && f) KEYP.KeyS = true;
+    else if (L.t === 'STEILPASS' && b.owner === c && f && G.t - c.gotT > 0.5) KEYP.KeyA = true;
+    else if ((L.t === 'SCHIESSEN' || L.t === 'STANDARDS') && b.owner === c) { if (hold < 30) { KEY.Space = true; hold++; KEY.ArrowUp = hold > 3 && (n / 600 | 0) % 2 === 0; } else hold = 0; }
+    else if (L.t === 'FLANKE & KOPFBALL') { if (b.owner === c && f) KEYP.KeyD = true; else if (!b.owner && b.passTo === c && f) KEYP.Space = true; }
+    else if (L.t === 'ABWEHR' && b.owner && b.owner.team === 1) { toward(b.owner.x, b.owner.y); if (dist(c.x, c.y, b.owner.x, b.owner.y) < 1.3 && f) KEYP.KeyD = true; }
+    if (b.owner !== c) hold = 0;
+    readInput(1 / 60); step(1 / 60); n++;
+    if (!G.tut || !menu.hidden) break;
+  }
+  log.push('ende ' + (menu.querySelector('h2') ? menu.querySelector('h2').textContent : '') + ' gespeichert=' + store.get(TUT_KEY));
+  return log;
+  });
+  ok(!log.some(l => l.includes('TIMEOUT')), log.join(' | '));
+  ok(log[log.length - 1].includes('GESCHAFFT') && log[log.length - 1].includes('gespeichert=true'), log.join(' | '));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 // ---------- Ablauf ----------
 browser = await chromium.launch(exe ? { executablePath: exe } : {});
 let pass = 0, fail = 0;

@@ -20,6 +20,7 @@ function render() {
   const t = G.t, excite = G.excite > 1.2 ? 2 : G.excite > 0.4 ? 1 : 0;
   drawBack(t, excite);
   drawPitch();
+  drawTutMarks();
   const items = [];
   const showSel = !G.demo && G.human >= 0 && !G.watch && G.phase !== 'replay';
   for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, showSel && p === G.ctrl ? (G.ball.owner === p ? '#ffc83a' : '#7cf2ff') : false) });
