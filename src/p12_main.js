@@ -63,6 +63,16 @@ function tapAt(cx0, cy0) {
       else if (k === 'b') TOUCH.b = false;
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
+    // SCHUSS halten und auf PASS ziehen = Schlenzer, auf HOCH ziehen = Heber (geht mit einem Daumen)
+    if (k === 'b') {
+      let slid = false;
+      b.addEventListener('pointerdown', () => { slid = false; });
+      b.addEventListener('pointermove', e => {
+        if (slid || !TOUCH.b) return;
+        const inR = el => { const r = el.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+        if (inR(TBL.a)) { slid = true; TOUCH.pulseA = 1; buzz(15); } else if (inR(TBL.c)) { slid = true; TOUCH.pulseC = 1; buzz(15); }
+      });
+    }
   });
 })();
 const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb-b'), c: document.querySelector('.tb-c') }; let tbMode = '';

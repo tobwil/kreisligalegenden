@@ -15,7 +15,7 @@ const LESSONS = [
   { t: 'STEILPASS', need: 2, txt: k => `${k.through} spielt den Ball in den Lauf deines Stürmers – hinter die Abwehr. Achte aufs Abseits!`,
     setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'MF', gx - s * 36, MY); giveBall(p, true); tutUse(0, 'ST', gx - s * 23, MY); tutHold(tutUse(1, 'AB', gx - s * 20, MY - 9)); tutHold(tutUse(1, 'AB', gx - s * 20, MY + 9)); G.ctrl = p; },
     on(T, e) { if (e.k === 'recv' && e.p.team === 0 && e.kind === 'through') { T.n++; T.reset = 1.2; } } },
-  { t: 'SCHIESSEN', need: 3, txt: k => `${k.shot}: kurz = flach, lang = hoch, zu lang = drüber. Mit ${k.aim} zielst du in die Ecke. Schieß 3 Tore.`,
+  { t: 'SCHIESSEN', need: 3, txt: k => `${k.shot}: kurz = flach, lang = hoch, zu lang = drüber. Mit ${k.aim} zielst du in die Ecke, das Zielkreuz im Tor zeigt wohin. ${LASTIN === 'touch' ? 'SCHUSS halten und auf PASS ziehen = Schlenzer, auf HOCH = Heber' : `Beim Aufladen ${k.pass} = Schlenzer, ${k.cross} = Heber`}. Schieß 3 Tore.`,
     setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'ST', gx - s * 19, MY + rnd(-6, 6)); giveBall(p, true); G.ctrl = p; G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 55); },
     on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
   { t: 'FLANKE & KOPFBALL', need: 2, txt: k => `Vom Flügel mit ${k.cross} flanken. Kommt der Ball zu deinem Stürmer, drück schnell ${k.shot.split(' ')[0]} für Kopfball oder Volley.`,

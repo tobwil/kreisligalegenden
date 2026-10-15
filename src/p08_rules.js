@@ -6,6 +6,7 @@ const minuteOf = () => {
 const halfLen = () => G.half <= 2 ? G.hlen : G.hlen / 3;
 const isHumanTeam = t => G.human === t && !G.watch;
 function gameTick(dt) {
+  if (G.hitStop > 0) { G.hitStop -= dt; return; }   // Treffer-Stopp: ein paar Frames Standbild beim Hammer und beim Ballgewinn
   dt *= SETTINGS.speed * (G.ff || 1) * (G.slowF || 1);   // Zeitlupe kurz vor einem Tor (p18)
   const steps = dt > 1 / 45 ? 2 : 1;
   for (let i = 0; i < steps; i++) step(dt / steps);
@@ -88,8 +89,14 @@ function humanControl(dt) {
       return;
     }
     // Schuss nur aufladen, wenn die Taste mit dem Ball am Fuß gedrückt wurde (nicht noch vom Tackling gehalten)
-    if (IN.pb) c.chargeArm = true;
-    if (IN.b && c.chargeArm) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85); }
+    // Antippen = halbhoher, platzierter Schuss; halten bis gelb = Hammer; rot = drüber (wie bei EA FC, nur flotter)
+    if (IN.pb) { c.chargeArm = true; c.charge = Math.max(c.charge || 0, 0.22); }
+    if (IN.b && c.chargeArm) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.8); }
+    // während des Aufladens: Pass oder Trick = Schlenzer, Flanke/Hoch = Heber
+    if (IN.b && c.chargeArm && c.charge > 0 && (IN.pa || IN.pf || IN.pc)) {
+      const pw = clamp(c.charge, 0.2, 1), aim = Math.abs(IN.y) > 0.25 ? IN.y : 0; c.chargeArm = false; c.charge = 0;
+      shoot(c, pw, aim, IN.pc ? { chip: true } : { finesse: true }); return;
+    }
     if (IN.rb && c.chargeArm && c.charge > 0) { c.chargeArm = false; const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); return; }
     if (IN.pa) { pass(c, choosePass(c, IN.x, IN.y)); return; }
     if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
@@ -113,6 +120,11 @@ function humanControl(dt) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
       if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (LAY().swapDef && LASTIN === 'key' ? IN.pb : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
       if (IN.pa || IN.pf) switchPlayer();
+      const o = b.owner;
+      if (o && o.team !== me && !isGK(o) && c.cd <= 0 && c.stun <= 0 && !c.act && G.t - (o.gotT || 0) > 0.25) {
+        const front = (c.x - o.x) * o.hx + (c.y - o.y) * o.hy > 0;
+        if (dist(c.x, c.y, b.x, b.y) < 0.8 && Math.random() < dt * (front ? 1.7 : 0.6) * clamp(0.75 + (A_(c, 'zwk') - A_(o, 'tec')) / 90, 0.35, 1.25)) { poke(c, o); return; }
+      }
       const swap = LAY().swapDef && LASTIN === 'key', tk = swap ? IN.pc : IN.pb, sl = swap ? IN.pb : IN.pc;   // Legenden-Tastatur: D Tackling, Leertaste Grätsche
       if (tk) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
       if (sl) slide(c, IN.x, IN.y);
@@ -167,7 +179,7 @@ function movePlayer(p, dt) {
     const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
     if (d > 0.25) {
       sprint = p.urg > 0.92 && d > 3;
-      const v = maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1);
+      const v = maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1) * (passIncoming(p) && p.team === G.human ? 1.15 : 1);
       dvx = dx / d * v; dvy = dy / d * v;
     }
   }
@@ -336,6 +348,20 @@ function passAssist(dt) {
   const k = Math.min(1, dt * (q.team === G.human ? 7 : 4));
   b.vx += (dx / d * v - b.vx) * k; b.vy += (dy / d * v - b.vy) * k;
 }
+// Arcade-Fairness: ein flacher Pass des Menschen wird nicht automatisch abgefangen, wenn ein Gegner zufällig in der Linie steht.
+// Jeder Gegner bekommt pro Pass einen Versuch (Schwierigkeit, Zweikampf, Ballgeschwindigkeit); daneben gegriffen = der Ball rollt durch.
+function missesPass(p) {
+  const b = G.ball, ps = b.passer;
+  if (!ps || ps.team === p.team || ps.team !== G.human || G.watch || isGK(p) || !['pass', 'through'].includes(b.kind) || b.z > 0.6) return false;
+  if (p.icptFid === b.fid) return p.icptMiss;
+  const v = Math.hypot(b.vx, b.vy), near = dist(p.x, p.y, ps.x, ps.y) < 3.5;
+  let pr = (G.diff.icpt ?? 0.55) + (A_(p, 'zwk') - 60) / 250 - Math.max(0, v - 12) * 0.03;
+  if (near) pr *= 0.55;   // direkt angeschossen: kaum Zeit zu reagieren
+  if (v < 6) pr = 1;      // langsam ausrollender Ball wird immer erlaufen
+  p.icptFid = b.fid; p.icptMiss = Math.random() > clamp(pr, 0.1, 1);
+  if (p.icptMiss && !p.act) p.act = { type: 'stumble', t: 0, dur: 0.22 };
+  return p.icptMiss;
+}
 function tryCollect() {
   const b = G.ball; if (b.owner) return;
   let best = null, bd = 1e9;
@@ -348,6 +374,7 @@ function tryCollect() {
     const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? 1.1 : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
+    if (d < r && !mine && missesPass(p)) continue;
     if (d < r && (mine ? d * 0.6 : d) < bd) { bd = mine ? d * 0.6 : d; best = p; }
   }
   if (!best) return;
@@ -388,7 +415,7 @@ function tryCollect() {
   if (lastB) p.assistFrom = lastB.team === p.team && lastB !== p ? lastB : null;
   if (q) {
     p.queue = null;
-    if (q.k === 'shot') return shoot(p, clamp(IN.b ? IN.bHeld / 0.85 : 0.65, 0.3, 1), Math.abs(IN.y) > 0.25 ? IN.y : 0, { volley: b.z > 0.3 });
+    if (q.k === 'shot') return shoot(p, clamp(IN.b ? 0.22 + IN.bHeld / 0.7 : 0.65, 0.3, 1), Math.abs(IN.y) > 0.25 ? IN.y : 0, { volley: b.z > 0.3 });
     if (q.k === 'pass') return pass(p, choosePass(p, q.x, q.y));
     if (q.k === 'through') return through(p, choosePass(p, q.x, q.y, 'through'));
     if (q.k === 'cross') return cross(p, 0);

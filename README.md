@@ -36,7 +36,7 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 
 #### Spiel
 - **11 gegen 11** auf einem 100 × 64 m großen Platz mit TV-Kamera, die mitschwenkt und sich neigt, dazu ein Radar
-- **Aktionen:** Pass mit Vorschau (blaues Dreieck über dem Empfänger), Steilpass in den Lauf, Flanke vom Flügel, hoher Ball, Schuss mit Aufladen (flach, hoch, drüber) und Zielen in die Ecke, Direktabnahme, Volley und Kopfball, Haken
+- **Aktionen:** Pass mit Vorschau (blaues Dreieck über dem Empfänger), Steilpass in den Lauf, Flanke vom Flügel, hoher Ball, Schuss mit Aufladen (flach, hoch, drüber), Zielkreuz im Tor und gestrichelter Schusslinie, **Schlenzer** an den Innenpfosten und **Heber** über den Torwart, Direktabnahme, Volley und Kopfball, Haken, Doppelpass (wer abspielt, startet von selbst in den Raum)
 - **Abwehr:** Tackling (von hinten gibt es Fouls), Grätsche (Ball zuerst treffen!), Spielerwechsel (automatisch oder per Taste), Druck mit einem zweiten Mann
 - **Regeln:** Abseits (abschaltbar), Einwurf, Ecke, Abstoß, Freistoß mit Mauer, Elfmeter (der Torwart rät die Ecke), Gelb, Gelb-Rot und Rot (Notbremse), Nachspielzeit, Verlängerung und Elfmeterschießen in K.-o.-Spielen
 - **Torwart-KI** mit Paraden, Glanzparaden um den Pfosten und über die Latte, Rauslaufen, Flanken abfangen, Abwurf und Abschlag
@@ -59,7 +59,7 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 
 #### Motivation
 - **Drei Aufgaben pro Spiel** (zum Beispiel Kopfballtor, zu null spielen, Doppelpass), in der Saison mit Prämie
-- **24 Erfolge** und **Legenden-Punkte** mit Stufen, eigenes Menü
+- **26 Erfolge** und **Legenden-Punkte** mit Stufen, eigenes Menü
 - **Zeitlupe** kurz vor Toren, **Jubel selbst wählen** (Knie-Rutscher, Flieger, Becker-Faust), Banner für Doppelpass, Ausgespielt, Traumtor, Hattrick
 - **Ergebnis teilen:** Pixel-Zeitungsausschnitt aus dem Kreisblatt (1080 × 1080) fürs Handy oder als Download
 
@@ -71,7 +71,8 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 |---|---|---|---|
 | Laufen | Pfeile | W A S D (oder Pfeile) | Pfeile |
 | Pass · Abwehr: Spieler wechseln | S | K | S |
-| Schuss (halten = fester) | Leertaste | L | D / Leertaste |
+| Schuss (antippen = platziert, halten = fester) | Leertaste | L | D / Leertaste |
+| beim Aufladen: Schlenzer · Heber | S · D | K · J | S · A |
 | Flanke / hoher Ball | D | J | A |
 | Abwehr: Tackling · Grätsche | D · Leertaste | L · J | D · A |
 | Steilpass · Abwehr: Druck | A | I | W |
@@ -82,7 +83,9 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 **Freistoß und Elfmeter:** Die Kamera wechselt hinter den Ball, man sieht Tor, Torwart und Mauer. Richtung verschiebt das Fadenkreuz (links/rechts, hoch/runter), Schuss halten = Kraft: wenig Kraft gibt einen Bogen über die Mauer, viel Kraft einen harten, flachen Schuss. Die Mauer springt.
 
 Gamepad wie EA FC: Stick laufen · A Pass/Wechsel · B Schuss/Tackling · X Flanke/Grätsche · Y Steilpass/Druck · LB Haken · RT Sprint · Select Taktik · Start Pause.
-Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm.
+Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten (auf PASS ziehen = Schlenzer, auf HOCH ziehen = Heber) · HOCH = Flanke. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm.
+
+**Arcade-Hilfen** (wie bei ISS und EA FC, je nach Schwierigkeit stärker oder schwächer): Der Pass sucht in Stickrichtung den Mitspieler, der den Ball sicher bekommt. Steht ein Gegner zufällig in der Passlinie, greift er nicht immer zu. Läuft dein Verteidiger dem Ballführer in den Ball, spitzelt er ihn weg. Dein Tackling sitzt etwas öfter. Ein kurzer Treffer-Stopp beim Hammer und beim Ballgewinn.
 
 ### Entwicklung
 
@@ -102,4 +105,4 @@ Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und
 
 Club names are the real names of the 2026/27 top district league clubs (source: public tables on fussball.de); all players, ratings, kits, pitches and ads are fictional. Not an official product of the DFB, the regional FAs or the clubs. A club wants to be removed? Please open an issue.
 
-Play: open `game/index.html`. Keyboard (default: arrows to run, S pass, Space shoot, D cross/tackle, A through ball, Shift sprint; alternative layouts WASD + IJKL and EA FC classic), gamepad (FC layout) or touch. Free kicks and penalties switch to a camera behind the ball with an aiming reticle. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.
+Play: open `game/index.html`. Keyboard (default: arrows to run, S pass, Space shoot, D cross/tackle, A through ball, Shift sprint; alternative layouts WASD + IJKL and EA FC classic), gamepad (FC layout) or touch. While charging a shot, a reticle in the goal shows where it goes; pass while charging = finesse shot, cross = chip. Free kicks and penalties switch to a camera behind the ball with an aiming reticle. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.

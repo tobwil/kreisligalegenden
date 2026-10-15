@@ -12,6 +12,7 @@ const ACHS = [
   ['sieg1', 'ERSTER SIEG', 'Gewinne ein Spiel'], ['tor1', 'ERSTES TOR', 'Schieß selbst ein Tor'], ['hattrick', 'HATTRICK-HELD', 'Ein Spieler trifft dreimal in einem Spiel'],
   ['traum', 'TRAUMTOR', 'Tor aus mehr als 22 Metern'], ['freistoss', 'FREISTOSSKÖNIG', 'Direkter Freistoß ins Tor'], ['elfer', 'EISKALT', 'Verwandle einen Elfmeter'],
   ['kopf', 'KOPFBALLUNGEHEUER', 'Erziele ein Kopfballtor'], ['direkt', 'DIREKTABNAHME', 'Tor direkt nach einem Zuspiel'], ['doppelpass', 'DOPPELPASS-TOR', 'Tor kurz nach einem Doppelpass'],
+  ['schlenzer', 'SCHLENZ-KÜNSTLER', 'Tor per Schlenzer (beim Aufladen Pass drücken)'], ['heber', 'LUPFER', 'Tor per Heber (beim Aufladen Flanke drücken)'],
   ['null', 'DIE NULL STEHT', 'Gewinne ohne Gegentor'], ['kanter', 'KANTERSIEG', 'Gewinne mit 5 Toren Unterschied'], ['comeback', 'COMEBACK', 'Gewinne nach Rückstand'],
   ['haken3', 'KNOTENLÖSER', 'Lass in einem Spiel 3 Gegner stehen'], ['alle3', 'ALLES ERLEDIGT', 'Erfülle alle drei Aufgaben eines Spiels'], ['aufg25', 'FLEISSBIENCHEN', 'Erfülle 25 Aufgaben'],
   ['siege10', 'SERIENTÄTER', 'Gewinne 10 Spiele'], ['tore50', 'TORFABRIK', 'Schieß 50 Tore'], ['shootout', 'NERVENSTARK', 'Gewinne ein Elfmeterschießen'],
@@ -111,6 +112,8 @@ function flairGoal(team, scorer, sh, og) {
   if (sh.pen) add('goal-elfer');
   if (fk) add('goal-freistoss', 'FREISTOSSTOR!');
   if (sh.header) add('goal-kopf', 'KOPFBALLTOR!');
+  if (sh.chip) add('goal-heber', 'HEBER!');
+  if (sh.finesse) add('goal-schlenzer', sh.d > 16 ? 'SCHLENZER!' : null);
   if (sh.d > 22 && !fk) add('goal-traum', 'TRAUMTOR!');
   if (sh.d > BOX_D + 1) add('goal-weit');
   if (direct) add('goal-direkt', sh.header ? null : 'DIREKT!');
@@ -120,6 +123,7 @@ function flairGoal(team, scorer, sh, og) {
     unlock('tor1');
     if (scorer.d.ms.g === 3) unlock('hattrick'); if (sh.d > 22) unlock('traum'); if (fk) unlock('freistoss'); if (sh.pen && !G.so) unlock('elfer');
     if (sh.header) unlock('kopf'); if (direct) unlock('direkt'); if (G.lastDP && G.lastDP.team === team && G.t - G.lastDP.t < 6) unlock('doppelpass');
+    if (sh.finesse) unlock('schlenzer'); if (sh.chip) unlock('heber');
   }
   chalCheck(false);
   return label;

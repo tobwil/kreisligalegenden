@@ -46,6 +46,8 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
       const dot = ((q.x - p.x) * dx + (q.y - p.y) * dy) / d / Math.hypot(dx, dy); if (dot < cone) continue;
       const lane = kind === 'lob' ? 4 : laneOpen(p, q.x, q.y);
       sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0) + Math.min(lane, 4) * 0.45 - (lane < 1.1 ? 1.5 : 0);
+      // wie EA FC: in Stickrichtung den Mitspieler wählen, der den Ball auch sicher bekommt
+      if (kind !== 'lob') sc -= interceptRisk(p, q, kind === 'through' ? 12 : 15) * 3.2;
       if (isGK(q)) sc -= 2;
     } else sc = passScore(p, q, kind);
     if (sc > bs) { bs = sc; best = q; }
@@ -79,7 +81,8 @@ function passScore(p, q, kind) {
 function pass(p, q) {
   if (!q) return;
   const b = G.ball; let tx = q.x, ty = q.y;
-  let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
+  const hum = p.team === G.human && !G.watch;
+  let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5) * (hum ? 1.12 : 1), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
   const t = (v0 - va) / FRIC();
   tx = clamp(q.x + q.vx * t * 0.75, 0.5, CW - 0.5); ty = clamp(q.y + q.vy * t * 0.75, 0.5, CH - 0.5);
   d = dist(b.x, b.y, tx, ty); v0 = clamp(groundSpeed(d, va), 9, 30);
@@ -90,7 +93,16 @@ function pass(p, q) {
   else { b.vx = Math.cos(a) * v0 * (1 + gauss() * err * 0.4); b.vy = Math.sin(a) * v0 * (1 + gauss() * err * 0.4); b.vz = 0; }
   b.passTo = q; noteRecv(q, tx, ty);
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && !G.watch) G.ctrl = q;
+  if (G.human === p.team && !G.watch) { giveAndGo(p, q); G.ctrl = q; }
+}
+// Doppelpass: wer den Ball abgibt, startet in den freien Raum nach vorne und bietet sich für den Rückpass an
+function giveAndGo(p, q) {
+  if (isGK(p) || G.ctrl !== p || G.phase !== 'play' || G.sp) return;
+  const t = p.team, s = atkDir(t), gain = (q.x - p.x) * s;
+  if (prog(t, p.x) < 0.3 || gain < -6) return;
+  const line = offLine(t), tp = Math.min(prog(t, p.x) + 0.15, Math.max(line - 0.01, prog(t, p.x) + 0.04), 0.93);
+  const side = Math.abs(q.y - p.y) > 4 ? Math.sign(p.y - q.y) * 2.5 : (p.y > MY ? -3 : 3);
+  p.run = { until: G.t + 2.4, x: clamp(fromProg(t, tp), 2, CW - 2), y: clamp(lerp(p.y, MY, 0.25) + side, 3, CH - 3), gg: true };
 }
 // Steilpass in den Lauf: flach in den Raum vor dem Mitspieler
 function through(p, q) {
@@ -106,7 +118,7 @@ function through(p, q) {
   b.vx = Math.cos(a) * v0; b.vy = Math.sin(a) * v0; b.vz = 0;
   b.passTo = q; noteRecv(q, tx, ty, true);
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && !G.watch) G.ctrl = q;
+  if (G.human === p.team && !G.watch) { giveAndGo(p, q); G.ctrl = q; }
 }
 // hoher Ball: über die Abwehr zum Mitspieler (landet vor ihm)
 function lob(p, q) {
@@ -168,32 +180,46 @@ function gkPunt(p, q) {
 function shoot(p, power, aimY, o = {}) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), gk = G.gk[1 - p.team];
   const d = dist(b.x, b.y, gx, MY);
-  let ty;
-  if (o.target) ty = o.target.y;   // Zielansicht: Ziel und Streuung kommen fertig
-  else if (aimY == null || Math.abs(aimY) < 0.25) {
+  let ty, tz;
+  if (o.target) { ty = o.target.y; tz = o.target.z; }   // Zielansicht: Ziel und Streuung kommen fertig
+  else if (aimY == null) {
     const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1);
-    ty = aimY == null ? MY + away * rnd(2.3, 3.4) : MY + away * 1.5;
-  } else ty = MY + clamp(aimY, -1, 1) * (GW / 2 - 0.45);
-  let tz = o.target ? o.target.z : o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + (aimY == null ? rnd(-0.1, 0.4) : 0);
-  if (power > 0.93 && !o.pen && !o.target) tz += (power - 0.93) * 12;   // überzogen: drüber
+    ty = MY + away * rnd(2.3, 3.4); tz = o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + rnd(-0.1, 0.4);
+  } else { const a = shotAim(p, power, aimY); ty = a.y; tz = o.header ? rnd(0.2, 1.4) : a.z; }
+  if (o.finesse) { const side = Math.sign(ty - MY) || 1; ty = MY + side * (GW / 2 - 0.5); tz = 0.35 + Math.min(power, 0.8) * 1.1; }   // Schlenzer: flach-halbhoch an den Innenpfosten
+  if (o.chip) { const side = Math.abs(ty - MY) > 1 ? Math.sign(ty - MY) : 0; ty = MY + side * 1.6; tz = 1.75; }                       // Heber: unter die Latte
+  if (power > 0.93 && !o.pen && !o.target && !o.finesse && !o.chip) tz += (power - 0.93) * 12;   // überzogen: drüber
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
   let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.5 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
-  if (p.team === G.human && TOUCHDEV) err *= 0.85;
+  if (p.team === G.human && !G.watch) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
   if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
+  if (o.finesse) err *= 0.62; if (o.chip) err *= 0.75;
   if (!o.target) { ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5); }
-  const v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
-  const tx = gx + s * 0.4, dd = dist(b.x, b.y, tx, ty), T = dd / v;
+  let v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
+  if (o.finesse) v = 17 + Math.min(power, 0.8) * 7 + sch * 0.04;
+  const tx = gx + s * 0.4, dd = dist(b.x, b.y, tx, ty);
+  let T = dd / v;
+  if (o.chip) T = clamp(0.55 + dd * 0.045 - power * 0.15, 0.7, 1.6);   // hoher Bogen über den herauslaufenden Torwart
   kickBall(p, 'shot', 0.6 + power * 0.4);
   if (o.header) b.z = 1.8; else if (o.volley) b.z = Math.max(b.z, 0.5);
   launchAir(tx, ty, tz, T);
-  b.shot = { by: p, team: p.team, t0: G.t, d, pen: !!o.pen, header: !!o.header };
+  b.shot = { by: p, team: p.team, t0: G.t, d, pen: !!o.pen, header: !!o.header, finesse: !!o.finesse, chip: !!o.chip };
   p.shotCD = G.t + 2.5;
-  b.spin = o.target ? 0 : (aimY || 0) * 0.6;
+  b.spin = o.target || o.chip ? 0 : (aimY || 0) * 0.6;
   G.stats.shots[p.team]++; p.d.ms.sh++;
   if (!G.so) G.excite = Math.max(G.excite, 0.8);
   AU.crowd(0.5); if (o.header) AU.header();
+  if (isHumanCtrl(p) && !G.so && (power > 0.7 || o.volley || o.header)) { G.hitStop = 0.055; G.shake = Math.max(G.shake, 0.12); }
   p.act = { type: o.header ? 'head' : 'kick', t: 0, dur: 0.38 };
+}
+// Ziel eines Schusses mit Richtung (auch fürs Zielkreuz im Tor): Stick hoch/runter = Ecke, ohne Richtung weg vom Torwart in die Ecke
+function shotAim(p, power, aimY) {
+  const gk = G.gk[1 - p.team], b = G.ball;
+  let y;
+  if (Math.abs(aimY) < 0.25) { const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1); y = MY + away * 2.3; }
+  else y = MY + clamp(aimY * 1.4, -1, 1) * (GW / 2 - 0.55);
+  return { y, z: 0.15 + Math.min(power, 1) * 1.75 };
 }
 // Kopfball: aufs Tor, Abwehr oder zum Mitspieler
 function header(p, wantShot) {
@@ -232,10 +258,11 @@ function tackle(d, c) {
   const behind = (c.hx * (d.x - c.x) + c.hy * (d.y - c.y)) / Math.max(0.1, dist(d.x, d.y, c.x, c.y)) < -0.3;
   let pr = 0.38 + (A_(d, 'zwk') - A_(c, 'tec')) / 110 - (behind ? 0.15 : 0) + (c.d.energy < 0.4 ? 0.06 : 0);
   if (G.human >= 0 && d.team !== G.human) pr += (G.diff.tackle - 1) * 0.12;
+  if (isHumanCtrl(d)) pr += G.diff.htk ?? 0.12;   // Arcade: dein Tackling sitzt öfter
   if (d.d.trait === 'Blutgrätsche' || d.d.trait === 'Dampfwalze') pr += 0.05;
   AU.tackle();
   if (Math.random() < pr) {
-    d.d.ms.tk++;
+    d.d.ms.tk++; if (isHumanCtrl(d)) { G.hitStop = 0.04; G.shake = Math.max(G.shake, 0.08); }
     if (Math.random() < 0.6) giveBall(d);
     else { const b = G.ball; b.owner = null; b.state = 'free'; b.last = d; b.lastTeam = d.team; b.fid++; b.kind = 'loose'; b.passer = null; b.vx = (c.x - d.x) * 2 + rnd(-3, 3); b.vy = (c.y - d.y) * 2 + rnd(-3, 3); b.vz = rnd(0, 1.5); b.nc = c; b.ncT = 0.3; G.offs = null; }
     c.stun = 0.35; c.act = { type: 'stumble', t: 0, dur: 0.35 };
@@ -244,6 +271,15 @@ function tackle(d, c) {
     if (Math.random() < fr) foul(d, c, behind ? 1 : 0);
     else { d.stun = 0.45; d.act = { type: 'stumble', t: 0, dur: 0.45 }; }
   }
+}
+// Ball spitzeln: wer als Verteidiger dem Ballführer in den Ball läuft, stochert ihn weg (wie bei ISS, ohne Taste)
+function poke(d, c) {
+  const b = G.ball; d.cd = 0.6; d.d.ms.tk++;
+  b.owner = null; b.state = 'free'; b.last = d; b.lastTeam = d.team; b.fid++; b.kind = 'loose'; b.passer = null; b.shot = null; b.plan = null; G.offs = null;
+  const ax = d.x - c.x, ay = d.y - c.y, m = Math.hypot(ax, ay) || 1;
+  b.vx = ax / m * rnd(2, 4) + c.vx * 0.3; b.vy = ay / m * rnd(2, 4) + c.vy * 0.3; b.vz = 0; b.nc = c; b.ncT = 0.35;
+  c.stun = Math.max(c.stun, 0.2); AU.tackle();
+  if (isHumanCtrl(d)) { G.hitStop = 0.035; G.shake = Math.max(G.shake, 0.06); }
 }
 // Grätsche: rutscht 3–4 m in Blickrichtung. Ball zuerst = sauber, Gegner zuerst = Foul
 function slide(d, dx, dy) {

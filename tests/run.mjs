@@ -214,6 +214,69 @@ test('Keine ungewollte Aktion bei der Annahme: gehaltene Tackling-Taste schießt
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Abschluss: Zielkreuz beim Aufladen, Antippen schießt platziert, Schlenzer und Heber beim Aufladen, Treffer-Stopp', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const c = teamP(0).find(q => grpOf(q) === 'ST'), s = atkDir(0), gx = goalX(0), out = {};
+    const frame = () => { readInput(1 / 60); humanControl(1 / 60); };
+    const setup = () => { G.ball.shot = null; place(c, gx - s * 17, MY + 4); c.cd = 0; c.charge = 0; c.chargeArm = false; G.ctrl = c; giveBall(c, true); for (const k in KEY) KEY[k] = false; frame(); };
+    // antippen: platzierter, flacher Schuss
+    setup(); KEY.Space = true; KEYP.Space = true; frame(); KEY.Space = false; frame();
+    out.tap = G.ball.shot && G.ball.shot.by === c && G.ball.z < 1.2 && G.ball.vz < 6;
+    // halten: Ladebalken und Zielkreuz werden gezeichnet
+    setup(); KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 20; i++) frame(); out.charge = c.charge > 0.4 && c.charge < 0.93; render(); out.drawn = true;
+    // beim Aufladen S = Schlenzer
+    KEYP.KeyS = true; KEY.KeyS = true; frame(); KEY.KeyS = false; KEY.Space = false; frame();
+    out.fin = !!(G.ball.shot && G.ball.shot.finesse);
+    // beim Aufladen D = Heber
+    setup(); KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 12; i++) frame(); KEYP.KeyD = true; KEY.KeyD = true; frame(); KEY.KeyD = false; KEY.Space = false; frame();
+    out.chip = !!(G.ball.shot && G.ball.shot.chip) && G.ball.vz > 4;
+    // Hammer: kurzer Treffer-Stopp
+    setup(); G.hitStop = 0; KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 40; i++) frame(); KEY.Space = false; frame();
+    out.stop = G.hitStop > 0; const x0 = G.ball.x; gameTick(1 / 60); out.frozen = G.ball.x === x0;
+    return out;
+  });
+  ok(r.tap, 'Antippen schießt nicht platziert');
+  ok(r.charge && r.drawn, 'Aufladen/Zielkreuz');
+  ok(r.fin, 'Schlenzer beim Aufladen mit der Pass-Taste');
+  ok(r.chip, 'Heber beim Aufladen mit der Flanken-Taste');
+  ok(r.stop && r.frozen, 'kein Treffer-Stopp beim Hammer');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const s = atkDir(0), out = {}, mf = teamP(0).filter(q => grpOf(q) === 'MF'), [p, q1, q2] = mf, opp = teamP(1).filter(q => !isGK(q));
+    for (const o of opps(p)) if (!isGK(o)) place(o, CW / 2 + s * 38, 2);
+    for (const m of mates(p)) if (!isGK(m)) place(m, CW / 2 - s * 25, CH - 2);
+    place(p, CW / 2, MY); place(q1, CW / 2 + s * 12, MY - 3); place(q2, CW / 2 + s * 12, MY + 3); G.ctrl = p; giveBall(p, true);
+    // q1 eng gedeckt, q2 frei: Pass nach vorne geht an q2
+    place(opp[0], CW / 2 + s * 10.5, MY - 2.6);
+    out.free = choosePass(p, s, 0) === q2;
+    // Gegner steht in der Passlinie: mit Pech greift er daneben (Zufall festgesetzt)
+    place(opp[0], CW / 2 + s * 6, MY + 1.5);
+    const rnd0 = Math.random; Math.random = () => 0.99;
+    pass(p, q2); out.gg = !!(p.run && p.run.gg);
+    let got = null; for (let i = 0; i < 90 && !got; i++) { step(1 / 60); got = G.ball.owner; }
+    Math.random = rnd0; out.through = got === q2;
+    // Spitzeln: dein Verteidiger läuft dem Ballführer vor die Füße
+    const a = opp[1], d = teamP(0).find(q => grpOf(q) === 'AB'); place(a, CW / 2, MY); a.hx = s; a.hy = 0; giveBall(a, true); a.gotT = G.t - 1;
+    place(d, G.ball.x + s * 0.3, G.ball.y); d.cd = 0; G.ctrl = d; let won = false;
+    for (let i = 0; i < 240 && !won; i++) { G.manT = G.t; IN.x = IN.y = 0; humanControl(1 / 60); won = G.ball.owner !== a; if (!won) { place(d, G.ball.x + s * 0.3, G.ball.y); d.act = null; G.t += 1 / 60; } }
+    out.poke = won;
+    return out;
+  });
+  ok(r.free, 'Pass in Stickrichtung geht an den gedeckten statt an den freien Mitspieler');
+  ok(r.gg, 'nach dem Pass startet der Passgeber keinen Doppelpass-Lauf');
+  ok(r.through, 'Gegner in der Passlinie fängt trotz Fehlgriff ab');
+  ok(r.poke, 'Verteidiger spitzelt den Ball nicht weg');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Zielansicht: Freistoß und Elfmeter mit Kamera hinter dem Ball, Fadenkreuz, Kraft, Mauer springt, Ansicht folgt dem Ball', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

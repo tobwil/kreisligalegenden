@@ -3,9 +3,9 @@ let G = null;
 // Schwierigkeit: cpu = Bonus auf die Werte der CPU, react = Reaktionszeit, tackle = Zweikampfeifer der CPU,
 // foul = Foulquote der CPU gegen den Menschen, think = Bedenkzeit am Ball, gk = Bonus für den CPU-Torwart
 const DIFF = [
-  { n: 'Freizeitkick', cpu: -9, react: 1.4, tackle: 0.55, foul: 0.45, think: 1.45, gk: -6 },
-  { n: 'Kreisliga', cpu: 0, react: 1, tackle: 1, foul: 0.8, think: 1, gk: 0 },
-  { n: 'Legende', cpu: 7, react: 0.72, tackle: 1.4, foul: 1, think: 0.7, gk: 5 },
+  { n: 'Freizeitkick', cpu: -9, react: 1.4, tackle: 0.55, foul: 0.45, think: 1.45, gk: -6, icpt: 0.35, htk: 0.22 },
+  { n: 'Kreisliga', cpu: 0, react: 1, tackle: 1, foul: 0.8, think: 1, gk: 0, icpt: 0.55, htk: 0.12 },
+  { n: 'Legende', cpu: 7, react: 0.72, tackle: 1.4, foul: 1, think: 0.7, gk: 5, icpt: 0.8, htk: 0.03 },
 ];
 // Spielrichtung: in der 1. Halbzeit spielt Team 0 nach rechts (auf das Tor bei x = CW), nach der Pause getauscht
 const atkDir = t => ((t === 0) !== G.swap) ? 1 : -1;

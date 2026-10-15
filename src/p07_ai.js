@@ -118,6 +118,7 @@ function aiTeam(t, dt) {
     const wide = Math.abs(carrier.y - MY) > 13 && Math.abs(carrier.x - gx) < 30;
     for (const p of field) {
       if (p === carrier || roles.has(p)) continue;
+      if (p.run && p.run.gg && p.run.until > G.t && !isGK(carrier)) { roles.set(p, { k: 'run', x: p.run.x, y: p.run.y, urg: 1 }); continue; }   // Doppelpass-Lauf
       const g = grpOf(p);
       if (wide && (g === 'ST' || slotOf(p) === 'OM' || (slotOf(p) === 'ZM' && Math.random() < 0.002))) {
         // Flanke kommt: kurzer Pfosten, langer Pfosten, Elfmeterpunkt
@@ -127,7 +128,7 @@ function aiTeam(t, dt) {
       if ((g === 'ST' || slotOf(p) === 'LM' || slotOf(p) === 'RM' || slotOf(p) === 'OM') && cp > 0.25 && !isGK(carrier)) {
         if (p.run && p.run.until > G.t) { roles.set(p, { k: 'run', x: p.run.x, y: p.run.y, urg: 1 }); continue; }
         const pp = prog(t, p.x);
-        if (pp < line && line - pp < 0.1 && Math.random() < dt * (g === 'ST' ? 0.55 : 0.18) * (G.ment[t] === 2 ? 1.4 : 1)) {
+        if (pp < line && line - pp < 0.1 && Math.random() < dt * (g === 'ST' ? 0.55 : 0.18) * (G.ment[t] === 2 ? 1.4 : 1) * (isHumanCtrl(carrier) ? 1.7 : 1)) {
           const tx = fromProg(t, Math.min(line + 0.12, 0.96)), ty = lerp(p.y, MY, 0.35);
           p.run = { until: G.t + 2.4, x: clamp(tx, 2, CW - 2), y: clamp(ty, 3, CH - 3) };
           roles.set(p, { k: 'run', x: p.run.x, y: p.run.y, urg: 1 }); continue;
@@ -292,6 +293,7 @@ function planSave(g) {
     let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
     if (sh && sh.header) pr += 0.05;
     if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
+    if (sh && sh.finesse && lat > 1.6) pr -= 0.18;           // Schlenzer an den Innenpfosten
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
     ok = Math.random() < clamp(pr, 0.03, 0.97);
     catchIt = ok && v < 17 && lat < 1 && hz < 2;

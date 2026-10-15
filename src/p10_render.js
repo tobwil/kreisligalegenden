@@ -78,7 +78,10 @@ function drawHUD(lite) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
     if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = '#ffc83a'; ctx.fillRect(ex, ey, 6, 6); }
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
-    if (c.charge > 0 && G.ball.owner === c) drawPower(c, c.charge);
+    if (c.charge > 0 && G.ball.owner === c) {
+      drawPower(c, c.charge); drawAimCross(c);
+      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'AUF PASS ZIEHEN: SCHLENZER · AUF HOCH: HEBER' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
+    }
   }
   // Name des Ballführers
   const o = G.ball.owner;
@@ -97,6 +100,22 @@ function drawPower(p, v) {
   ctx.fillStyle = '#1a2040'; ctx.fillRect(x, y, w, 4);
   const f = clamp(v, 0, 1.05), fw = Math.round(w * Math.min(1, f));
   ctx.fillStyle = f > 0.93 ? '#ff4f3a' : f > 0.6 ? '#ffc83a' : '#3ddc84'; ctx.fillRect(x, y, fw, 4);
+}
+// Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
+function drawAimCross(c) {
+  const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), x = sx(gx, a.y), over = c.charge > 0.93;
+  const y = sy(a.y, over ? GH + 0.5 : a.z), col = over ? '#ff4f3a' : c.charge > 0.6 ? '#ffc83a' : '#3ddc84', r = 6 + (Math.floor(G.t * 8) % 2);
+  if (x < -10 || x > W + 10) return;
+  // gestrichelte Schusslinie vom Ball zum Ziel
+  const b = G.ball, bx = sx(b.x, b.y), by = sy(b.y, b.z), n = Math.max(4, Math.round(Math.hypot(x - bx, y - by) / 7)), ph = (G.t * 10) % 1;
+  for (let i = 1; i < n; i++) {
+    const k = (i + ph) / n, px = Math.round(lerp(bx, x, k)), py = Math.round(lerp(by, y, k) - Math.sin(k * Math.PI) * 6 * a.z);
+    ctx.globalAlpha = 0.25 + 0.6 * k; ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 3, 3); ctx.fillStyle = col; ctx.fillRect(px, py, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y - 2, r * 2 + 3, 5); ctx.fillRect(x - 2, y - r - 1, 5, r * 2 + 3);
+  ctx.fillStyle = col; ctx.fillRect(x - r, y - 1, r * 2 + 1, 3); ctx.fillRect(x - 1, y - r, 3, r * 2 + 1);
+  ctx.fillStyle = '#fff'; ctx.fillRect(x, y, 1, 1);
 }
 // Radar: 1 Pixel pro Meter
 function drawRadar() {
