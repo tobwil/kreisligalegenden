@@ -149,6 +149,12 @@ table.fin{max-width:560px}
 /* Erfolge */
 .tshelves{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .tshelves.mini{grid-template-columns:repeat(auto-fit,minmax(120px,170px));justify-content:center}
+.sw{width:26px;height:26px;min-height:0!important;padding:0;border:2px solid var(--line);box-shadow:2px 2px 0 #000;cursor:pointer}
+.sw.on{outline:3px solid var(--gold);outline-offset:1px}
+.eform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;margin:8px 0}
+.eform label{display:flex;flex-direction:column;gap:3px;font-family:var(--pix);font-size:8px;color:var(--dim)}
+.eform input{font-family:var(--term);font-size:20px;background:var(--panel2);color:var(--ink);border:2px solid var(--line);padding:4px 8px;min-width:0}
+.eform input:focus{outline:2px solid var(--gold)}
 .tshelf{background:var(--panel2);border:2px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-width:0}
 .tshelf.won{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,200,58,.15)}
 .tshelf .tro{image-rendering:pixelated}

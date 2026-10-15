@@ -83,10 +83,12 @@ const posOf = (tid, li = CAREER.lg) => standings(li).indexOf(tid) + 1;
 const klTeams = () => CAREER.kl.flatMap(li => LIGEN[li].ids);
 const lgName = (li = CAREER.lg) => `${LIGEN[li].n} ${KREISE[LIGEN[li].kreis].n}`;
 function newCareer(team, len, diff, hlen) {
+  if (!TEAMS[team].custom) removeCustomTeam();
   const lg = TEAMS[team].lg, K = KREISE[LIGEN[lg].kreis], r = seeded(hashStr(TEAMS[team].n + 'kl'));
   const kl = [lg].concat(K.ligen.filter(l => l !== lg).sort(() => r() - 0.5).slice(0, MAX_KL - 1));
   CAREER = { v: 2, team, tname: TEAMS[team].n, lg, kl, year: START_YEAR, len, diff, hlen, squads: {}, npid: 1, form: defaultForm(team), ment: 1, xi: null, pk: null,
     forms: {}, titles: [], news: [], money: 3000, hist: [], train: 'bal', market: [], records: {}, seasonsPlayed: 0 };
+  if (TEAMS[team].custom) { const t = TEAMS[team]; CAREER.custom = { n: t.n, short: t.short, k: t.k, c1: t.home.c1, c2: t.home.c2, pat: t.home.pat || 0, ground: t.ground, lg: t.lg }; }
   for (const tid of klTeams()) { ensureSquad(tid); CAREER.forms[tid] = defaultForm(tid); }
   newSeason(); refreshMarket(); rivalOf();
   news('Saisonstart', `${TEAMS[team].n}: Auf geht's!`, `Neuer Trainer an der Seitenlinie. Der Vorstand hofft auf eine gute Saison in der ${lgName()} – und auf volle Bratwurstbuden.`, 'start');

@@ -114,6 +114,7 @@ function drawHUD(lite) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
     if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = '#ffc83a'; ctx.fillRect(ex, ey, 6, 6); }
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
+    if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
       if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
@@ -130,12 +131,12 @@ function drawHUD(lite) {
   if (G.banner) drawBanner(G.banner);
   if (G.phase === 'intro') drawIntro();
 }
-function drawPower(p, v) {
+function drawPower(p, v, col) {
   const x = sx(p.x, p.y) - 12, y = sy(p.y, p.z) - 44, w = 24;
   ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, w + 2, 6);
   ctx.fillStyle = '#1a2040'; ctx.fillRect(x, y, w, 4);
   const f = clamp(v, 0, 1.05), fw = Math.round(w * Math.min(1, f));
-  ctx.fillStyle = f > 0.93 ? '#ff4f3a' : f > 0.6 ? '#ffc83a' : '#3ddc84'; ctx.fillRect(x, y, fw, 4);
+  ctx.fillStyle = col || (f > 0.93 ? '#ff4f3a' : f > 0.6 ? '#ffc83a' : '#3ddc84'); ctx.fillRect(x, y, fw, 4);
 }
 // Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
 function drawAimCross(c) {
@@ -180,7 +181,7 @@ function drawShootoutTally(x0, y0) {
     for (let i = 0; i < n; i++) { const v = S.k[t][i]; ctx.fillStyle = '#000'; ctx.fillRect(x0 + 30 + i * 9, y0 + t * 11, 7, 7); ctx.fillStyle = v === 1 ? '#3ddc84' : v === 0 ? '#ff4f3a' : '#3a2f4d'; ctx.fillRect(x0 + 31 + i * 9, y0 + 1 + t * 11, 5, 5); }
   }
 }
-const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'PASS ZIEHEN', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : LAY().keyN;
+const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'PASS NACH OBEN WISCHEN', k: 'PASS WISCHEN' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : LAY().keyN;
 function drawSetPieceHint() {
   const c = G.ctrl, K0 = KEYN();
   if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);

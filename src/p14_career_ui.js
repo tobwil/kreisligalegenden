@@ -3,8 +3,8 @@ const NEWC = { team: HOME_TEAM, len: 2, diff: 1, hlen: 3 };
 let CTAB = 'blatt';
 Object.assign(ACT, {
   career() {
-    const sv = store.get(CAREER_KEY);
-    if (validCareer(sv)) { CAREER = sv; return ACT.chub(); }
+    const sv = loadCareerSave();
+    if (sv) { CAREER = sv; return ACT.chub(); }
     pkFocus(NEWC.team); renderNewCareer();
   },
   ncTeam(a) { NEWC.team = +a; pkFocus(NEWC.team); renderNewCareer(`[data-act="ncTeam"][data-arg="${a}"]`); },
@@ -12,7 +12,7 @@ Object.assign(ACT, {
   ncDiff(a) { NEWC.diff = +a; renderNewCareer(`[data-act="ncDiff"][data-arg="${a}"]`); },
   ncH(a) { NEWC.hlen = +a; renderNewCareer(`[data-act="ncH"][data-arg="${a}"]`); },
   ncGo() { newCareer(NEWC.team, NEWC.len, NEWC.diff, NEWC.hlen); CTAB = 'blatt'; ACT.chub(); },
-  chub(tab) { if (tab) CTAB = tab; if (G && !G.demo && (G.phase === 'end' || G.counted)) { G = null; startDemo(); } if (!CAREER) { const sv = store.get(CAREER_KEY); if (!validCareer(sv)) return ACT.main(); CAREER = sv; } renderHub(); },
+  chub(tab) { if (tab) CTAB = tab; if (G && !G.demo && (G.phase === 'end' || G.counted)) { G = null; startDemo(); } if (!CAREER) { const sv = loadCareerSave(); if (!sv) return ACT.main(); CAREER = sv; } renderHub(); },
   ctab(a) { CTAB = a; renderHub(`[data-act="ctab"][data-arg="${a}"]`); },
   cplay() { playCareerMatch(false); },
   cwatch() { playCareerMatch(true); },
@@ -48,6 +48,7 @@ function renderNewCareer(focusSel) {
   show(`<div class="panel"><div class="row spread"><h2>NEUE SAISON</h2><button class="small" data-act="main">ZURÜCK</button></div>
     <p class="muted">Übernimm einen Verein aus einer Kreisliga in ganz Deutschland: erst den Landesverband auf der Karte, dann den Kreis, dann den Verein – oder einfach suchen. Kreispokal inklusive, und die Meister spielen mit Kreismeistern aus ganz Deutschland um die ${TROPHY}.</p>
     ${pickerHTML()}
+    <div class="row"><button class="small" data-act="ncEigen">${T.custom ? 'EIGENEN VEREIN BEARBEITEN' : '+ EIGENEN VEREIN ANLEGEN'}</button><span class="muted">Verein nicht dabei? Leg ihn selbst an.</span></div>
     <div class="tcard active"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>${bars([['Gesamt', s.ovr], ['Angriff', s.att], ['Abwehr', s.def]], 50, 82)}
       <div class="tag">${esc(homeTag(NEWC.team).toUpperCase())} · ${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
     <div class="row"><span class="tag">SAISON</span>${[[1, `NUR HINRUNDE (${md} SPIELTAGE)`], [2, `HIN- UND RÜCKRUNDE (${md * 2})`]].map(([v, n]) => `<button class="small ${NEWC.len === v ? 'on' : ''}" data-act="ncLen" data-arg="${v}">${n}</button>`).join('')}</div>
@@ -135,7 +136,7 @@ function squadHTML() {
   const fit = p => `<span class="fbar"><i style="width:${p.fit}%;background:${p.fit > 80 ? 'var(--green)' : p.fit > 60 ? 'var(--gold)' : 'var(--hot)'}"></i></span>`;
   return `<div class="tblwrap"><table class="dt"><tr><th>#</th><th class="l">SPIELER</th><th>POS</th><th class="hs">ALTER</th><th>STÄRKE</th><th class="hm">POT</th><th class="hm">FIT</th><th class="hm">FORM</th><th>SP</th><th>T</th><th class="hs">NOTE</th></tr>
   ${sq.map(p => `<tr><td>${p.num}</td><td class="l"><button class="link" data-act="cplayer" data-arg="${p.pid}">${esc(p.name)}</button>${p.inj > 0 ? ' <span class="badge inj">VERL</span>' : ''}${p.ban > 0 ? ' <span class="badge inj">GESP</span>' : ''}${p.trait ? ` <span class="badge">${esc(p.trait.toUpperCase())}</span>` : ''}</td><td>${p.grp}</td><td class="hs">${p.age}</td><td>${p.ovr}</td><td class="hm">${p.pot}</td><td class="hm">${fit(p)}</td><td class="hm">${p.form > 0.8 ? '↗' : p.form < -0.8 ? '↘' : '→'}</td><td>${p.ss.sp}</td><td>${p.ss.g}</td><td class="hs">${noteAvg(p.ss)}</td></tr>`).join('')}</table></div>
-  <p class="muted">Tippe auf einen Namen für die Spielerkarte. Stärke 1–99, POT = Potenzial.</p>`;
+  <p class="muted">Tippe auf einen Namen für die Spielerkarte – dort kannst du deine Spieler auch bearbeiten (Name, Nummer, Position, Aussehen). Stärke 1–99, POT = Potenzial.</p>`;
 }
 function showPlayer(pid) {
   const p = playerById(pid); if (!p) return;
@@ -148,7 +149,7 @@ function showPlayer(pid) {
     <div class="kpis"><div class="kpi"><span>SAISON</span><b>${p.ss.sp} SP · ${p.ss.g} T · ${p.ss.a} V</b><i>Note ${noteAvg(p.ss)}${p.grp === 'TW' ? ` · ${p.ss.co} Gegentore` : ''}</i></div>
       <div class="kpi"><span>KARRIERE</span><b>${p.cs.sp} SP · ${p.cs.g} T · ${p.cs.a} V</b><i>Note ${noteAvg(p.cs)} · ${p.cs.yc} Gelb · ${p.cs.rc} Rot</i></div>
       <div class="kpi"><span>ZUSTAND</span><b>${p.fit}% FIT</b><i>${p.inj > 0 ? `verletzt (${p.inj} Sp.)` : p.ban > 0 ? `gesperrt (${p.ban} Sp.)` : p.form > 0.8 ? 'in Form' : p.form < -0.8 ? 'außer Form' : 'normal'}</i></div></div>
-    <div class="row"><button class="main" data-act="chub" autofocus>ZURÜCK</button>${mine ? `<button data-act="crel" data-arg="${p.pid}">VERABSCHIEDEN</button>` : ''}</div></div>`, { back: ACT.chub });
+    <div class="row"><button class="main" data-act="chub" autofocus>ZURÜCK</button>${mine ? `<button data-act="cpEdit" data-arg="${p.pid}">BEARBEITEN</button><button data-act="crel" data-arg="${p.pid}">VERABSCHIEDEN</button>` : ''}</div></div>`, { back: ACT.chub });
   bindHubCanvases();
 }
 // ---------- Aufstellung ----------
@@ -238,5 +239,5 @@ function clubHTML() {
   <h3>TRAINING (SCHWERPUNKT)</h3><div class="row">${Object.entries(TRAIN).map(([k, [n]]) => `<button class="small ${C.train === k ? 'on' : ''}" data-act="ctrain" data-arg="${k}">${n.toUpperCase()}</button>`).join('')}</div>
   <h3>WECHSELBÖRSE</h3>${mk ? `<div class="tblwrap"><table class="dt"><tr><th class="l">SPIELER</th><th>POS</th><th class="hs">ALTER</th><th>STÄRKE</th><th>HANDGELD</th><th></th></tr>${mk}</table></div>` : '<p class="muted">Im Sommer melden sich wechselwillige Spieler aus dem Kreis.</p>'}
   <h3>TROPHÄEN</h3><div class="tshelves">${tro}</div>
-  <div class="row"><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>`;
+  <div class="row"><button class="small" data-act="cEigen">${C.custom ? 'VEREIN BEARBEITEN' : 'TRIKOT & PLATZ ÄNDERN'}</button><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>`;
 }

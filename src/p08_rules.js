@@ -110,7 +110,7 @@ function humanControl(dt) {
       if (c.taim) { const y = c.taim.y; c.taim = null; shoot(c, pw, 0, { aimPt: { y }, auto: true }); } else shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0);
       return;
     }
-    if (IN.pa) { pass(c, choosePass(c, IN.x, IN.y)); return; }
+    if (IN.pa) { const pw = TOUCH.pow; TOUCH.pow = null; pass(c, choosePass(c, IN.x, IN.y, 'pass', 0.7, pw), pw); return; }
     if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
     if (IN.pc) {
       const gx = goalX(me);

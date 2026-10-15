@@ -548,6 +548,23 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Saison: eigenen Verein anlegen, Spieler bearbeiten (Name, Nummer, Position, Aussehen), nach Neuladen alles noch da', async () => {
+  const { page, ctx, errors } = await open();
+  await page.evaluate(() => { ACT.career(); ACT.ncEigen(); });
+  await page.fill('#eg_n', 'SV Musterdorf 1920'); await page.click('[data-act="eigCol"][data-arg="c1|#141414"]'); await page.click('[data-act="eigCol"][data-arg="c2|#ffd200"]');
+  await page.click('[data-act="eigSave"]');
+  const a = await page.evaluate(() => { const t = TEAMS[NEWC.team]; ACT.ncGo(); return { n: t.n, k: t.k, custom: !!t.custom, inLiga: LIGEN[t.lg].ids.includes(t.id), career: TEAMS[CAREER.team].n, tbl: Object.keys(CAREER.S.tables[CAREER.lg]).map(Number).includes(t.id) }; });
+  ok(a.custom && a.k === 'MUS' && a.inLiga && a.tbl && a.career === 'SV Musterdorf 1920', 'eigener Verein: ' + JSON.stringify(a));
+  await page.evaluate(() => { const p = ensureSquad(CAREER.team).find(q => q.grp === 'MF'); window.__pid = p.pid; ACT.cpEdit(p.pid); });
+  await page.fill('#pe_name', 'Wilhelm'); await page.fill('#pe_num', '10'); await page.click('[data-act="peGrp"][data-arg="ST"]'); await page.click('[data-act="peBeard"]');
+  await page.click('[data-act="peSave"]');
+  await page.evaluate(() => localStorage.setItem('__pid', String(__pid)));
+  await page.reload(); await page.waitForTimeout(600);
+  const b = await page.evaluate(() => { ACT.career(); const p = playerById(+localStorage.getItem('__pid')); return { team: CAREER && TEAMS[CAREER.team].n, name: p && p.name, num: p && p.num, grp: p && p.grp, nums: new Set(ensureSquad(CAREER.team).map(q => q.num)).size === ensureSquad(CAREER.team).length }; });
+  ok(b.team === 'SV Musterdorf 1920' && b.name === 'Wilhelm' && b.num === 10 && b.grp === 'ST' && b.nums, 'nach Neuladen: ' + JSON.stringify(b));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Saison: echtes Spiel zählt (Ergebnis, Tabelle, Torschützen, Noten) und Aufstellung wird verwendet', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
@@ -589,7 +606,7 @@ test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Opt
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, halten und ziehen: hoher Ball, zielen, Grätsche; tippen: Tackling', async () => {
+test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, halten und wischen: Steilpass, hoher Ball, zielen, Grätsche; tippen: Tackling', async () => {
   const { page, ctx, errors } = await open(MOBILE);
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
@@ -608,9 +625,17 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const drag = async (sel, dx, dy, hold = 60) => { const c = await ctr(sel); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(hold); await page.mouse.move(c.x + dx / 2, c.y + dy / 2); await page.mouse.move(c.x + dx, c.y + dy); await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(60); };
   const setup = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY + 3); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; });
   await setup(); await page.waitForTimeout(80);
-  await drag('.tb-a', -40, -10);
+  await drag('.tb-a', 4, -55);
   const hi = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
-  ok(hi, 'PASS ziehen spielt keinen hohen Ball');
+  ok(hi, 'PASS nach oben wischen spielt keinen hohen Ball');
+  await setup(); await page.waitForTimeout(80);
+  await drag('.tb-a', 55, 5);
+  const th = await page.evaluate(() => G.ball.kind === 'through' && !G.ball.owner);
+  ok(th, 'PASS zur Seite wischen spielt keinen Steilpass');
+  await setup(); await page.waitForTimeout(80);
+  await drag('.tb-a', 10, 12, 60);   // kleines Verrutschen beim Tippen: flacher Pass, kein hoher Ball
+  const flat = await page.evaluate(() => G.ball.kind === 'pass');
+  ok(flat, 'leichtes Verrutschen beim Tippen wird zum hohen Ball');
   // SCHUSS halten und Daumen ziehen = zielen (wie Padel-Legenden): nach oben = Ecke oben im Bild, nach unten = Ecke unten
   const aimShot = async dy => { await page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; }); await page.waitForTimeout(80); await drag('.tb-b', 0, dy, 150); return page.evaluate(() => G.ball.shot ? G.ball.vy : null); };
   const vUp = await aimShot(-60), vDown = await aimShot(60);

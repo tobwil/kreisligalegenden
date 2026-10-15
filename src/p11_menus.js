@@ -53,7 +53,7 @@ const ACT = {
       <p class="legal">${esc(PLATFORM.legal || '© 2026 Tobias Wilhelm · Quellcode offen, nicht kommerziell · github.com/tobwil/kreisligalegenden')}</p></div>`, { clear: true });
   },
   main() {
-    const sv = store.get(CAREER_KEY), ok = validCareer(sv);
+    const sv = loadCareerSave(), ok = !!sv;
     show(`<div class="panel narrow"><div class="title"><h1 class="logo" style="font-size:clamp(16px,3.6vw,34px)">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
       <div class="btns menu-list">
         <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
@@ -93,7 +93,7 @@ const ACT = {
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
         <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss (beim Aufladen A = Schlenzer, X = Heber) · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = Pass, lang halten = Steilpass, ziehen = Flanke/hoher Ball. SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm, deinen Spieler antippen = Haken. Knopfgröße in den Optionen</span>
+        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben wischen = Flanke/hoher Ball. SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm, deinen Spieler antippen = Haken. Knopfgröße in den Optionen</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });

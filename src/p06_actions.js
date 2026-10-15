@@ -36,7 +36,7 @@ function noteRecv(q, x, y, run) { q.recv = { x, y, t: G.t, fid: G.ball.fid }; if
 
 // ---------- Passauswahl ----------
 // Mit Richtung: Mitspieler im Kegel (erst eng, dann weit), sonst der beste freie Mitspieler
-function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
+function choosePass(p, dx, dy, kind = 'pass', cone = 0.7, pow = null) {
   let best = null, bs = -1e9; const hasDir = Math.hypot(dx, dy) > 0.3;
   for (const q of mates(p)) {
     const d = dist(p.x, p.y, q.x, q.y); if (d < 2) continue;
@@ -48,11 +48,12 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
       sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0) + Math.min(lane, 4) * 0.45 - (lane < 1.1 ? 1.5 : 0);
       // wie EA FC: in Stickrichtung den Mitspieler wählen, der den Ball auch sicher bekommt
       if (kind !== 'lob') sc -= interceptRisk(p, q, kind === 'through' ? 12 : 15) * 3.2;
+      if (pow != null) sc -= Math.abs(d - (7 + pow * 28)) * 0.09;   // Touch: kurz gedrückt = naher Mitspieler, lang = weiter weg
       if (isGK(q)) sc -= 2;
-    } else sc = passScore(p, q, kind);
+    } else sc = passScore(p, q, kind) - (pow != null ? Math.abs(d - (7 + pow * 28)) * 0.05 : 0);
     if (sc > bs) { bs = sc; best = q; }
   }
-  return best || (hasDir && cone > 0.2 ? choosePass(p, dx, dy, kind, 0.1) : hasDir ? choosePass(p, 0, 0, kind) : null);
+  return best || (hasDir && cone > 0.2 ? choosePass(p, dx, dy, kind, 0.1, pow) : hasDir ? choosePass(p, 0, 0, kind, 0.7, pow) : null);
 }
 // Abfanggefahr: erreicht ein Gegner die Passlinie, bevor der Ball dort ist? (flacher Pass, ca. 14 m/s)
 function interceptRisk(p, q, v = 14) {
@@ -78,11 +79,11 @@ function passScore(p, q, kind) {
 }
 
 // ---------- Pässe ----------
-function pass(p, q) {
+function pass(p, q, pow = null) {
   if (!q) return;
   const b = G.ball; let tx = q.x, ty = q.y;
   const hum = p.team === G.human && !G.watch;
-  let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5) * (hum ? 1.12 : 1), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
+  let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5) * (hum ? 1.12 : 1) * (pow != null ? 0.88 + pow * 0.3 : 1), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
   const t = (v0 - va) / FRIC();
   tx = clamp(q.x + q.vx * t * 0.75, 0.5, CW - 0.5); ty = clamp(q.y + q.vy * t * 0.75, 0.5, CH - 0.5);
   d = dist(b.x, b.y, tx, ty); v0 = clamp(groundSpeed(d, va), 9, 30);

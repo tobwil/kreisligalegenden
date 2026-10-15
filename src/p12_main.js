@@ -52,12 +52,13 @@ function tapAt(cx0, cy0) {
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
-  //   Angriff  PASS:   tippen = Pass · lang halten = Steilpass · ziehen = hoher Ball/Flanke
+  //   Angriff  PASS:   tippen = kurzer Pass · halten = fester und weiter (Balken) · wischen = Steilpass · nach oben wischen = hoch/Flanke
   //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Zielkreuz im Tor schieben (wie bei Padel-Legenden),
   //                    das Spiel läuft dabei kurz in Zeitlupe; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber
   //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
   //            TACKLING: tippen = Tackling · ziehen = Grätsche (Richtung vom Stick)
   const DRAG = 26;
+  const passPow = () => TOUCH.passT ? clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1) : 0;
   document.querySelectorAll('.tb[data-k]').forEach(b => {
     const k = b.dataset.k; let holdT = null, st = null;
     const alt = lbl => { b.classList.add('alt'); b.querySelector('span').textContent = lbl; buzz(15); };
@@ -67,20 +68,21 @@ function tapAt(cx0, cy0) {
       const att = attacking() || !!(G && G.sp && isHumanTeam(G.sp.team));
       st = { x: e.clientX, y: e.clientY, att, done: false };
       if (k === 'a') {
-        if (att) holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.done = true; TOUCH.pulseK = 1; b.classList.add('lob'); buzz(20); } }, 380);
+        if (att) TOUCH.passT = performance.now();
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
       } else if (att) TOUCH.b = true;
     });
     b.addEventListener('pointermove', e => {
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
-      if (k === 'a') { if (!st.att) return; st.done = true; if (holdT) { clearTimeout(holdT); holdT = null; } TOUCH.pulseC = 1; alt('HOCH'); }
+      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
-      if (st && !st.done) { if (k === 'a' && st.att) TOUCH.pulseA = 1; else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
+      if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
+      if (k === 'a') TOUCH.passT = 0;
       if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
       st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
@@ -92,7 +94,7 @@ function updateTouchLabels() {
   if (!TOUCHDEV || !G || G.demo) return;
   if (TBL.a.classList.contains('on') || TBL.b.classList.contains('on')) return;   // während des Drückens nicht umbeschriften
   const m = attacking() || (G.sp && isHumanTeam(G.sp.team)) ? 'att' : 'def'; if (m === tbMode) return; tbMode = m;
-  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: zielen']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
+  const L = m === 'att' ? [['PASS', 'halten: weiter'], ['SCHUSS', 'ziehen: zielen']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
   for (const [i, el] of [TBL.a, TBL.b].entries()) { el.querySelector('span').textContent = L[i][0]; el.querySelector('small').textContent = L[i][1]; }
 }
 addEventListener('pointerdown', () => AU.init());
@@ -140,7 +142,7 @@ function touchTip() {
   const el = document.createElement('div'); el.id = 'ttip'; el.setAttribute('role', 'dialog');
   el.innerHTML = `<b>SO SPIELST DU AUF DEM HANDY</b><ul>
     <li>Linker Daumen: Der Stick erscheint, wo du aufsetzt. Weit ziehen = Sprint.</li>
-    <li><b>PASS</b> tippen = Pass · lang halten = Steilpass · drücken und ziehen = Flanke</li>
+    <li><b>PASS</b> tippen = kurz · halten = fester und weiter · wischen = Steilpass · nach oben wischen = hoch</li>
     <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
     <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
     <li>Mitspieler antippen = Pass zu ihm · deinen Spieler antippen = Haken</li></ul><button>VERSTANDEN</button>`;
