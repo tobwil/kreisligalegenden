@@ -65,7 +65,7 @@ function renderNewCareer(focusSel) {
       <div class="tag">${esc(homeTag(NEWC.team).toUpperCase())} · ${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
     <div class="row"><span class="tag">SAISON</span>${[[1, `NUR HINRUNDE (${md} SPIELTAGE)`], [2, `HIN- UND RÜCKRUNDE (${md * 2})`]].map(([v, n]) => `<button class="small ${NEWC.len === v ? 'on' : ''}" data-act="ncLen" data-arg="${v}">${n}</button>`).join('')}</div>
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${NEWC.diff === i ? 'on' : ''}" data-act="ncDiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
-    <div class="row"><button class="main" data-act="ncGo" ${focusSel ? '' : 'autofocus'}>LOS GEHT'S</button></div></div>`, { back: ACT.main });
+    <div class="row sfoot"><button class="main" data-act="ncGo" ${focusSel ? '' : 'autofocus'}>LOS GEHT'S</button><span class="muted">${esc(TEAMS[NEWC.team].short)}</span></div></div>`, { back: ACT.main });
   pickerWire(renderNewCareer);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }
@@ -84,12 +84,12 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="cshareSeason">SAISON ALS BILD TEILEN</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
   } else if (g) {
     const opp = TEAMS[g.h === C.team ? g.a : g.h], home = g.h === C.team, M = matchSquad(C.team), miss = ensureSquad(C.team).filter(p => p.inj > 0 || p.ban > 0);
-    foot = `<div class="cfoot"><h3>${isDerby(g.h, g.a) ? '<span class="badge hot">DERBY</span> ' : ''}${esc(eventLabel(ev))}</h3>
-      <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div>
-      <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
+    foot = `<div class="cfoot"><p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
+      </div><div class="sfoot nextbar"><div><h3>${isDerby(g.h, g.a) ? '<span class="badge hot">DERBY</span> ' : ''}${esc(eventLabel(ev))}</h3>
+      <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div></div>
       <div class="row"><button class="main" data-act="cpre" autofocus>VOR DEM SPIEL ›</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
   } else {
-    foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : ev.t === 'cup' ? (S.cupOut != null ? 'Im Kreispokal schon ausgeschieden – die anderen spielen weiter.' : 'Freilos im Kreispokal – eine Runde weiter ohne Spiel.') : 'Spielfrei.'}</p>
+    foot = `<div class="cfoot sfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : ev.t === 'cup' ? (S.cupOut != null ? 'Im Kreispokal schon ausgeschieden – die anderen spielen weiter.' : 'Freilos im Kreispokal – eine Runde weiter ohne Spiel.') : 'Spielfrei.'}</p>
       <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
   }
   show(`<div class="panel">${head}<p class="cmsg" hidden></p>${body()}${foot}</div>`, { back: ACT.main, focus: !focusSel });

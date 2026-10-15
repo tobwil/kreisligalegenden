@@ -703,6 +703,25 @@ test('Saison: echtes Spiel zählt (Ergebnis, Tabelle, Torschützen, Noten) und A
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF und nächstes Saisonspiel kleben unten im Bild, Ordner mit langer Hose', async () => {
+  const { page, ctx, errors } = await open(MOBILE);
+  const r = await page.evaluate(() => {
+    const out = {}, pop = () => dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    const inView = sel => { const e = menu.querySelector(sel); if (!e) return false; const q = e.getBoundingClientRect(); return q.top >= 0 && q.bottom <= innerHeight + 1; };
+    ACT.main(); ACT.quick(); out.quick = inView('[data-act="qstart"]');
+    pop(); out.back = !!menu.querySelector('[data-act="quick"]');
+    ACT.career(); out.newc = inView('[data-act="ncGo"]'); ACT.ncGo(); out.hub = inView('[data-act="cpre"]');
+    ACT.main(); ACT.qstart(); G.phase = 'play'; G.sp = null; pop(); out.pause = !menu.hidden && G.paused && INGAME_MENU;
+    pop(); out.resume = menu.hidden && !G.paused;
+    const L = ORD_LOOK(0), s = sprite(L, 'run', 2), d = s.getContext('2d').getImageData(0, 0, SW, SH).data;
+    let pants = 0; for (let y = AY - 8; y < AY - 2; y++) for (let x = 0; x < SW; x++) { const i = (y * SW + x) * 4; if (d[i + 3] && d[i] === 0x2a && d[i + 1] === 0x2d) pants++; }
+    out.pants = pants > 3;
+    return out;
+  });
+  for (const k of ['quick', 'back', 'newc', 'hub', 'pause', 'resume', 'pants']) ok(r[k], k + ': ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Optionen, Saison-Reiter, Pause', async () => {
   const { page, ctx, errors } = await open();
   // Breitensuche: von jedem erreichten Element aus alle vier Richtungen probieren
@@ -726,8 +745,13 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const { page, ctx, errors } = await open(MOBILE);
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
-  const tip = await page.evaluate(() => { localStorage.removeItem('krl_touchtip'); tipG = null; G.phase = 'kickoff'; touchTip(); const on = !!document.getElementById('ttip') && G.paused; closeTouchTip(); G.phase = 'play'; return on && !G.paused; });
-  ok(tip, 'Touch-Tipp im ersten Spiel fehlt oder schließt nicht');
+  const tip = await page.evaluate(() => { localStorage.removeItem('krl_touchtip'); tipG = null; G.phase = 'kickoff'; updateTouchLabels(); touchTip(); const el = document.getElementById('ttip'), on = !!el && G.paused;
+    const labs = el ? [...el.querySelectorAll('.lab b')].map(b => b.textContent).join(',') : ''; closeTouchTip(); G.phase = 'play'; return { ok: on && !G.paused, labs }; });
+  ok(tip.ok, 'Touch-Tipp im ersten Spiel fehlt oder schließt nicht');
+  ok(tip.labs === 'LAUFEN – LINKER DAUMEN,PASS,SCHUSS', 'Touch-Tipp: Beschriftungen an Stick und Knöpfen passen nicht: ' + tip.labs);
+  // Anstoß-Vorschau: keine Knöpfe über den Aufstellungen
+  const cut = await page.evaluate(async () => { G.phase = 'intro'; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); const o = getComputedStyle(document.querySelector('.tb-a')).opacity; G.phase = 'play'; return o; });
+  ok(cut === '0', 'Knöpfe in der Anstoß-Vorschau sichtbar: ' + cut);
   const lbl = await page.evaluate(() => document.querySelector('.tb-a span').textContent + '|' + document.querySelectorAll('#pad .tb[data-k]').length);
   ok(lbl === 'PASS|2', 'Angriffs-Beschriftung oder zwei Knöpfe fehlen: ' + lbl);
   const bb = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });

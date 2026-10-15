@@ -8,7 +8,8 @@ function planFlitzer(o) {
   G.flitzer = { half: Math.random() < 0.5 ? 1 : 2, at: rnd(0.15, 0.85) * G.hlen, st: null };
 }
 const FL_LOOK = () => lookOf({ skin: (Math.random() * SKIN.length) | 0, hair: pick(HAIR), style: (Math.random() * 6) | 0, beard: Math.random() < 0.5, belly: Math.random() < 0.6, num: 0 }, (() => { const s = SKIN[1][0]; return { c1: s, c2: s, sh: '#f4f4f0', so: s, pat: 0 }; })(), false);
-const ORD_LOOK = k => lookOf({ skin: k + 1, hair: HAIR[k + 2], style: k + 2, beard: k === 0, belly: k === 1, num: 0 }, { c1: '#d8ff1e', c2: '#ff8a00', sh: '#1d1d24', so: '#1d1d24', pat: 3 }, false);
+// Ordner: Warnweste und lange dunkle Hose
+const ORD_LOOK = k => { const L = lookOf({ skin: k + 1, hair: HAIR[k + 2], style: k + 2, beard: k === 0, belly: k === 1, num: 0 }, { c1: '#d8ff1e', c2: '#ff8a00', sh: '#2a2d38', so: '#2a2d38', pat: 3 }, false); return { ...L, pants: '#2a2d38', shoe: '#1a1a1e', key: L.key + '|lang' }; };
 function startFlitzer() {
   const b = G.ball, side = Math.random() < 0.5 ? 1 : -1, x0 = clamp(CAMX + rnd(-12, 12), 8, CW - 8);
   const runner = { x: x0, y: side > 0 ? CH + 3 : -3, tx: clamp(x0 + rnd(-20, 20), 8, CW - 8), ty: side > 0 ? -2 : CH + 2, look: FL_LOOK(), face: 1, pose: 'run', fr: 0, animT: 0, zig: rnd(0, 6) };

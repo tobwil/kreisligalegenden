@@ -172,22 +172,30 @@ function updateWatchBar() {
 document.querySelectorAll('#watchbar button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); if (!G) return; if (b.dataset.w === 'join') joinGame(); else G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; }));
 addEventListener('keydown', e => { if (e.code === 'KeyF' && G && G.watch && menu.hidden) G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; });
 
-// Touch-Tipp in den ersten zwei Spielen auf dem Handy (wie bei Hallen- und Padel-Legenden): Spiel hält an, bis VERSTANDEN
+// Touch-Tipp in den ersten zwei Spielen auf dem Handy (wie bei Hallen- und Padel-Legenden): Spiel hält an, bis man tippt.
+// Statt eines Textblocks stehen die Erklärungen direkt neben dem Stick und den beiden Knöpfen.
 let TTIP = null, tipG = null;
-function closeTouchTip() { if (!TTIP) return false; TTIP.remove(); TTIP = null; clearEdges(); if (G && menu.hidden) G.paused = false; return true; }
+function closeTouchTip() { if (!TTIP) return false; TTIP.remove(); TTIP = null; document.body.classList.remove('tipon'); clearEdges(); if (G && menu.hidden) G.paused = false; return true; }
 function touchTip() {
   if (!TOUCHDEV || !G || G.demo || G.watch || G.tut || G === tipG || G.phase !== 'kickoff' || !menu.hidden) return;
   tipG = G; if (LASTIN !== 'touch') return;
   const n = store.get('krl_touchtip', 0); if (n >= 2) return; store.set('krl_touchtip', n + 1);
-  const el = document.createElement('div'); el.id = 'ttip'; el.setAttribute('role', 'dialog');
-  el.innerHTML = `<b>SO SPIELST DU AUF DEM HANDY</b><ul>
-    <li>Linker Daumen: Der Stick erscheint, wo du aufsetzt. Weit ziehen = Sprint.</li>
-    <li><b>PASS</b> tippen = kurz · halten = fester und weiter · wischen = Steilpass · nach oben wischen = hoch</li>
-    <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
-    <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
-    <li>Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Haken oder Zurückziehen, links doppelt antippen = Übersteiger</li></ul><button>VERSTANDEN</button>`;
-  el.querySelector('button').addEventListener('click', closeTouchTip);
-  document.body.appendChild(el); TTIP = el; G.paused = true;
+  const el = document.createElement('div'); el.id = 'ttip'; el.className = 'cm'; el.setAttribute('role', 'dialog');
+  const R = s => { const e = document.querySelector(s); return e && e.getBoundingClientRect(); }, st = R('#stick'), ra = R('.tb-a'), rb = R('.tb-b'), vw = innerWidth, vh = innerHeight;
+  const lab = (css, h, t) => `<div class="lab" style="${css}"><b>${h}</b>${t}</div>`;
+  // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
+  const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
+  const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
+  const B = att ? ['SCHUSS', 'halten = Kraft<br>dabei ziehen = zielen'] : ['TACKLING', 'tippen = Tackling<br>ziehen = Grätsche'];
+  const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
+    : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';
+  el.innerHTML = `<div class="cmtop"><b>SO SPIELST DU AUF DEM HANDY</b><span>${top}</span><button>LOS GEHT'S</button></div>`
+    + (st ? lab(`left:${Math.max(8, st.left)}px;bottom:${vh - st.top + 10}px`, 'LAUFEN – LINKER DAUMEN', 'irgendwo links aufsetzen und ziehen<br>weit ziehen = Sprint<br>mit Ball: Stick kreisen = Trick') : '')
+    + (ra ? lab(`right:${vw - ra.left + 10}px;bottom:${vh - ra.bottom + 4}px`, A[0], A[1]) : '')
+    + (rb ? lab(`right:${vw - rb.right}px;bottom:${vh - rb.top + 10}px`, B[0], B[1]) : '');
+  const t0 = performance.now();
+  el.addEventListener('pointerdown', e => { e.preventDefault(); if (performance.now() - t0 > 450) closeTouchTip(); });   // tippen irgendwo = weiter
+  document.body.appendChild(el); document.body.classList.add('tipon'); TTIP = el; G.paused = true;
 }
 const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
 function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
@@ -208,12 +216,24 @@ function checkVersion() {
   }).catch(() => { });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+// Zurück-Geste und Zurück-Taste (Android, Browser): im Spiel = Pause, im Menü = eine Ebene zurück, statt die Seite zu verlassen.
+// Nur auf dem Titelbild verlässt Zurück das Spiel. Der Merker im Verlauf wird erst bei einer Eingabe gesetzt (sonst überspringt Chrome ihn).
+if (ON_WEB && history.pushState) {
+  const arm = () => { if (!(history.state && history.state.krl)) try { history.pushState({ krl: 1 }, ''); } catch (e) { } };
+  addEventListener('pointerdown', arm, true); addEventListener('keydown', arm, true);
+  addEventListener('popstate', () => {
+    if (!menu.hidden && menu.querySelector('.title .press')) { history.back(); return; }   // Titelbild: wirklich zurück
+    if (closeTouchTip()) return;
+    if (menu.hidden && G && !G.demo) togglePause(); else menuBack();
+  });
+}
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(1 / 30, (now - lastT) / 1000)); lastT = now;
   readInput(dt); readSlots(dt); menuPad(); updateTouchLabels(); touchTip();
   if (TTIP && (IN.pa || IN.pb)) closeTouchTip();
   document.body.classList.toggle('ingame', !!(G && !G.demo));
+  document.body.classList.toggle('cut', !!(G && !G.demo && (G.phase === 'intro' || G.phase === 'replay')));
   if (G && !G.paused) gameTick(dt);
   updateWatchBar();
   if (G) render();

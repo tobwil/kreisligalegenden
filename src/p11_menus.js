@@ -48,14 +48,15 @@ const ACT = {
   title() {
     show(`<div class="title">
       <h1 class="logo">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1>
-      <button class="press" data-act="main" autofocus>DRÜCKE START</button>
+      <button class="press" data-act="main" autofocus>${TOUCHDEV ? 'TIPPEN ZUM STARTEN' : 'DRÜCKE START'}</button>
       <p class="legal">${LEGAL}</p>
       <p class="legal">${esc(PLATFORM.legal || '© 2026 Tobias Wilhelm · Quellcode offen, nicht kommerziell · github.com/tobwil/kreisligalegenden')}</p></div>`, { clear: true });
+    menu.querySelector('.title').addEventListener('click', () => { AU.init(); AU.select(); ACT.main(); });   // irgendwo tippen reicht
   },
   main() {
     checkVersion();
     const sv = loadCareerSave(), ok = !!sv;
-    show(`<div class="panel narrow"><div class="title"><h1 class="logo" style="font-size:clamp(16px,3.6vw,34px)">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
+    show(`<div class="panel narrow"><div class="title"><h1 class="logo mlogo">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
       <div class="btns menu-list">
         ${savedMatch() ? `<button class="main" data-act="resumeMatch" autofocus>SPIEL FORTSETZEN <i>${esc(savedInfo())}</i></button>` : ''}
         <button class="${savedMatch() ? '' : 'main'}" data-act="quick" ${savedMatch() ? '' : 'autofocus'}>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
@@ -67,7 +68,7 @@ const ACT = {
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
         ${PLATFORM.quit ? '<button data-act="exitGame">BEENDEN</button>' : ''}
       </div>
-      <p class="legal" style="text-align:center;margin:0 auto">${LEGAL}</p></div>`, { back: ACT.title, clear: true });
+      <p class="legal" style="text-align:center;margin-inline:auto">${LEGAL}</p></div>`, { back: ACT.title, clear: true });
   },
   quick() { QUICK.side = 'a'; pkFocus(QUICK.a); renderQuick(); },
   qpick(arg) { const id = +arg; if (QUICK.side === 'a') { QUICK.a = id; if (QUICK.b === id) QUICK.b = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); QUICK.side = 'b'; } else { QUICK.b = id; if (QUICK.a === id) QUICK.a = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); } pkFocus(id); renderQuick(`[data-act="qpick"][data-arg="${id}"]`); },
@@ -150,7 +151,7 @@ const ACT = {
       <div class="btns menu-list">
         <button class="main" data-act="resume" autofocus>WEITER</button>
         ${G.watch ? '<button data-act="wresume">EINSTEIGEN <i>dein Team übernehmen</i></button>' : ''}
-        ${G.human >= 0 && !G.watch ? '<button data-act="tactics">TAKTIK & WECHSEL <i>Q</i></button>' : ''}
+        ${G.human >= 0 && !G.watch ? `<button data-act="tactics">TAKTIK & WECHSEL ${LASTIN === 'key' ? '<i>Q</i>' : ''}</button>` : ''}
         <button data-act="statsNow">STATISTIK</button>
         <button data-act="controls">STEUERUNG</button>
         <button data-act="options">OPTIONEN</button>
@@ -216,7 +217,7 @@ const ACT = {
       ${statsHTML()}
       ${notesHTML()}
       ${res ? `<p class="muted">${res}</p>` : ''}
-      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : `<button class="main" data-act="rematch" autofocus>REVANCHE</button>${diffHint()}<button data-act="toMain">HAUPTMENÜ</button>`}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
+      <div class="row sfoot">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : `<button class="main" data-act="rematch" autofocus>REVANCHE</button>${diffHint()}<button data-act="toMain">HAUPTMENÜ</button>`}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
@@ -237,7 +238,7 @@ function renderQuick(focusSel) {
     ${TOUCHDEV ? '' : `<div class="row"><span class="tag">SPIELER</span>${[['solo', 'ALLEIN'], ['coop', 'ZU ZWEIT MITEINANDER'], ['vs', 'ZU ZWEIT GEGENEINANDER']].map(([m, n]) => `<button class="small ${(QUICK.mp || 'solo') === m ? 'on' : ''}" data-act="qmp" data-arg="${m}">${n}</button>`).join('')}</div>
     ${QUICK.mp && QUICK.mp !== 'solo' ? `<div class="row"><span class="tag">EINGABE</span>${MP_PRESETS.map((p, i) => `<button class="small ${(QUICK.mpIn || 0) === i ? 'on' : ''}" data-act="qmpIn" data-arg="${i}">${p[2]}</button>`).join('')}</div>
       <p class="muted">Spieler 1 (gelb): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][0]].help)}<br>Spieler 2 (rosa): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][1]].help)}${QUICK.mp === 'vs' ? '<br>Gegeneinander: Spieler 1 spielt den linken Verein, Spieler 2 den Gegner.' : ''}</p>` : ''}`}
-    <div class="row"><button class="main" data-act="qstart" ${focusSel ? '' : 'autofocus'}>ANPFIFF</button></div></div>`, { back: ACT.main });
+    <div class="row sfoot"><button class="main" data-act="qstart" ${focusSel ? '' : 'autofocus'}>ANPFIFF</button><span class="muted">${esc(TEAMS[QUICK.a].short)} – ${esc(TEAMS[QUICK.b].short)} · ${DIFF[SETTINGS.diff].n}${QUICK.mode === 'watch' ? ' · zuschauen' : ''}</span></div></div>`, { back: ACT.main });
   pickerWire(renderQuick);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }

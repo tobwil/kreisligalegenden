@@ -72,10 +72,13 @@ function renderSprite(L, pose, fr, flip = false) {
     const hip = [hx + (back ? -1 : 1), hipY], [kx, ky] = Lg.k, [fx, fy] = Lg.f;
     const kyy = ky + by * (Lg === P.lf || Lg === P.lb ? 0 : 0);
     const d = back ? 0.75 : 1, skin = back ? L.skinS : L.skin, sock = shade(L.so, d);
+    if (L.pants) { const pc = shade(L.pants, d); brush(hip[0], hip[1], kx, kyy, 2, pc); brush(kx, kyy, fx, fy - 1, 2, pc); }   // lange Hose (Ordner)
+    else {
     brush(hip[0], hip[1], kx, kyy, 2, skin);
     const mx = Math.round(lerp(kx, fx, L.socks ? 0.6 : 0.3)), my = Math.round(lerp(kyy, fy, L.socks ? 0.6 : 0.3));
     brush(kx, kyy, mx, my, 2, skin);
     brush(mx, my, fx, fy - 1, 2, sock);
+    }
     R(fx - 1, fy - 1, 4, 2, shade(L.shoe, d)); R(fx - 1, fy, 4, 1, back ? '#55555c' : '#2a2a30');
   };
   const arm = (A, back) => {
