@@ -2,9 +2,9 @@
 # Baut das Spiel aus den Quelldateien (Reihenfolge ist wichtig, alle Module teilen sich einen Script-Block).
 # Ergebnis: game/index.html. Die Startseite index.html im Hauptordner wird hier nicht erzeugt.
 cd "$(dirname "$0")"
-JS="p01_core.js p02_audio.js p03_sprites.js p04_pitch.js p05_match.js p06_actions.js p07_ai.js p08_rules.js p09_fx.js p10_render.js p11_menus.js p13_career.js p14_career_ui.js p15_training.js p12_main.js"
+JS="d_karte.js d_vereine.js p01_core.js p02_audio.js p03_sprites.js p04_pitch.js p05_match.js p06_actions.js p07_ai.js p08_rules.js p09_fx.js p10_render.js p11_menus.js p13_career.js p14_career_ui.js p15_training.js p16_picker.js p12_main.js"
 TITLE='Kreisliga-Legenden spielen – Fußball 11 gegen 11 im Retro-Pixel-Look'
-DESC='Fußball im Browser: Kreisliga im Retro-Pixel-Look mit den Vereinen aus dem Kreis Coburg, Saison mit Meisterschaft und Playoffs um die deutsche Kreisliga-Krone. Kostenlos, am Computer und am Handy.'
+DESC='Fußball im Browser: Kreisliga im Retro-Pixel-Look mit allen Kreisliga-Vereinen Deutschlands, Saison mit Kreispokal, Meisterschaft und Playoffs um die deutsche Kreisliga-Krone. Kostenlos, am Computer und am Handy.'
 mkdir -p ../game
 {
   echo '<!doctype html>'
@@ -14,7 +14,7 @@ mkdir -p ../game
   sed -n '1,/^<\/style>/p' head.html | sed -e "s#^<title>.*#<title>$TITLE</title>#" -e 's#href="fonts/fonts.css"#href="../fonts/fonts.css"#'
   echo '</head><body>'
   sed '1,/^<\/style>/d' head.html
-  echo '<script>'; cat $JS; echo '</script>'
+  echo '<script>'; echo "'use strict';"; cat $JS; echo '</script>'
   echo '</body></html>'
 } > ../game/index.html
 echo "fertig: game/index.html"

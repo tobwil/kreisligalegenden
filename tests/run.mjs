@@ -50,25 +50,60 @@ test('Seite lädt ohne Fehler, Spielschleife läuft, Titel und Hauptmenü (Deskt
   }
 });
 
-test('Vereine: beide Kreisligen mit 16 echten Vereinen, eindeutige Kürzel, Kader mit 18 Spielern und eindeutigen Rückennummern', async () => {
+test('Vereine: alle Landesverbände und Kreise, eindeutige Kürzel je Kreis, Kader mit 18 Spielern, Coburg von Hand gestaltet', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
-    const ks = TEAMS.map(t => t.k), dupK = ks.filter((k, i) => ks.indexOf(k) !== i);
-    const bad = [];
-    for (const t of TEAMS) { const ro = roster(t.id), nums = ro.map(p => p.num); if (ro.length !== 18 || new Set(nums).size !== 18 || ro.filter(p => p.grp === 'TW').length < 2) bad.push(t.k); }
-    return { l: KREIS_LIGEN.map(L => L.ids.length), dupK, bad, names: LEAGUE(0).map(t => t.n) };
+    const dupK = [], bad = [], shortBad = [];
+    for (const K of KREISE) { const ks = K.ligen.flatMap(l => LIGEN[l].ids.map(i => TEAMS[i].k)); ks.forEach((k, i) => { if (ks.indexOf(k) !== i || !/^[A-Z0-9]{3}$/.test(k)) dupK.push(K.n + ':' + k); }); }
+    for (let i = 0; i < TEAMS.length; i += 13) { const t = TEAMS[i], ro = roster(t.id), nums = ro.map(p => p.num); if (ro.length !== 18 || new Set(nums).size !== 18 || ro.filter(p => p.grp === 'TW').length < 2) bad.push(t.n); }
+    for (const t of TEAMS) if (!t.short || t.short.length > 21 || !(t.r >= 55 && t.r <= 76) || ![0, 1, 2].includes(t.ground)) shortBad.push(t.n + '>' + t.short);
+    const cob = LIGEN[TEAMS[HOME_TEAM].lg];
+    return { verb: VERB.length, kreise: KREISE.length, teams: TEAMS.length, small: LIGEN.filter(L => L.ids.length < 6).length, dupK, bad, shortBad, cob: cob.ids.length, names: cob.ids.map(i => TEAMS[i].n), k: TEAMS[HOME_TEAM].k, map: MAPV.filter(v => v < 0).length };
   });
-  ok(r.l[0] === 16 && r.l[1] === 16, 'Ligagröße ' + r.l);
-  ok(!r.dupK.length, 'doppelte Kürzel: ' + r.dupK);
-  ok(!r.bad.length, 'Kader fehlerhaft: ' + r.bad);
-  ok(r.names.includes('TSV 1860 Staffelstein') && r.names.includes('SV Bosporus Coburg'), 'echte Vereine fehlen');
+  ok(r.verb >= 11 && r.kreise >= 100 && r.teams >= 2000, 'zu wenige Daten: ' + JSON.stringify([r.verb, r.kreise, r.teams]));
+  ok(!r.small, 'Ligen mit weniger als 6 Vereinen');
+  ok(!r.dupK.length, 'doppelte Kürzel: ' + r.dupK.slice(0, 10));
+  ok(!r.bad.length, 'Kader fehlerhaft: ' + r.bad.slice(0, 10));
+  ok(!r.shortBad.length, 'Kurzname/Stärke/Platz fehlerhaft: ' + r.shortBad.slice(0, 10));
+  ok(r.cob === 16 && r.k === 'STA' && r.names.includes('SV Bosporus Coburg'), 'Coburg: ' + JSON.stringify(r.names));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Vereinsauswahl: Karte -> Landesverband -> Kreis -> Verein, Suche mit höchstens 8 Treffern, höchstens 45 Knöpfe je Stufe', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const out = {}, cnt = () => menu.querySelectorAll('.picker button').length;
+    ACT.quick(); ACT.pkTop(); out.top = cnt(); out.map = !!document.getElementById('pkmap');
+    let maxBtn = 0;
+    for (let v = 0; v < VERB.length; v++) { ACT.pkV(v); maxBtn = Math.max(maxBtn, cnt()); for (const k of VERB[v].kreise.slice(0, 2)) { ACT.pkK(k); maxBtn = Math.max(maxBtn, cnt()); } }
+    out.maxBtn = maxBtn;
+    // Karte anklicken: Mitte von Bayern
+    ACT.pkTop(); const cv = document.getElementById('pkmap'), bay = VERB.findIndex(V => V.n === 'Bayern'), [cx, cy] = mapCenter(bay), rc = cv.getBoundingClientRect();
+    cv.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: rc.left + (cx + 0.5) / KARTE.w * rc.width, clientY: rc.top + (cy + 0.5) / KARTE.h * rc.height }));
+    out.click = PK.v === bay;
+    // Kreis und Verein wählen: Gegner aus dem Allgäu
+    const k = VERB[bay].kreise[0]; ACT.pkK(k); const tid = LIGEN[KREISE[k].ligen[0]].ids[3];
+    menu.querySelector(`[data-act="qpick"][data-arg="${tid}"]`).click();
+    out.picked = QUICK.a === tid && QUICK.side === 'b';
+    const q = document.getElementById('pkq'); q.value = 'Staffel'; q.dispatchEvent(new Event('input'));
+    out.hits = [...menu.querySelectorAll('#pkbody [data-act="qpick"]')].map(b => TEAMS[+b.dataset.arg].n);
+    q.value = 'SV'; q.dispatchEvent(new Event('input')); out.many = menu.querySelectorAll('#pkbody [data-act="qpick"]').length;
+    menu.querySelector('#pkbody [data-act="qpick"]').click(); out.b = QUICK.b !== HOME_TEAM && QUICK.side === 'b';
+    return out;
+  });
+  ok(r.map && r.top <= 30, 'Startseite: ' + JSON.stringify(r));
+  ok(r.maxBtn <= 45, 'zu viele Knöpfe auf einer Stufe: ' + r.maxBtn);
+  ok(r.click, 'Klick auf die Karte wählt Bayern nicht');
+  ok(r.picked && r.b, 'Verein wählen klappt nicht');
+  ok(r.hits.includes('TSV 1860 Staffelstein'), 'Suche findet Staffelstein nicht: ' + r.hits);
+  ok(r.many === 8, 'Suche begrenzt nicht auf 8: ' + r.many);
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
 test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüsse, Pässe, Zweikämpfe', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(RUN_MATCH);
-  const res = await page.evaluate(() => [0, 1, 2, 3].map(i => __runMatch(KREIS_LIGEN[0].ids[i], KREIS_LIGEN[1].ids[15 - i])));
+  const res = await page.evaluate(() => [0, 1, 2, 3].map(i => __runMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[i], LIGEN[TEAMS[HOME_TEAM].lg + 1].ids[15 - i])));
   let goals = 0, shots = 0, passes = 0, ok2 = 0;
   for (const r of res) {
     ok(r.phase === 'end', 'Spiel endet nicht: ' + JSON.stringify(r.score));
@@ -113,7 +148,7 @@ test('Tastatur: Enter, Freundschaftsspiel startet mit Intro, Anstoß mit S, Pfei
 
 test('Aktionen: Pass, Steilpass, Flanke, Haken, Tackling und Grätsche lösen aus', async () => {
   const { page, ctx, errors } = await open();
-  await page.evaluate(() => { startMatch(KREIS_LIGEN[0].ids[0], KREIS_LIGEN[0].ids[4], { human: 0 }); G.paused = true; });
+  await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; });
   const r = await page.evaluate(() => {
     const setup = (wing) => { G.phase = 'play'; G.sp = null; G.ball.passTo = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); p.cd = 0; p.act = null; p.stun = 0; place(p, wing ? goalX(0) - atkDir(0) * 20 : CW / 2, wing ? 6 : MY); giveBall(p, true); G.ctrl = p; return p; };
     const press = k => { KEY[k] = true; KEYP[k] = true; readInput(1 / 60); KEY[k] = false; humanControl(1 / 60); readInput(1 / 60); };
@@ -136,7 +171,7 @@ test('Aktionen: Pass, Steilpass, Flanke, Haken, Tackling und Grätsche lösen au
 
 test('Regeln: Seitenaus gibt Einwurf, Toraus Ecke oder Abstoß, Foul im Strafraum Elfmeter, Abseits wird gepfiffen', async () => {
   const { page, ctx, errors } = await open();
-  await page.evaluate(() => { startMatch(KREIS_LIGEN[0].ids[0], KREIS_LIGEN[0].ids[4], { human: -1 }); G.paused = true; });
+  await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: -1 }); G.paused = true; });
   const r = await page.evaluate(() => {
     const out = {}, b = G.ball;
     const free = (x, y, vx, vy, last) => { G.phase = 'play'; G.sp = null; b.owner = null; Object.assign(b, { x, y, z: 0, vx, vy, vz: 0, plan: null, shot: null }); b.last = last; b.lastTeam = last.team; for (const p of G.players) { p.x = CW / 2; p.y = MY; } };
@@ -170,7 +205,7 @@ test('Regeln: Seitenaus gibt Einwurf, Toraus Ecke oder Abstoß, Foul im Strafrau
 
 test('Tor: Jubel, Wiederholung, Anstoß für den Gegner; Pfosten prallt ab', async () => {
   const { page, ctx, errors } = await open();
-  await page.evaluate(() => { startMatch(KREIS_LIGEN[0].ids[0], KREIS_LIGEN[0].ids[4], { human: -1 }); G.paused = true; });
+  await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: -1 }); G.paused = true; });
   const r = await page.evaluate(() => {
     const b = G.ball, gx = goalX(0), s = atkDir(0), p = teamP(0).find(q => grpOf(q) === 'ST');
     G.phase = 'play'; G.sp = null; G.rec = Array.from({ length: 80 }, () => G.rec[0] || { p: G.players.map(q => [q.x, q.y, 0, 'idle', 0, 1, 0, 0]), b: [b.x, b.y, 0] });
@@ -196,40 +231,48 @@ test('K.-o.-Spiel: Unentschieden führt zum Elfmeterschießen mit Sieger; Finale
   await page.evaluate(RUN_MATCH);
   const r = await page.evaluate(() => {
     const out = [];
-    for (let i = 0; i < 6 && out.filter(x => x.so).length < 2; i++) { const m = __runMatch(KREIS_LIGEN[0].ids[i], KREIS_LIGEN[0].ids[i + 1], { ko: true, hlen: 1 }); out.push({ score: m.score, so: m.so, w: winnerOf() }); }
+    for (let i = 0; i < 6 && out.filter(x => x.so).length < 2; i++) { const m = __runMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[i], LIGEN[TEAMS[HOME_TEAM].lg].ids[i + 1], { ko: true, hlen: 1 }); out.push({ score: m.score, so: m.so, w: winnerOf() }); }
     return out;
   });
   for (const m of r) ok(m.w === 0 || m.w === 1, 'kein Sieger im K.-o.-Spiel ' + JSON.stringify(m));
   const sos = r.filter(m => m.so);
   ok(sos.length, 'kein Elfmeterschießen in 6 Spielen');
   for (const m of sos) { const a = m.so[0].reduce((x, y) => x + y, 0), b = m.so[1].reduce((x, y) => x + y, 0); ok(a !== b && m.score[0] === m.score[1], 'Elfmeterschießen falsch ' + JSON.stringify(m)); }
-  const et = await page.evaluate(() => { newMatch(KREIS_LIGEN[0].ids[0], KREIS_LIGEN[0].ids[1], { human: -1, hlen: 1, ko: true, et: true }); G.paused = true; G.half = 2; G.score = [1, 1]; G.phase = 'halfend'; G.phaseT = 3; G.demo = false; step(1 / 60); return { phase: G.phase, menu: !!menu.querySelector('[data-act="etGo"]') }; });
+  const et = await page.evaluate(() => { newMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[1], { human: -1, hlen: 1, ko: true, et: true }); G.paused = true; G.half = 2; G.score = [1, 1]; G.phase = 'halfend'; G.phaseT = 3; G.demo = false; step(1 / 60); return { phase: G.phase, menu: !!menu.querySelector('[data-act="etGo"]') }; });
   ok(et.menu, 'keine Verlängerung im Finale');
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Saison: zwei komplette Saisons (Kreisliga, Meister, Playoffs bis zum Finale), Speichern und Laden', async () => {
+test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs bis zum Finale), Speichern und Laden', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     ACT.career(); ACT.ncGo(); const out = [];
     for (let s = 0; s < 2; s++) {
-      let n = 0; while (!CAREER.S.done && n < 80) { runEvent(null); n++; }
-      const P = CAREER.S.po, tbl = CAREER.S.tables[CAREER.lg];
-      out.push({ n, games: Object.values(tbl).map(r => r.sp), champ: P && P.champ, teams: P && P.teams.length, rounds: P && P.rounds.map(R => R.length), champs: P && KREIS_LIGEN.map((L, li) => P.teams.includes(standings(li)[0])), sq: CAREER.squads[CAREER.team].length });
+      let n = 0; while (!CAREER.S.done && n < 120) { runEvent(null); n++; }
+      const C = CAREER, P = C.S.po, cup = C.S.cup;
+      const games = C.kl.map(li => { const need = (LIGEN[li].ids.length - 1 + LIGEN[li].ids.length % 2) * C.len; return Object.values(C.S.tables[li]).every(r => r.sp === need - (LIGEN[li].ids.length % 2 ? 1 * C.len : 0)) ? 'ok' : li + ':' + Object.values(C.S.tables[li]).map(r => r.sp); });
+      const far = P ? P.teams.filter(t => !C.kl.includes(TEAMS[t].lg)) : [];
+      out.push({ n, kl: C.kl.length, games, champ: P && P.champ, teams: P && P.teams.length, rounds: P && P.rounds.map(R => R.length), champs: P && C.kl.every(li => P.teams.includes(standings(li)[0])),
+        farV: new Set(far.map(t => ligaOf(t).v)).size, farK: new Set(far.map(t => ligaOf(t).kreis)).size, far: far.length,
+        cup: cup && cup.champ != null && cup.rounds[cup.rounds.length - 1].length === 1, cupTeams: cup && cup.teams.length, cupEv: C.S.cal.filter(e => e.t === 'cup').length, sq: C.squads[C.team].length, nsq: Object.keys(C.squads).length });
       ACT.cseason();
     }
     return out;
   });
   for (const s of r) {
-    ok(s.games.every(g => g === 15), 'nicht alle 15 Spiele: ' + s.games);
+    ok(s.games.every(g => g === 'ok'), 'nicht alle Spiele: ' + s.games);
     ok(s.teams === 16 && s.rounds.join() === '8,4,2,1' && s.champ != null, 'Playoffs: ' + JSON.stringify(s));
-    ok(s.champs.every(Boolean), 'Meister fehlen in den Playoffs');
+    ok(s.champs, 'Meister fehlen in den Playoffs');
+    ok(s.far === 16 - s.kl && s.farK === s.far && s.farV >= 10, 'Kreismeister aus ganz Deutschland: ' + JSON.stringify(s));
+    ok(s.cup && s.cupTeams >= 16 && s.cupEv === Math.ceil(Math.log2(s.cupTeams)), 'Kreispokal: ' + JSON.stringify(s));
     ok(s.sq >= 16 && s.sq <= 24, 'Kadergröße ' + s.sq);
   }
+  ok(r[1].nsq <= 50, 'Spielstand wächst: ' + r[1].nsq + ' Kader');
   await page.reload(); await page.waitForTimeout(600);
-  const loaded = await page.evaluate(() => { ACT.career(); return { year: CAREER.year, hub: !!menu.querySelector('[data-act="ctab"]') }; });
+  const loaded = await page.evaluate(() => { ACT.career(); return { year: CAREER.year, hub: !!menu.querySelector('[data-act="ctab"]'), bytes: localStorage.getItem(CAREER_KEY).length }; });
   ok(loaded.year === 2028 && loaded.hub, 'Laden: ' + JSON.stringify(loaded));
-  for (const t of ['blatt', 'tab', 'kader', 'elf', 'plan', 'po', 'stat', 'verein']) await page.evaluate(t => ACT.ctab(t), t);
+  ok(loaded.bytes < 1500000, 'Spielstand zu groß: ' + loaded.bytes);
+  for (const t of ['blatt', 'tab', 'kader', 'elf', 'plan', 'cup', 'po', 'stat', 'verein']) await page.evaluate(t => ACT.ctab(t), t);
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -276,7 +319,7 @@ test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Opt
 
 test('Touch: Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, Mitspieler antippen passt, Stick bewegt', async () => {
   const { page, ctx, errors } = await open(MOBILE);
-  await page.evaluate(() => { startMatch(KREIS_LIGEN[0].ids[0], KREIS_LIGEN[0].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
+  await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
   const lbl = await page.evaluate(() => document.querySelector('.tb-a').textContent);
   ok(lbl === 'PASS', 'Angriffs-Beschriftung fehlt: ' + lbl);
@@ -291,8 +334,8 @@ test('Darstellung: alle Platzarten (Rasen, Kunstrasen, Hartplatz), Nacht im Fina
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     const out = [];
-    for (const [tid, ev] of [[KREIS_LIGEN[0].ids[0], null], [KREIS_LIGEN[0].ids[1], null], [KREIS_LIGEN[0].ids[2], null], [KREIS_LIGEN[0].ids[3], FINAL_EVENT]]) {
-      newMatch(tid, KREIS_LIGEN[1].ids[0], { human: 0, event: ev }); G.phase = 'play'; for (let i = 0; i < 30; i++) step(1 / 60); render();
+    for (const [tid, ev] of [[LIGEN[TEAMS[HOME_TEAM].lg].ids[0], null], [LIGEN[TEAMS[HOME_TEAM].lg].ids[1], null], [LIGEN[TEAMS[HOME_TEAM].lg].ids[2], null], [LIGEN[TEAMS[HOME_TEAM].lg].ids[3], FINAL_EVENT]]) {
+      newMatch(tid, LIGEN[TEAMS[HOME_TEAM].lg + 1].ids[0], { human: 0, event: ev }); G.phase = 'play'; for (let i = 0; i < 30; i++) step(1 / 60); render();
       out.push({ ground: PITCH.ground, night: PITCH.night });
     }
     return out;

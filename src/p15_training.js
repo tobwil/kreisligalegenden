@@ -35,7 +35,7 @@ function tutUse(team, grp, x, y) {
 }
 function tutHold(p) { p.tutHold = [p.x, p.y]; return p; }
 function startTraining(lesson = 0) {
-  const ids = KREIS_LIGEN[0].ids;
+  const ids = LIGEN[TEAMS[HOME_TEAM].lg].ids;
   startMatch(MY_TEAM(), ids[1] === MY_TEAM() ? ids[2] : ids[1], { human: 0, tut: true, wx: {} });
   G.tut = { i: lesson, n: 0, marks: [], reset: 0 };
   G.phase = 'play';

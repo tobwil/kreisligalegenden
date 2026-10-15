@@ -1,4 +1,3 @@
-'use strict';
 // ================= Kern: Maße, Projektion, Helfer =================
 let W = 640; const H = 360;   // W wächst auf breiten Bildschirmen (siehe fitView), H bleibt fest
 // Spielfeld 100 × 64 m. x läuft von Torlinie zu Torlinie, y von der hinteren Seitenlinie (Vereinsheim) zur vorderen, z ist die Höhe
@@ -67,95 +66,124 @@ function track(name, data) {
 }
 
 // ================= Vereine =================
-// Kreis Coburg/Kronach/Lichtenfels (BFV), Saison 2026/27: echte Vereinsnamen, Stärke grob nach dem Tabellenstand im Herbst 2026.
-// Spieler, Werte und Trikotfarben sind frei erfunden. [Kürzel, Name, Kurzname, Farbe 1, Farbe 2, Stärke, Platz, Muster]
-// Muster: 0 einfarbig, 1 Längsstreifen, 2 Ringel, 3 Brustring
-const KREIS_LIGEN = [
-  { k: 'KL1', n: 'Kreisliga 1 Coburg', short: 'KREISLIGA 1', clubs: [
-    ['STA', 'TSV 1860 Staffelstein', 'Staffelstein', '#c8102e', '#ffffff', 74, 0, 0],
-    ['KRE', 'FC Krecktal', 'Krecktal', '#0b3d91', '#ffffff', 69, 1, 1],
-    ['EIN', 'VfB Einberg', 'Einberg', '#ffffff', '#c8102e', 69, 2, 3],
-    ['LIC', '1. FC Lichtenfels II', 'Lichtenfels II', '#d71920', '#1a1a1a', 68, 1, 0],
-    ['SON', 'TSV Sonnefeld', 'Sonnefeld', '#0a8a3e', '#ffffff', 67, 0, 0],
-    ['OBL', 'TSV Oberlauter', 'Oberlauter', '#1d4f91', '#ffd200', 66, 0, 2],
-    ['KET', 'SV Coburg-Ketschendorf', 'Ketschendorf', '#f07d00', '#141414', 66, 2, 0],
-    ['GES', 'TSV Gestungshausen', 'Gestungshausen', '#ffd200', '#14306b', 65, 0, 0],
-    ['SCH', 'TSV Scherneck', 'Scherneck', '#7a1f2b', '#f4f4f0', 65, 1, 0],
-    ['PFA', 'TSV Pfarrweisach', 'Pfarrweisach', '#0057a8', '#f4f4f4', 64, 0, 1],
-    ['GRO', 'SV Großgarnstadt', 'Großgarnstadt', '#00733a', '#ffd200', 63, 2, 0],
-    ['BOS', 'SV Bosporus Coburg', 'Bosporus', '#e30613', '#ffffff', 63, 1, 0],
-    ['NFG', 'SG Niederfüllbach/Grub', 'Niederfüllbach', '#5c2d91', '#ffffff', 60, 0, 0],
-    ['HEI', 'SV Heilgersdorf', 'Heilgersdorf', '#1a1a1a', '#ffffff', 57, 2, 1],
-    ['HEL', 'TSV 1861 Heldritt', 'Heldritt', '#1356a8', '#ffffff', 57, 0, 0],
-    ['HAA', 'FC Haarbrücken', 'Haarbrücken', '#008d4c', '#141414', 56, 1, 2],
-  ] },
-  { k: 'KL2', n: 'Kreisliga 2 Coburg/Kronach/Lichtenfels', short: 'KREISLIGA 2', clubs: [
-    ['KRO', '1. FC Kronach', 'Kronach', '#14306b', '#ffffff', 72, 0, 0],
-    ['MAR', 'TSV Marktzeuln', 'Marktzeuln', '#0a8a3e', '#ffffff', 71, 0, 0],
-    ['BUR', '1. FC Burgkunstadt', 'Burgkunstadt', '#d0021b', '#ffffff', 70, 2, 0],
-    ['STO', '1. FC Stockheim', 'Stockheim', '#ffd200', '#1a1a1a', 69, 1, 0],
-    ['NEU', 'DJK-SV Neufang', 'Neufang', '#0b3d91', '#ffd200', 68, 0, 3],
-    ['WON', 'SG Wolfersgrün/Neuengrün/Nurn', 'Wolfersgrün', '#c8102e', '#1a1a1a', 68, 2, 0],
-    ['BAI', '1. FC Baiersdorf', 'Baiersdorf', '#1a1a1a', '#ffd200', 68, 0, 1],
-    ['LUD', 'TSV Ludwigsstadt', 'Ludwigsstadt', '#1d4f91', '#ffffff', 65, 2, 0],
-    ['SHF', 'SG Steinbach/Hirschfeld', 'Steinbach', '#00863f', '#f5f5f5', 63, 0, 2],
-    ['STE', 'TSV Steinberg', 'Steinberg', '#7a1f2b', '#ffffff', 62, 1, 0],
-    ['DJL', 'DJK Lichtenfels', 'DJK Lichtenfels', '#ffffff', '#0a3d91', 61, 0, 0],
-    ['MRO', 'SG Roth-Main Mainroth', 'Mainroth', '#e2001a', '#ffffff', 61, 0, 1],
-    ['WIN', 'TSV Windheim', 'Windheim', '#f39200', '#0a2d6e', 60, 2, 0],
-    ['ARN', 'SC Jura Arnstein', 'Arnstein', '#5c2d91', '#ffd200', 60, 1, 0],
-    ['LET', 'SpVgg Lettenreuth', 'Lettenreuth', '#00a0dc', '#ffffff', 58, 0, 2],
-    ['MSW', 'SG Michelau/Schwürbitz', 'Michelau', '#e30613', '#141414', 56, 0, 0],
-  ] },
-];
-// Kreismeister aus anderen Regionen (Gegner in den Playoffs): Dörfer und Vereine frei erfunden, Regionen echt
-const REGIONS = [
-  ['Ostfriesland', ['siel', 'fehn', 'warf', 'hörn', 'um', 'ens', 'moor']], ['Nordheide', ['büttel', 'stedt', 'loh', 'horst', 'bostel', 'heide']],
-  ['Holstein', ['hagen', 'rade', 'au', 'wisch', 'stedt', 'felde']], ['Emsland', ['lage', 'brück', 'loh', 'ingen', 'kamp', 'heim']],
-  ['Altmark', ['leben', 'itz', 'ow', 'stedt', 'beck', 'au']], ['Uckermark', ['ow', 'in', 'itz', 'walde', 'felde', 'see']],
-  ['Lausitz', ['witz', 'itz', 'au', 'ow', 'ick', 'hain']], ['Erzgebirge', ['grün', 'itz', 'bach', 'hain', 'walde', 'tal']],
-  ['Sauerland', ['hagen', 'scheid', 'mecke', 'hausen', 'ohl', 'berg']], ['Eifel', ['scheid', 'rath', 'weiler', 'born', 'bach', 'feld']],
-  ['Westerwald', ['bach', 'rod', 'hain', 'born', 'scheid', 'hausen']], ['Odenwald', ['bach', 'hausen', 'rode', 'hain', 'feld', 'brunn']],
-  ['Allgäu', ['ing', 'hofen', 'ried', 'moos', 'kirch', 'zell']], ['Schwäbische Alb', ['ingen', 'hausen', 'stetten', 'weiler', 'heim', 'buch']],
-  ['Pfalz', ['heim', 'bach', 'weiler', 'hof', 'stein', 'thal']],
-];
-const VROOT = ['Kleckers', 'Wiesen', 'Linden', 'Eichen', 'Buchen', 'Birken', 'Tannen', 'Mühl', 'Kirch', 'Brunn', 'Stein', 'Hasel', 'Ochsen', 'Gänse', 'Wolfs', 'Fuchs', 'Hasen', 'Raben', 'Lerchen', 'Wald', 'Moor', 'Sand', 'Lehm', 'Kalk', 'Rüben', 'Hopfen', 'Gersten', 'Hafer', 'Apfel', 'Krähen', 'Bären', 'Hirsch', 'Dachs', 'Erlen', 'Weiden', 'Rosen', 'Holler', 'Schlehen', 'Bocks', 'Kuckucks', 'Schnecken', 'Mösl', 'Hühner', 'Kraut', 'Lauter', 'Moos', 'Schwalben', 'Finken'];
-const VPRE = ['Ober', 'Unter', 'Nieder', 'Hinter', 'Groß', 'Klein', 'Alt', 'Neu', 'Hohen'];
-const CLUBPRE = ['SV', 'TSV', 'FC', 'SC', 'TuS', 'SpVgg', 'VfB', 'VfL', 'FSV', 'SSV', 'TSG', 'DJK', 'SuS', 'ASV', 'BSC'];
-const CLUBMID = ['Germania', 'Eintracht', 'Viktoria', 'Concordia', 'Borussia', 'Fortuna', 'Alemannia', 'Teutonia', 'Union'];
-const KITCOL = [['#c8102e', '#ffffff', 'Rot-Weiß'], ['#1d4f91', '#ffffff', 'Blau-Weiß'], ['#0a8a3e', '#ffffff', 'Grün-Weiß'], ['#141414', '#ffd200', 'Schwarz-Gelb'],
-  ['#7a1f2b', '#f4f4f0', ''], ['#f07d00', '#141414', ''], ['#ffd200', '#0a2d6e', 'Gelb-Blau'], ['#5c2d91', '#ffffff', ''], ['#0b3d91', '#e2001a', 'Blau-Rot'],
-  ['#e30613', '#141414', 'Rot-Schwarz'], ['#00733a', '#ffd200', ''], ['#5aa9e6', '#ffffff', ''], ['#141414', '#ffffff', 'Schwarz-Weiß'], ['#ffffff', '#c8102e', 'Weiß-Rot']];
-const LEAGUE_TEAMS = 16;
-const TEAMS = [];
-function addTeam(o) { const t = Object.assign({ id: TEAMS.length }, o); t.home = { c1: o.c1, c2: o.c2, pat: o.pat || 0 }; t.away = defaultAway(t); TEAMS.push(t); return t; }
-function defaultAway(t) { return lum(t.c1) > 0.75 ? { c1: lum(t.c2) > 0.75 ? '#1d1d24' : t.c2, c2: t.c1, pat: 0 } : { c1: '#f4f4f0', c2: t.c1, pat: 0 }; }
-// Platzart: 0 Rasen, 1 Kunstrasen, 2 Hartplatz (Asche)
+// Alle Vereine der höchsten Kreisspielklasse in Deutschland (VDB aus d_vereine.js): Landesverband -> Kreis -> Liga -> Verein.
+// Echte Vereinsnamen, Stärke grob nach Punkten pro Spiel im Herbst 2026. Spieler, Werte, Trikotfarben und Plätze sind frei erfunden.
+// Muster: 0 einfarbig, 1 Längsstreifen, 2 Ringel, 3 Brustring. Platzart: 0 Rasen, 1 Kunstrasen, 2 Hartplatz (Asche)
 const GROUNDS = ['RASEN', 'KUNSTRASEN', 'HARTPLATZ'];
-KREIS_LIGEN.forEach((L, li) => {
-  L.ids = L.clubs.map(([k, n, short, c1, c2, r, gr, pat]) => {
-    const rr = seeded(hashStr(n));
-    return addTeam({ k, n, short, c1, c2, pat, r, ground: gr, lg: li, real: true, region: 'Coburg', att: Math.round(r + (rr() - 0.5) * 8), def: Math.round(r + (rr() - 0.5) * 8) }).id;
-  });
-});
-// Kürzel aus drei Buchstaben des Ortsnamens, eindeutig über alle Vereine
-function uniqueK(v) {
-  const L = v.toUpperCase().replace(/[^A-ZÄÖÜ]/g, ''), used = new Set(TEAMS.map(t => t.k)), cand = [L.slice(0, 3), L[0] + L.slice(2, 4), L[0] + L[1] + L[L.length - 1], L[0] + L[3] + L[L.length - 1], L[0] + L[2] + L[L.length - 2]];
-  return cand.find(c => c.length === 3 && !used.has(c)) || L.slice(0, 2) + TEAMS.length % 10;
+// Kreis Coburg/Kronach/Lichtenfels: von Hand gestaltet [Ortsteil im Namen, Kürzel, Name, Kurzname, Farbe 1, Farbe 2, Stärke, Platz, Muster]
+const HANDMADE = { 'Coburg': [
+  ['Staffelstein', 'STA', 'TSV 1860 Staffelstein', 'Staffelstein', '#c8102e', '#ffffff', 74, 0, 0], ['Krecktal', 'KRE', 'FC Krecktal', 'Krecktal', '#0b3d91', '#ffffff', 69, 1, 1],
+  ['Einberg', 'EIN', 'VfB Einberg', 'Einberg', '#ffffff', '#c8102e', 69, 2, 3], ['Lichtenfels II', 'LIC', '1. FC Lichtenfels II', 'Lichtenfels II', '#d71920', '#1a1a1a', 68, 1, 0],
+  ['Sonnefeld', 'SON', 'TSV Sonnefeld', 'Sonnefeld', '#0a8a3e', '#ffffff', 67, 0, 0], ['Oberlauter', 'OBL', 'TSV Oberlauter', 'Oberlauter', '#1d4f91', '#ffd200', 66, 0, 2],
+  ['Ketschendorf', 'KET', 'SV Coburg-Ketschendorf', 'Ketschendorf', '#f07d00', '#141414', 66, 2, 0], ['Gestungshausen', 'GES', 'TSV Gestungshausen', 'Gestungshausen', '#ffd200', '#14306b', 65, 0, 0],
+  ['Scherneck', 'SCH', 'TSV Scherneck', 'Scherneck', '#7a1f2b', '#f4f4f0', 65, 1, 0], ['Pfarrweisach', 'PFA', 'TSV Pfarrweisach', 'Pfarrweisach', '#0057a8', '#f4f4f4', 64, 0, 1],
+  ['Großgarnstadt', 'GRO', 'SV Großgarnstadt', 'Großgarnstadt', '#00733a', '#ffd200', 63, 2, 0], ['Bosporus', 'BOS', 'SV Bosporus Coburg', 'Bosporus', '#e30613', '#ffffff', 63, 1, 0],
+  ['Niederfüllbach', 'NFG', 'SG Niederfüllbach/Grub', 'Niederfüllbach', '#5c2d91', '#ffffff', 60, 0, 0], ['Heilgersdorf', 'HEI', 'SV Heilgersdorf', 'Heilgersdorf', '#1a1a1a', '#ffffff', 57, 2, 1],
+  ['Heldritt', 'HEL', 'TSV 1861 Heldritt', 'Heldritt', '#1356a8', '#ffffff', 57, 0, 0], ['Haarbrücken', 'HAA', 'FC Haarbrücken', 'Haarbrücken', '#008d4c', '#141414', 56, 1, 2],
+  ['Kronach', 'KRO', '1. FC Kronach', 'Kronach', '#14306b', '#ffffff', 72, 0, 0], ['Marktzeuln', 'MAR', 'TSV Marktzeuln', 'Marktzeuln', '#0a8a3e', '#ffffff', 71, 0, 0],
+  ['Burgkunstadt', 'BUR', '1. FC Burgkunstadt', 'Burgkunstadt', '#d0021b', '#ffffff', 70, 2, 0], ['Stockheim', 'STO', '1. FC Stockheim', 'Stockheim', '#ffd200', '#1a1a1a', 69, 1, 0],
+  ['Neufang', 'NEU', 'DJK-SV Neufang', 'Neufang', '#0b3d91', '#ffd200', 68, 0, 3], ['Wolfers', 'WON', 'SG Wolfersgrün/Neuengrün/Nurn', 'Wolfersgrün', '#c8102e', '#1a1a1a', 68, 2, 0],
+  ['Baiersdorf', 'BAI', '1. FC Baiersdorf', 'Baiersdorf', '#1a1a1a', '#ffd200', 68, 0, 1], ['Ludwigsstadt', 'LUD', 'TSV Ludwigsstadt', 'Ludwigsstadt', '#1d4f91', '#ffffff', 65, 2, 0],
+  ['Steinbach', 'SHF', 'SG Steinbach/Hirschfeld', 'Steinbach', '#00863f', '#f5f5f5', 63, 0, 2], ['Steinberg', 'STE', 'TSV Steinberg', 'Steinberg', '#7a1f2b', '#ffffff', 62, 1, 0],
+  ['DJK Lichtenfels', 'DJL', 'DJK Lichtenfels', 'DJK Lichtenfels', '#ffffff', '#0a3d91', 61, 0, 0], ['Mainroth', 'MRO', 'SG Roth-Main Mainroth', 'Mainroth', '#e2001a', '#ffffff', 61, 0, 1],
+  ['Windheim', 'WIN', 'TSV Windheim', 'Windheim', '#f39200', '#0a2d6e', 60, 2, 0], ['Arnstein', 'ARN', 'SC Jura Arnstein', 'Arnstein', '#5c2d91', '#ffd200', 60, 1, 0],
+  ['Lettenreuth', 'LET', 'SpVgg Lettenreuth', 'Lettenreuth', '#00a0dc', '#ffffff', 58, 0, 2], ['Michelau', 'MSW', 'SG Michelau/Schwürbitz', 'Michelau', '#e30613', '#141414', 56, 0, 0],
+] };
+const KITCOL = [['#c8102e', '#ffffff'], ['#1d4f91', '#ffffff'], ['#0a8a3e', '#ffffff'], ['#141414', '#ffd200'], ['#7a1f2b', '#f4f4f0'], ['#f07d00', '#141414'], ['#ffd200', '#0a2d6e'],
+  ['#5c2d91', '#ffffff'], ['#0b3d91', '#e2001a'], ['#e30613', '#141414'], ['#00733a', '#ffd200'], ['#5aa9e6', '#ffffff'], ['#141414', '#ffffff'], ['#ffffff', '#c8102e'], ['#ffffff', '#1d4f91'],
+  ['#e2001a', '#ffd200'], ['#0a2d6e', '#ffd200'], ['#008d4c', '#141414'], ['#7a1f2b', '#5aa9e6'], ['#f4f4f0', '#0a8a3e']];
+const COLW = { rot: '#c8102e', blau: '#1d4f91', grün: '#0a8a3e', gruen: '#0a8a3e', schwarz: '#141414', weiß: '#f4f4f0', weiss: '#f4f4f0', gelb: '#ffd200', gold: '#d4a017', orange: '#f07d00', lila: '#5c2d91' };
+const COLAB = { R: 'rot', B: 'blau', G: 'grün', S: 'schwarz', W: 'weiß' };
+// Farben aus dem Vereinsnamen (Rot-Weiß, Blau-Gelb, RW, BW, SW …), sonst aus einer Palette
+function kitFromName(n, r) {
+  const m = n.match(/(Rot|Blau|Grün|Gruen|Schwarz|Weiß|Weiss|Gelb|Gold|Orange|Lila)[- ]?(Rot|Blau|Grün|Gruen|Schwarz|Weiß|Weiss|Gelb|Gold|Orange|Lila)/i);
+  if (m) return [COLW[m[1].toLowerCase()], COLW[m[2].toLowerCase()]];
+  const a = n.replace(/(\s[RBGSW])\/([RBGSW]\s)/, '$1$2').match(/(?:^|\s)(RW|BW|GW|SW|WR|WB|RS|BG|GB)S?(?=\s)/);
+  if (a) return [COLW[COLAB[a[1][0]]], COLW[COLAB[a[1][1]]]];
+  return KITCOL[(r() * KITCOL.length) | 0];
 }
-// erfundene Kreismeister: je Region ein Verein, Stärke wie ein Kreisliga-Spitzenteam
-const REGION_TEAMS = REGIONS.map(([reg, suf], ri) => {
-  const r = seeded(hashStr('krl-region-' + reg)), pk = a => a[(r() * a.length) | 0];
-  let vil = pk(VROOT).toLowerCase(); vil = vil[0].toUpperCase() + vil.slice(1) + pk(suf);
-  if (r() < 0.35) vil = pk(VPRE) + vil.toLowerCase();
-  const col = pk(KITCOL), form = r();
-  const n = form < 0.25 && col[2] ? `${pk(CLUBPRE)} ${col[2]} ${vil}` : form < 0.45 ? `${pk(CLUBPRE)} ${pk(CLUBMID)} ${vil}` : form < 0.6 ? `${pk(['TSV', 'SV', 'FC', 'TuS'])} ${1890 + ((r() * 60) | 0)} ${vil}` : `${pk(CLUBPRE)} ${vil}`;
-  const rating = 66 + Math.round(r() * 9);
-  return addTeam({ k: uniqueK(vil), n, short: vil, c1: col[0], c2: col[1], pat: (r() * 4) | 0, r: rating, ground: (r() * 3) | 0, lg: -1, region: reg,
-    att: rating + Math.round((r() - 0.5) * 8), def: rating + Math.round((r() - 0.5) * 8) }).id;
-});
-const LEAGUE = li => KREIS_LIGEN[li].ids.map(i => TEAMS[i]);
-const HOME_TEAM = KREIS_LIGEN[0].ids[0];
+// Kurzname: Vereinskürzel, Jahreszahlen und Traditionsnamen weg, der Ort bleibt ("TSV 1860 Staffelstein" -> "Staffelstein")
+const TRAD = new Set('germania eintracht eintr. viktoria victoria concordia borussia fortuna alemannia teutonia union arminia preußen preussen westfalia rhenania olympia sportfreunde sportfr. spfr. kickers hertha tasmania normannia hansa vorwärts dynamo lok lokomotive stahl motor empor traktor aufbau chemie einheit fortschritt turbine inter rapid sparta glückauf glück-auf wacker phönix phoenix jahn frisch auf grün-weiß blau-weiß rot-weiß schwarz-weiß rot-weiss blau-weiss grün-weiss schwarz-weiss blau-gelb gelb-schwarz schwarz-gelb rot-schwarz schwarz-rot blau-rot rot-blau grün-gelb türkspor türkgücü türkiyemspor croatia hellas polonia sportclub sportverein spielvereinigung turnverein sportgemeinschaft spielgemeinschaft fußballverein fussballverein fußballclub fussballclub tura tus turn- sport- club spvgg. spvg. spvgg spvg sg sv tsv fc sc vfb vfl vfr djk post bahn eisenbahn polizei werder'.split(' '));
+const isAbbr = w => /^\d+\.?$/.test(w) || /^\d{2,4}(\/\d{2,4})?$/.test(w) || /^[A-ZÄÖÜ0-9.\-]{1,6}$/.test(w) && /[A-ZÄÖÜ]/.test(w) && w !== w[0] + w.slice(1).toLowerCase() || /^[A-ZÄÖÜ][a-zäöü]{0,3}[A-ZÄÖÜ][A-Za-zäöü]{0,3}\.?$/.test(w) || /^[A-ZÄÖÜ]{1,4}-[A-ZÄÖÜ]{1,4}$/.test(w);
+function shortName(n) {
+  let suf = '';
+  const sm = n.match(/\s+(II|III|IV|V|U\d\d)$/); if (sm) { suf = ' ' + sm[1]; n = n.slice(0, sm.index); }
+  n = n.replace(/\s+(I|1\.)$/, '').replace(/(Rot|Blau|Grün|Schwarz|Weiß|Weiss|Gelb|Gold)[- ](Rot|Blau|Grün|Schwarz|Weiß|Weiss|Gelb|Gold)/gi, ' ');
+  const core = s => {
+    const ws = s.replace(/[()]/g, ' ').split(/\s+/).filter(Boolean).filter(w => !isAbbr(w) && !TRAD.has(w.toLowerCase()));
+    while (ws.length && /^(a\.|i\.|v\.|am|an|im|in|der|die|von|vom|zu|und|e\.|b\.)$/i.test(ws[ws.length - 1])) ws.pop();
+    while (ws.length && /^(a\.|i\.|am|an|im|in|der|die|von|vom|zu|und|e\.|b\.)$/i.test(ws[0])) ws.shift();
+    return ws;
+  };
+  n = n.replace(/(^|\s)[RBGSW]\/[RBGSW](?=\s)/g, ' ');
+  let ws = core(n.split('/')[0]); if (ws.join('').length < 3) ws = core(n.replace(/\//g, ' '));
+  if (!ws.length) return (n.length > 16 ? n.slice(0, 15) + '.' : n) + suf;
+  let s = ws.slice(0, 3).join(' ');
+  if (s.length > 15) s = ws.slice(0, 2).join(' ');
+  if (s.length > 15) s = ws[0];
+  if (s.length > 15 && s.includes('-')) s = s.split('-')[0];
+  if (s.length > 16) s = s.slice(0, 15) + '.';
+  return s + suf;
+}
+// Kürzel aus drei Buchstaben des Ortsnamens, eindeutig innerhalb des Kreises
+function uniqueK(v, used) {
+  const L = v.toUpperCase().replace(/Ä/g, 'A').replace(/Ö/g, 'O').replace(/Ü/g, 'U').replace(/ß/g, 'S').replace(/^(BAD|GROSS|KLEIN|OBER|UNTER|NIEDER|ALT|NEU|SANKT|ST)\s+/, '').replace(/[^A-Z]/g, '').padEnd(3, 'X');
+  const cand = [L.slice(0, 3), L[0] + L.slice(2, 4), L[0] + L[1] + L[L.length - 1], L[0] + L[3] + L[L.length - 1], L[0] + L[2] + L[L.length - 2], L[0] + L[1] + L[4], L[0] + L[4] + L[5]];
+  const k = cand.find(c => c.length === 3 && !used.has(c)) || (() => { for (let i = 0; i < 99; i++) { const c = L.slice(0, 2) + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[i % 26]; if (!used.has(c)) return c; } return L.slice(0, 3); })();
+  used.add(k); return k;
+}
+const VERB = [], KREISE = [], LIGEN = [], TEAMS = [];
+function defaultAway(t) { return lum(t.c1) > 0.75 ? { c1: lum(t.c2) > 0.75 ? '#1d1d24' : t.c2, c2: t.c1, pat: 0 } : { c1: '#f4f4f0', c2: t.c1, pat: 0 }; }
+function addTeam(o) { const t = Object.assign({ id: TEAMS.length }, o); t.home = { c1: o.c1, c2: o.c2, pat: o.pat || 0 }; t.away = defaultAway(t); TEAMS.push(t); return t; }
+// mehr Asche im Westen, mehr Kunstrasen in der Stadt
+const ASCHE = { '21': 0.3, '22': 0.3, '23': 0.25, '43': 0.25, '41': 0.2, '42': 0.2, '03': 0.05, '66': 0.05, '02': 0.1 };
+const CITY = { '03': 1, '66': 1, '02': 1 };
+for (const [vid, vn, kl, kreise] of VDB) {
+  const V = { id: vid, n: vn, kl, kreise: [] }, vi = VERB.push(V) - 1;
+  for (const [kn, ligen] of kreise) {
+    const K = { n: kn, v: vi, ligen: [] }, ki = KREISE.push(K) - 1, used = new Set(), hand = Object.keys(HANDMADE).find(h => kn.includes(h));
+    V.kreise.push(ki);
+    for (const [ln, teams] of ligen) {
+      const L = { n: ln, kreis: ki, v: vi, ids: [] }, li = LIGEN.push(L) - 1;
+      K.ligen.push(li);
+      const shorts = new Set();
+      for (const tx of teams.split('|')) {
+        const c = tx.lastIndexOf(':'), n = tx.slice(0, c), ppg = tx.slice(c + 1), r = seeded(hashStr(n + vid));
+        const hm = hand && HANDMADE[hand].find(h => n.includes(h[0]) && !used.has(h[1]));
+        let t;
+        if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: hm[6], ground: hm[7], pat: hm[8] }; }
+        else {
+          let s = shortName(n); if (shorts.has(s)) s = n.length > 16 ? n.slice(0, 15) + '.' : n;
+          const [c1, c2] = kitFromName(n, r), q = r();
+          const rating = ppg === '' ? 60 + ((r() * 8) | 0) : clamp(Math.round(56 + +ppg * 0.6 + (r() - 0.5) * 3), 55, 76);
+          const g = r(), ash = ASCHE[vid] || 0.1, kr = CITY[vid] ? 0.6 : 0.28;
+          t = { k: uniqueK(s, used), n, short: s, c1, c2, r: rating, ground: g < ash ? 2 : g < ash + kr ? 1 : 0, pat: q < 0.6 ? 0 : q < 0.75 ? 1 : q < 0.9 ? 2 : 3 };
+        }
+        shorts.add(t.short);
+        t.lg = li; t.att = Math.round(t.r + (r() - 0.5) * 8); t.def = Math.round(t.r + (r() - 0.5) * 8);
+        L.ids.push(addTeam(t).id);
+      }
+    }
+  }
+}
+const LEAGUE = li => LIGEN[li].ids.map(i => TEAMS[i]);
+const ligaOf = tid => LIGEN[TEAMS[tid].lg];
+const kreisOf = tid => KREISE[ligaOf(tid).kreis];
+const verbOf = tid => VERB[ligaOf(tid).v];
+// Herkunft kurz: "Kreisliga 1 · Coburg/Kronach/Lichtenf." bzw. für Gegner von weit her mit Landesverband
+const homeTag = (tid, far) => far ? `${kreisOf(tid).n} · ${verbOf(tid).n}` : `${ligaOf(tid).n} · ${kreisOf(tid).n}`;
+const HOME_TEAM = (TEAMS.find(t => t.n === 'TSV 1860 Staffelstein') || TEAMS[0]).id;
+// Suche über alle Vereine (ohne Umlaute, Groß-/Kleinschreibung)
+const norm = s => s.toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss').replace(/[^a-z0-9 ]/g, ' ');
+let SEARCH_IX = null;
+function searchTeams(q, max = 8) {
+  q = norm(q).trim(); if (q.length < 2) return [];
+  if (!SEARCH_IX) SEARCH_IX = TEAMS.map(t => ' ' + norm(t.n + ' ' + KREISE[LIGEN[t.lg].kreis].n));
+  const parts = q.split(/\s+/), out = [];
+  for (let i = 0; i < TEAMS.length && out.length < 60; i++) if (parts.every(p => SEARCH_IX[i].includes(p))) out.push(i);
+  // Treffer am Wortanfang zuerst
+  return out.sort((a, b) => (SEARCH_IX[b].includes(' ' + parts[0]) ? 1 : 0) - (SEARCH_IX[a].includes(' ' + parts[0]) ? 1 : 0)).slice(0, max);
+}
 
 // ================= Kader =================
 // Gruppen: TW Torwart, AB Abwehr, MF Mittelfeld, ST Sturm. Werte: tmp Tempo, tec Technik, pas Passen, sch Schuss, kop Kopfball,

@@ -2,7 +2,7 @@
 
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial-3ddc84?style=for-the-badge&labelColor=07060b)](LICENSE)
 
-**Fußball im Retro-Pixel-Look: 11 gegen 11 auf Rasen, Kunstrasen und Hartplatz, mit den Vereinen aus dem Kreis Coburg/Kronach/Lichtenfels. Wer Kreismeister wird, spielt in den Playoffs gegen die Kreismeister aus ganz Deutschland um die Goldene Eckfahne.** Ein komplettes Browserspiel in einer einzigen HTML-Datei, aus der Familie von [Hallen-Legenden](https://github.com/tobwil/hallenlegenden) und [Korb-Legenden](https://github.com/tobwil/korblegenden).
+**Fußball im Retro-Pixel-Look: 11 gegen 11 auf Rasen, Kunstrasen und Hartplatz, mit allen rund 4.900 Vereinen der Kreisligen Deutschlands – aus 238 Kreisen und allen 21 Landesverbänden. Wer Kreismeister wird, spielt in den Playoffs gegen Kreismeister aus ganz Deutschland um die Goldene Eckfahne.** Ein komplettes Browserspiel in einer einzigen HTML-Datei, aus der Familie von [Hallen-Legenden](https://github.com/tobwil/hallenlegenden) und [Korb-Legenden](https://github.com/tobwil/korblegenden).
 
 **[Screenshots](#screenshots) · [Deutsch](#deutsch) · [English](#english)**
 
@@ -30,7 +30,7 @@ Echte Aufnahmen aus dem Browserspiel. Für die volle Ansicht auf ein Bild klicke
 
 Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/` daneben). Läuft am Desktop mit Tastatur oder Gamepad und auf dem Handy mit Touch-Steuerung (quer). Kostenlos, ohne Werbung, ohne Anmeldung. Die Startseite mit Story folgt.
 
-> Die Ligen tragen die echten Vereinsnamen der **Kreisliga 1 und 2 im Kreis Coburg/Kronach/Lichtenfels (BFV), Saison 2026/27**. Spieler, Spielstärken, Trikotfarben, Werbebanden und die Gegner aus anderen Regionen sind frei erfunden. Kein offizielles Produkt des BFV oder der Vereine.
+> Die Ligen tragen die echten Vereinsnamen der **höchsten Kreisspielklasse (Herren) aller Kreise in Deutschland, Saison 2026/27, Stand Herbst 2026** – je nach Landesverband heißt sie Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Quelle sind die öffentlichen Tabellen auf fussball.de (siehe `tools/`). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden; die Kreisligen 1 und 2 im Kreis Coburg/Kronach/Lichtenfels sind von Hand gestaltet. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Bitte ein Issue öffnen oder über das Impressum melden.
 
 ### Was drin ist
 
@@ -46,8 +46,10 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 - **Ton** komplett synthetisiert: Schuss, Pfiff, Pfosten, Netz, Zuschauer, Autohupe vom Parkplatz, Blaskapellen-Chiptune
 
 #### Saison
-- **Kreisliga 1 Coburg** oder **Kreisliga 2 Coburg/Kronach/Lichtenfels** mit je 16 Vereinen, Hinrunde (15 Spieltage) oder Hin- und Rückrunde (30)
-- **Playoffs um die deutsche Kreisliga-Meisterschaft:** die Meister beider Kreisligen und 14 Kreismeister aus anderen Regionen, Achtelfinale bis Endspiel im K.-o.-System, Turnierbaum
+- **Jeder Kreisliga-Verein Deutschlands** wählbar: Deutschlandkarte → Landesverband → Kreis → Verein, oder einfach per Suche (keine endlosen Listen)
+- Die Kreisligen des eigenen Kreises laufen parallel (bis zu drei Staffeln), Hinrunde oder Hin- und Rückrunde
+- **Kreispokal** mit allen Vereinen dieser Staffeln: K.-o.-Runden zwischen den Spieltagen, Freilose, Elfmeterschießen, Finale auf neutralem Platz
+- **Playoffs um die deutsche Kreisliga-Meisterschaft:** die Meister des eigenen Kreises und Kreismeister aus ganz Deutschland (möglichst jeder aus einem anderen Landesverband), Achtelfinale bis Endspiel, Turnierbaum
 - **Kreisblatt** (Zeitung) mit Schlagzeile, Ergebnis-Ticker, nächstem Gegner, Tabelle, Torjägerliste und Meldungen
 - **Kader** mit 18 Spielern (Werte, Alter, Potenzial, Form, Fitness, Verletzungen, Sperren), Spielerkarten mit Spitznamen und Beruf, Noten wie im Kicker (1 bis 6)
 - **Aufstellung** (Formation, Startelf, Elfmeterschütze), Training mit Schwerpunkt, Vereinskasse (Eintritt, Bratwurst, Sponsoren, Prämien), Wechselbörse mit Handgeld
@@ -73,9 +75,9 @@ Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) ·
 
 ### Entwicklung
 
-Der Quelltext liegt in `src/` (Module `p01_core.js` bis `p14_career_ui.js`, Gerüst und Styles in `head.html`). `sh src/build.sh` baut daraus `game/index.html`, das mit committet wird.
+Der Quelltext liegt in `src/` (Module `p01_core.js` bis `p16_picker.js`, Gerüst und Styles in `head.html`, Vereinsdaten in `d_vereine.js`, Karte in `d_karte.js`). Die Vereinsdaten erzeugen `tools/vereine_crawl.py` (öffentliche Tabellen auf fussball.de) und `tools/vereine_build.py`, die Karte `tools/karte_raster.py` (Natural Earth, gemeinfrei). `sh src/build.sh` baut daraus `game/index.html`, das mit committet wird.
 
-Tests (Playwright mit Chromium): `cd tests && npm install && npm test`. Sie spielen ganze Spiele Bild für Bild durch, prüfen Regeln, Standards, Elfmeterschießen, zwei komplette Saisons mit Playoffs, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
+Tests (Playwright mit Chromium): `cd tests && npm install && npm test`. Sie spielen ganze Spiele Bild für Bild durch, prüfen Regeln, Standards, Elfmeterschießen, die Vereinsdaten und die Kartenauswahl, zwei komplette Saisons mit Kreispokal und Playoffs, das Training, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
 
 Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und VT323 (SIL Open Font License).
 
@@ -85,8 +87,8 @@ Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und
 
 ## English
 
-**Retro pixel football (soccer): 11 vs 11 on grass, artificial turf and cinder pitches, featuring the real amateur clubs of the Coburg/Kronach/Lichtenfels district in Bavaria. Win your district league ("Kreisliga") and fight the champions of 14 other regions in a knockout playoff for the Golden Corner Flag.** A complete browser game in a single HTML file, from the family of Hallen-Legenden (handball) and Korb-Legenden (basketball).
+**Retro pixel football (soccer): 11 vs 11 on grass, artificial turf and cinder pitches, featuring all ~4,900 real clubs of Germany's district leagues ("Kreisliga") from 238 districts and all 21 regional FAs. Pick your club on a map of Germany, win your league and the district cup, then take on district champions from all over the country in a knockout playoff for the Golden Corner Flag.** A complete browser game in a single HTML file, from the family of Hallen-Legenden (handball) and Korb-Legenden (basketball).
 
-Club names are the real names of the 2026/27 district league clubs; all players, ratings, kits, ads and the opponents from other regions are fictional. Not an official product of the Bavarian FA or the clubs.
+Club names are the real names of the 2026/27 top district league clubs (source: public tables on fussball.de); all players, ratings, kits, pitches and ads are fictional. Not an official product of the DFB, the regional FAs or the clubs. A club wants to be removed? Please open an issue.
 
 Play: open `game/index.html`. Keyboard (arrows to run, S pass, A through ball, D cross/lob, Space shoot/slide tackle, F feint, Shift sprint), gamepad or touch. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.

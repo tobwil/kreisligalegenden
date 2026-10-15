@@ -312,6 +312,22 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 @media (max-width:560px){.subs{grid-template-columns:1fr}}
 .bracket .bt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.logo,.logo::after,.press{animation:none}}
+/* Vereinsauswahl: Karte, Verbände, Kreise, Suche */
+.picker{display:flex;flex-direction:column;gap:8px}
+.pkbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.crumbs span{color:var(--mute);font-family:var(--pix);font-size:9px}
+.crumb.on{border-color:var(--gold)}
+#pkq{flex:1 1 180px;max-width:320px;font-size:18px}
+.pkmap{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:12px;align-items:start}
+.mapbox{position:relative;width:100%;aspect-ratio:100/136}
+.mapbox.small{max-width:120px}
+.mapbox canvas{width:100%;height:100%;image-rendering:pixelated;cursor:pointer;filter:drop-shadow(3px 3px 0 #000)}
+.mapname{position:absolute;transform:translate(-50%,-50%);font-family:var(--pix);font-size:8px;background:#07060b;color:var(--gold);padding:3px 4px;pointer-events:none;white-space:nowrap;border:1px solid var(--gold)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start}
+.chips button i{font-style:normal;color:var(--dim);margin-left:6px}
+.pkinfo{margin:0 0 6px}
+@media (max-width:560px){.pkmap{grid-template-columns:1fr}.mapbox{max-width:170px;margin:0 auto}.mapbox.small{display:none}}
 </style>
 
 <div id="wrap">

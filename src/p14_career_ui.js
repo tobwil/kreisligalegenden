@@ -1,14 +1,13 @@
 // ================= Saison: Oberfläche =================
-const NEWC = { lg: 0, team: HOME_TEAM, len: 15, diff: 1, hlen: 3 };
+const NEWC = { team: HOME_TEAM, len: 2, diff: 1, hlen: 3 };
 let CTAB = 'blatt';
 Object.assign(ACT, {
   career() {
     const sv = store.get(CAREER_KEY);
     if (validCareer(sv)) { CAREER = sv; return ACT.chub(); }
-    renderNewCareer();
+    pkFocus(NEWC.team); renderNewCareer();
   },
-  ncLg(a) { NEWC.lg = +a; NEWC.team = KREIS_LIGEN[NEWC.lg].ids[0]; renderNewCareer(`[data-act="ncLg"][data-arg="${a}"]`); },
-  ncTeam(a) { NEWC.team = +a; renderNewCareer(`[data-act="ncTeam"][data-arg="${a}"]`); },
+  ncTeam(a) { NEWC.team = +a; pkFocus(NEWC.team); renderNewCareer(`[data-act="ncTeam"][data-arg="${a}"]`); },
   ncLen(a) { NEWC.len = +a; renderNewCareer(`[data-act="ncLen"][data-arg="${a}"]`); },
   ncDiff(a) { NEWC.diff = +a; renderNewCareer(`[data-act="ncDiff"][data-arg="${a}"]`); },
   ncH(a) { NEWC.hlen = +a; renderNewCareer(`[data-act="ncH"][data-arg="${a}"]`); },
@@ -44,40 +43,41 @@ const LINEUP = { pick: null };
 let LEGVIEW = null;
 function toast(msg) { const el = menu.querySelector('.cmsg'); if (el) { el.textContent = msg; el.hidden = false; } else alert(msg); }
 function renderNewCareer(focusSel) {
-  const L = KREIS_LIGEN[NEWC.lg], T = TEAMS[NEWC.team], s = teamStr(NEWC.team);
+  const T = TEAMS[NEWC.team], s = teamStr(NEWC.team), n = ligaOf(NEWC.team).ids.length, md = n % 2 ? n : n - 1;
+  PK.act = 'ncTeam'; PK.sel = [NEWC.team]; PK_RENDER = renderNewCareer;
   show(`<div class="panel"><div class="row spread"><h2>NEUE SAISON</h2><button class="small" data-act="main">ZURÜCK</button></div>
-    <p class="muted">Übernimm einen Verein aus dem Kreis Coburg/Kronach/Lichtenfels. Der Meister jeder Kreisliga spielt mit 14 Kreismeistern aus ganz Deutschland um die ${TROPHY}.</p>
-    <div class="ctabs">${KREIS_LIGEN.map((l, i) => `<button class="small ${NEWC.lg === i ? 'on' : ''}" data-act="ncLg" data-arg="${i}">${esc(l.short)}</button>`).join('')}</div>
-    <div class="grid">${L.ids.map(id => { const t = TEAMS[id]; return `<button class="tbtn ${id === NEWC.team ? 'sel-a' : ''}" data-act="ncTeam" data-arg="${id}"><img src="${iconURL(t.home)}" alt=""><b>${esc(t.k)}</b><small>${esc(t.short)}</small>${starHTML(stars(teamOvr(id)))}</button>`; }).join('')}</div>
+    <p class="muted">Übernimm einen Verein aus einer Kreisliga in ganz Deutschland: erst den Landesverband auf der Karte, dann den Kreis, dann den Verein – oder einfach suchen. Kreispokal inklusive, und die Meister spielen mit Kreismeistern aus ganz Deutschland um die ${TROPHY}.</p>
+    ${pickerHTML()}
     <div class="tcard active"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>${bars([['Gesamt', s.ovr], ['Angriff', s.att], ['Abwehr', s.def]], 50, 82)}
-      <div class="tag">${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
-    <div class="row"><span class="tag">SAISON</span>${[[15, 'HINRUNDE (15 SPIELTAGE)'], [30, 'HIN- UND RÜCKRUNDE (30)']].map(([v, n]) => `<button class="small ${NEWC.len === v ? 'on' : ''}" data-act="ncLen" data-arg="${v}">${n}</button>`).join('')}</div>
+      <div class="tag">${esc(homeTag(NEWC.team).toUpperCase())} · ${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
+    <div class="row"><span class="tag">SAISON</span>${[[1, `NUR HINRUNDE (${md} SPIELTAGE)`], [2, `HIN- UND RÜCKRUNDE (${md * 2})`]].map(([v, n]) => `<button class="small ${NEWC.len === v ? 'on' : ''}" data-act="ncLen" data-arg="${v}">${n}</button>`).join('')}</div>
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${NEWC.diff === i ? 'on' : ''}" data-act="ncDiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
     <div class="row"><span class="tag">HALBZEIT</span>${[2, 3, 5, 8].map(v => `<button class="small ${NEWC.hlen === v ? 'on' : ''}" data-act="ncH" data-arg="${v}">${v} MIN</button>`).join('')}</div>
     <div class="row"><button class="main" data-act="ncGo" ${focusSel ? '' : 'autofocus'}>LOS GEHT'S</button></div></div>`, { back: ACT.main });
+  pickerWire(renderNewCareer);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }
-const TABS = [['blatt', 'KREISBLATT'], ['tab', 'TABELLE'], ['kader', 'KADER'], ['elf', 'AUFSTELLUNG'], ['plan', 'SPIELPLAN'], ['po', 'PLAYOFFS'], ['stat', 'STATISTIK'], ['verein', 'VEREIN']];
+const TABS = [['blatt', 'KREISBLATT'], ['tab', 'TABELLE'], ['kader', 'KADER'], ['elf', 'AUFSTELLUNG'], ['plan', 'SPIELPLAN'], ['cup', 'KREISPOKAL'], ['po', 'PLAYOFFS'], ['stat', 'STATISTIK'], ['verein', 'VEREIN']];
 function renderHub(focusSel) {
   const C = CAREER, T = TEAMS[C.team], S = C.S, ev = curEvent(), g = myGame(ev);
   const head = `<div class="csticky"><div class="row spread chead"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>
-    <div class="cbud"><b>${fmtMoney(C.money)}</b><span class="tag">SAISON ${seasonLabel(C.year)}${S.ci < S.cal.length && curEvent().t === 'lg' ? ` · ${posOf(C.team)}. PLATZ` : ''}</span></div></div>
+    <div class="cbud"><b>${fmtMoney(C.money)}</b><span class="tag">SAISON ${seasonLabel(C.year)}${S.ci < S.cal.length && curEvent().t !== 'po' ? ` · ${posOf(C.team)}. PLATZ` : ''}</span></div></div>
     <div class="ctabw"><div class="ctabs">${TABS.map(([k, n]) => `<button class="small ${CTAB === k ? 'on' : ''}" data-act="ctab" data-arg="${k}">${n}</button>`).join('')}</div></div></div>`;
-  const body = { blatt: blattHTML, tab: tableHTML, kader: squadHTML, elf: lineupHTML, plan: planHTML, po: poHTML, stat: statHTML, verein: clubHTML }[CTAB] || blattHTML;
+  const body = { blatt: blattHTML, tab: tableHTML, kader: squadHTML, elf: lineupHTML, plan: planHTML, cup: cupHTML, po: poHTML, stat: statHTML, verein: clubHTML }[CTAB] || blattHTML;
   let foot;
   if (S.done || S.ci >= S.cal.length) {
     const sm = seasonSummary();
-    foot = `<div class="cfoot"><h2>SAISON ${seasonLabel(C.year)} BEENDET</h2><p>${sm.pos}. Platz · ${sm.pkt} Punkte · ${sm.tore} Tore · ${esc(sm.poRes)}</p><p class="muted">Ziel des Vorstands: ${esc(sm.goal)} – ${sm.ok ? 'erfüllt! Der Vorstand spendiert ein Fass.' : 'verfehlt. Beim Stammtisch wird diskutiert.'}${sm.top && sm.top.p ? ` · Torschützenkönig im Verein: ${esc(sm.top.p.name)} (${sm.top.n})` : ''}</p>
+    foot = `<div class="cfoot"><h2>SAISON ${seasonLabel(C.year)} BEENDET</h2><p>${sm.pos}. Platz · ${sm.pkt} Punkte · ${sm.tore} Tore · ${esc(sm.cupRes)} · ${esc(sm.poRes)}</p><p class="muted">Ziel des Vorstands: ${esc(sm.goal)} – ${sm.ok ? 'erfüllt! Der Vorstand spendiert ein Fass.' : 'verfehlt. Beim Stammtisch wird diskutiert.'}${sm.top && sm.top.p ? ` · Torschützenkönig im Verein: ${esc(sm.top.p.name)} (${sm.top.n})` : ''}</p>
       ${S.po && S.po.champ != null ? `<p class="champ">${esc(TEAMS[S.po.champ].n.toUpperCase())} IST DEUTSCHER KREISLIGA-MEISTER!</p>` : ''}
       <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
   } else if (g) {
     const opp = TEAMS[g.h === C.team ? g.a : g.h], home = g.h === C.team, M = matchSquad(C.team), miss = ensureSquad(C.team).filter(p => p.inj > 0 || p.ban > 0);
     foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3>
       <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div>
-      <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} ${opp.real ? '' : '· Kreismeister ' + esc(opp.region)} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
+      <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
       <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
   } else {
-    foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : 'Spielfrei.'}</p>
+    foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : ev.t === 'cup' ? (S.cupOut != null ? 'Im Kreispokal schon ausgeschieden – die anderen spielen weiter.' : 'Freilos im Kreispokal – eine Runde weiter ohne Spiel.') : 'Spielfrei.'}</p>
       <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
   }
   show(`<div class="panel">${head}<p class="cmsg" hidden></p>${body()}${foot}</div>`, { back: ACT.main, focus: !focusSel });
@@ -102,7 +102,7 @@ function blattHTML() {
   const fav = g ? (squadStr(C.team) - squadStr(opp.id) > 2 ? 'Wir sind Favorit.' : squadStr(opp.id) - squadStr(C.team) > 2 ? `${opp.short} ist Favorit.` : 'Ein Spiel auf Augenhöhe.') : '';
   const danger = opp ? ensureSquad(opp.id).filter(p => p.grp === 'ST' || p.grp === 'MF').sort((a, b) => (b.ss.g - a.ss.g) || (b.ovr - a.ovr))[0] : null;
   return `<div class="paper"><div class="np-mast">KREISBLATT</div>
-    <div class="np-date"><span>${seasonLabel(C.year)} · ${esc(KREIS_LIGEN[li].n)}</span><span>${ev ? esc(eventLabel(ev)) : 'Saisonende'}</span></div>
+    <div class="np-date"><span>${seasonLabel(C.year)} · ${esc(lgName(li))}</span><span>${ev ? esc(eventLabel(ev)) : 'Saisonende'}</span></div>
     ${n ? `<p class="np-head">${esc(n.h)}</p><p class="np-lead">${esc(n.t)}</p>` : ''}
     ${tick ? `<div class="np-ticker">${tick}</div>` : ''}
     <div class="np-grid">
@@ -114,15 +114,15 @@ function blattHTML() {
     <h4 class="np-sec">MELDUNGEN</h4><div class="np-news">${C.news.slice(0, 14).map(x => `<p><b>${esc(x.d.toUpperCase())}</b>${esc(x.h)} – ${esc(x.t)}</p>`).join('')}</div></div>`;
 }
 function topScorers(li, n) {
-  const ids = new Set(li == null ? Object.keys(CAREER.squads).map(Number) : KREIS_LIGEN[li].ids), out = [];
+  const ids = new Set(li == null ? Object.keys(CAREER.squads).map(Number) : LIGEN[li].ids), out = [];
   for (const [pid, g] of Object.entries(CAREER.S.scorers)) { const p = playerById(+pid); if (p && ids.has(p.tid)) out.push({ p, n: g }); }
   return out.sort((a, b) => b.n - a.n).slice(0, n);
 }
 // ---------- Tabelle ----------
 function tableHTML() {
-  const C = CAREER, S = C.S, li = LEGVIEW ?? C.lg;
+  const C = CAREER, S = C.S, li = C.kl.includes(LEGVIEW) ? LEGVIEW : C.lg;
   const st = standings(li);
-  return `<div class="ctabs">${KREIS_LIGEN.map((l, i) => `<button class="small ${li === i ? 'on' : ''}" data-act="cleg" data-arg="${i}">${esc(l.short)}</button>`).join('')}</div>
+  return `${C.kl.length > 1 ? `<div class="ctabs">${C.kl.map(i => `<button class="small ${li === i ? 'on' : ''}" data-act="cleg" data-arg="${i}">${esc(LIGEN[i].n.toUpperCase())}</button>`).join('')}</div>` : `<h3>${esc(lgName(li).toUpperCase())}</h3>`}
   <div class="tblwrap"><table class="dt"><tr><th>#</th><th class="l">VEREIN</th><th>SP</th><th class="hm">S</th><th class="hm">U</th><th class="hm">N</th><th>TORE</th><th class="hs">DIFF</th><th>PKT</th><th class="c hm">FORM</th></tr>
   ${st.map((tid, i) => { const r = S.tables[li][tid]; return `<tr class="${tid === C.team ? 'me' : ''} ${i === 0 ? 'zone-a' : i >= st.length - 2 ? 'zone-d' : ''}"><td>${i + 1}</td><td class="l"><img src="${iconURL(TEAMS[tid].home)}" alt="" style="width:14px;height:14px;vertical-align:-2px;image-rendering:pixelated"> ${esc(TEAMS[tid].n)}</td><td>${r.sp}</td><td class="hm">${r.s}</td><td class="hm">${r.u}</td><td class="hm">${r.n}</td><td>${r.tf}:${r.tg}</td><td class="hs">${r.tf - r.tg > 0 ? '+' : ''}${r.tf - r.tg}</td><td>${r.pkt}</td><td class="c hm">${formHTML(r.form)}</td></tr>`; }).join('')}</table></div>
   <p class="muted">Grün: Meister – spielt in den Playoffs um die deutsche Kreisliga-Meisterschaft. Rot: Abstiegsplätze.</p>`;
@@ -174,7 +174,14 @@ function planHTML() {
       const me = g[0] === C.team, out = r ? (me ? r.gh - r.ga : r.ga - r.gh) : null;
       return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l">${me ? 'H' : 'A'} · ${esc(TEAMS[me ? g[1] : g[0]].n)}</td><td>${r ? `${r.gh}:${r.ga}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : out < 0 ? 'l' : 'd'}">${out > 0 ? 'S' : out < 0 ? 'N' : 'U'}</i></div>`}</td></tr>`;
     }
+    if (ev.t === 'lg') return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l muted">spielfrei</td><td></td><td></td></tr>`;
     if (ev.t === 'po') return `<tr class="${i === S.ci ? 'me' : ''}"><td>PO</td><td class="l">${PO_NAMES[ev.r]}</td><td></td><td></td></tr>`;
+    if (ev.t === 'cup') {
+      const t = (S.cup.rounds[ev.r] || []).find(x => x.a === C.team || x.b === C.team);
+      const opp = t ? (t.b == null ? 'Freilos' : 'Kreispokal · ' + TEAMS[t.a === C.team ? t.b : t.a].n) : S.cupOut != null && S.cupOut < ev.r ? 'Kreispokal · ausgeschieden' : 'Kreispokal · Gegner offen';
+      const out = t && t.w != null && t.b != null ? (t.w === C.team ? 1 : -1) : null;
+      return `<tr class="${i === S.ci ? 'me' : ''}"><td>POK</td><td class="l">${esc(cupName(ev.r))} · ${esc(opp)}</td><td>${t && t.gh != null ? `${t.gh}:${t.ga}${t.so ? ' n.E.' : ''}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : 'l'}">${out > 0 ? 'S' : 'N'}</i></div>`}</td></tr>`;
+    }
     return '';
   }).join('');
   return `<div class="tblwrap"><table class="dt"><tr><th>ST</th><th class="l">GEGNER</th><th>ERG</th><th class="c"></th></tr>${rows}</table></div>`;
@@ -182,14 +189,26 @@ function planHTML() {
 // ---------- Playoffs ----------
 function poHTML() {
   const C = CAREER, P = C.S.po;
-  if (!P) return `<p>Nach dem letzten Spieltag spielen die Meister beider Kreisligen und 14 Kreismeister aus ganz Deutschland im K.-o.-System um die <b>${TROPHY}</b>: Achtelfinale, Viertelfinale, Halbfinale und das Endspiel im Stadion am Schlosspark. Unentschieden? Dann Elfmeterschießen (im Finale vorher Verlängerung).</p><p class="muted">Aktuell: ${posOf(C.team)}. Platz in der ${esc(KREIS_LIGEN[C.lg].short)}.</p>`;
-  const tie = (t, r) => {
-    const row = (tid, g, w) => `<div class="bt ${t.w == null ? '' : w ? 'win' : 'out'} ${tid === C.team ? 'mine' : ''}"><span>${tid == null ? '?' : esc(TEAMS[tid].short)}</span><b>${g ?? ''}</b></div>`;
-    return `<div class="tie ${t.a === C.team || t.b === C.team ? 'myt' : ''}">${row(t.a, t.gh, t.w === t.a)}${row(t.b, t.ga, t.w === t.b)}${t.so ? `<div class="bt"><i>n.E. ${t.so[0]}:${t.so[1]}</i></div>` : ''}</div>`;
+  if (!P) return `<p>Nach dem letzten Spieltag spielen die Meister der Kreisligen deines Kreises mit Kreismeistern aus ganz Deutschland – von Schleswig-Holstein bis Südbaden – im K.-o.-System um die <b>${TROPHY}</b>: Achtelfinale, Viertelfinale, Halbfinale und das Endspiel im Stadion am Schlosspark. Unentschieden? Dann Elfmeterschießen (im Finale vorher Verlängerung).</p><p class="muted">Aktuell: ${posOf(C.team)}. Platz in der ${esc(lgName())}.</p>`;
+  return bracketHTML(P.rounds, PO_NAMES, P.champ, '🏆', 0) + `<p class="muted">${P.teams.map(t => `${esc(TEAMS[t].short)} (${esc(C.kl.includes(TEAMS[t].lg) ? LIGEN[TEAMS[t].lg].n : homeTag(t, true))})`).join(' · ')}</p>`;
+}
+// K.-o.-Baum: Runden als Spalten (bei vielen Runden nur die aktuelle und die folgenden)
+function bracketHTML(rounds, names, champ, cupIcon, from) {
+  const C = CAREER, n0 = rounds[0].length;
+  const tie = t => {
+    const row = (tid, g, w) => `<div class="bt ${t.w == null ? '' : w ? 'win' : 'out'} ${tid === C.team ? 'mine' : ''}"><span>${tid == null ? (t.a != null && t.w === t.a ? 'Freilos' : '?') : esc(TEAMS[tid].short)}</span><b>${g ?? ''}</b></div>`;
+    return `<div class="tie ${t.a === C.team || t.b === C.team ? 'myt' : ''}">${row(t.a, t.gh, t.w === t.a)}${row(t.b, t.ga, t.w === t.b && t.b != null)}${t.so ? `<div class="bt"><i>n.E. ${t.so[0]}:${t.so[1]}</i></div>` : ''}</div>`;
   };
-  const cols = P.rounds.map((R, r) => { const n = 8 >> r, list = R.length ? R : Array.from({ length: n }, () => ({ a: null, b: null, w: null })); return `<div class="bcol"><h3>${PO_NAMES[r]}</h3><div class="bties">${list.map(t => tie(t, r)).join('')}</div></div>`; }).join('');
-  return `<div class="bracket" style="grid-template-columns:repeat(5,minmax(110px,1fr))">${cols}<div class="bcol champ"><h3>SIEGER</h3><div class="bties"><div class="tie"><div class="bt win"><span>${P.champ != null ? esc(TEAMS[P.champ].short) : '?'}</span><b>🏆</b></div></div></div></div></div>
-    <p class="muted">${P.teams.map(t => `${esc(TEAMS[t].short)} (${TEAMS[t].real ? esc(KREIS_LIGEN[TEAMS[t].lg].short) : esc(TEAMS[t].region)})`).join(' · ')}</p>`;
+  const cols = rounds.map((R, r) => { if (r < from) return ''; const n = n0 >> r, list = R.length ? R : Array.from({ length: n }, () => ({ a: null, b: null, w: null })); return `<div class="bcol"><h3>${names[r]}</h3><div class="bties">${list.map(tie).join('')}</div></div>`; }).join('');
+  return `<div class="bracket" style="grid-template-columns:repeat(${rounds.length - from + 1},minmax(110px,1fr))">${cols}<div class="bcol champ"><h3>SIEGER</h3><div class="bties"><div class="tie"><div class="bt win"><span>${champ != null ? esc(TEAMS[champ].short) : '?'}</span><b>${cupIcon}</b></div></div></div></div></div>`;
+}
+// ---------- Kreispokal ----------
+function cupHTML() {
+  const C = CAREER, P = C.S.cup; if (!P) return '<p class="muted">Kein Kreispokal in dieser Saison.</p>';
+  const R = P.rounds, names = R.map((_, r) => cupName(r)), cur = R.findIndex(x => !x.length || x.some(t => t.w == null));
+  const from = R.length > 3 ? Math.max(0, Math.min((cur < 0 ? R.length - 1 : cur) - 1, R.length - 3)) : 0;
+  return `<p>Der Kreispokal ${esc(KREISE[LIGEN[C.lg].kreis].n)}: ${P.teams.length} Vereine, K.-o.-Runden zwischen den Spieltagen. Unentschieden? Sofort Elfmeterschießen. Das Finale steigt auf neutralem Platz.</p>
+    ${bracketHTML(R, names, P.champ, '🥈', from)}`;
 }
 // ---------- Statistik ----------
 function statHTML() {
@@ -203,13 +222,13 @@ function statHTML() {
     ${list('BESTE NOTE (AB 3 SPIELEN)', best(p => p.ss.nn >= 3, p => -avg(p)), p => noteAvg(p.ss))}
     ${list('EINSÄTZE', best(() => true, p => p.ss.sp), p => p.ss.sp)}
   </div>
-  <h3>TORJÄGER ${esc(KREIS_LIGEN[C.lg].short)}</h3><table class="dt">${topScorers(C.lg, 10).map((x, i) => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td>${i + 1}</td><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].short)}</span></td><td>${x.n}</td></tr>`).join('') || '<tr><td class="l">noch keine Tore</td></tr>'}</table>
-  ${C.hist.length ? `<h3>VEREINSCHRONIK</h3><table class="dt"><tr><th class="l">SAISON</th><th>PLATZ</th><th>PKT</th><th>TORE</th><th class="l">PLAYOFFS</th></tr>${C.hist.map(h => `<tr><td class="l">${seasonLabel(h.year)}</td><td>${h.pos}.</td><td>${h.pkt}</td><td>${h.tore}</td><td class="l">${esc(h.po)}</td></tr>`).join('')}</table>` : ''}`;
+  <h3>TORJÄGER ${esc(LIGEN[C.lg].n.toUpperCase())}</h3><table class="dt">${topScorers(C.lg, 10).map((x, i) => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td>${i + 1}</td><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].short)}</span></td><td>${x.n}</td></tr>`).join('') || '<tr><td class="l">noch keine Tore</td></tr>'}</table>
+  ${C.hist.length ? `<h3>VEREINSCHRONIK</h3><table class="dt"><tr><th class="l">SAISON</th><th>PLATZ</th><th>PKT</th><th>TORE</th><th class="l">POKAL</th><th class="l">PLAYOFFS</th></tr>${C.hist.map(h => `<tr><td class="l">${seasonLabel(h.year)}</td><td>${h.pos}.</td><td>${h.pkt}</td><td>${h.tore}</td><td class="l">${esc(h.cup || '–')}</td><td class="l">${esc(h.po)}</td></tr>`).join('')}</table>` : ''}`;
 }
 // ---------- Verein: Kasse, Training, Wechselbörse, Titel ----------
 function clubHTML() {
   const C = CAREER, S = C.S;
-  const tro = C.titles.length ? C.titles.map(t => `<div class="tshelf won"><b>${t.kind === 'dkm' ? '🏆' : '🥇'}</b><span>${t.kind === 'dkm' ? 'DEUTSCHER KREISLIGA-MEISTER' : 'MEISTER ' + esc(KREIS_LIGEN[C.lg].short)}</span><i>${seasonLabel(t.year)}</i></div>`).join('') : '<p class="muted">Noch keine Titel. Der Pokalschrank im Sportheim wartet.</p>';
+  const tro = C.titles.length ? C.titles.map(t => `<div class="tshelf won"><b>${t.kind === 'dkm' ? '🏆' : t.kind === 'pokal' ? '🥈' : '🥇'}</b><span>${t.kind === 'dkm' ? 'DEUTSCHER KREISLIGA-MEISTER' : t.kind === 'pokal' ? 'KREISPOKALSIEGER' : 'MEISTER ' + esc(LIGEN[C.lg].n.toUpperCase())}</span><i>${seasonLabel(t.year)}</i></div>`).join('') : '<p class="muted">Noch keine Titel. Der Pokalschrank im Sportheim wartet.</p>';
   const mk = (C.market || []).map((m, i) => { const p = (C.squads[m.from] || []).find(q => q.pid === m.pid); if (!p) return ''; return `<tr><td class="l"><button class="link" data-act="cplayer" data-arg="${p.pid}">${esc(p.name)}</button> <span class="tag">${esc(TEAMS[m.from].short)}</span></td><td>${p.grp}</td><td class="hs">${p.age}</td><td>${p.ovr}</td><td>${fmtMoney(m.fee)}</td><td><button class="small" data-act="cbuy" data-arg="${i}" ${C.money < m.fee ? 'disabled' : ''}>HOLEN</button></td></tr>`; }).join('');
   return `<div class="kpis"><div class="kpi"><span>VEREINSKASSE</span><b>${fmtMoney(C.money)}</b><i>Eintritt, Bratwurst, Sponsoren, Prämien</i></div>
     <div class="kpi"><span>ZUSCHAUER</span><b>${S.fans || '–'}</b><i>letztes Heimspiel${S.gate ? ' · ' + fmtMoney(S.gate) : ''}</i></div>

@@ -1,7 +1,7 @@
 // ================= Menüs =================
 const menu = document.getElementById('menu');
 let BACK = null;
-const QUICK = { a: HOME_TEAM, b: KREIS_LIGEN[0].ids[1], side: 'a', lg: 0, mode: 'play' };
+const QUICK = { a: HOME_TEAM, b: LIGEN[TEAMS[HOME_TEAM].lg].ids.find(i => i !== HOME_TEAM), side: 'a', mode: 'play' };
 function show(html, { back = null, clear = false, focus = true } = {}) {
   menu.innerHTML = html; menu.hidden = false; menu.classList.toggle('clear', clear); BACK = back;
   if (!G || G.demo) AU.startMusic();   // Menümusik nur außerhalb eines Spiels
@@ -30,7 +30,7 @@ function menuMove(dir) {
 addEventListener('keydown', e => {
   if (menu.hidden) return;
   const el = document.activeElement;
-  if (el && (el.tagName === 'INPUT' && el.type === 'range' || el.tagName === 'SELECT') && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) return;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT') && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) return;
   const m = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.code];
   if (m) { e.preventDefault(); menuMove(m); }
 });
@@ -42,7 +42,7 @@ function teamStr(tid) {
   return { ovr: teamOvr(tid), att: Math.round(avg(p => p.grp === 'ST' || p.grp === 'MF', 'ovr')), def: Math.round(avg(p => p.grp === 'AB' || p.grp === 'TW', 'ovr')), star: xi.slice().sort((a, b) => b.ovr - a.ovr)[0] };
 }
 let INGAME_MENU = false;
-const LEGAL = 'Echte Vereinsnamen aus dem Kreis Coburg/Kronach/Lichtenfels, alle Spieler, Werte und Trikots frei erfunden. Kein offizielles Spiel des BFV oder der Vereine.';
+const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 2026), alle Spieler, Werte und Trikots frei erfunden. Kein offizielles Spiel des DFB, der Landesverbände oder der Vereine.';
 
 const ACT = {
   title() {
@@ -66,10 +66,9 @@ const ACT = {
       </div>
       <p class="legal" style="text-align:center;margin:0 auto">${LEGAL}</p></div>`, { back: ACT.title, clear: true });
   },
-  quick() { QUICK.side = 'a'; renderQuick(); },
-  qpick(arg) { const id = +arg; if (QUICK.side === 'a') { QUICK.a = id; if (QUICK.b === id) QUICK.b = TEAMS[(id + 1) % TEAMS.length].id; QUICK.side = 'b'; } else { QUICK.b = id; if (QUICK.a === id) QUICK.a = (id + 1) % TEAMS.length; } renderQuick(`[data-arg="${id}"]`); },
-  qside(arg) { QUICK.side = arg; renderQuick(`.tcard.${arg}`); },
-  qlg(arg) { QUICK.lg = +arg; renderQuick(`[data-act="qlg"][data-arg="${arg}"]`); },
+  quick() { QUICK.side = 'a'; pkFocus(QUICK.a); renderQuick(); },
+  qpick(arg) { const id = +arg; if (QUICK.side === 'a') { QUICK.a = id; if (QUICK.b === id) QUICK.b = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); QUICK.side = 'b'; } else { QUICK.b = id; if (QUICK.a === id) QUICK.a = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); } pkFocus(id); renderQuick(`[data-act="qpick"][data-arg="${id}"]`); },
+  qside(arg) { QUICK.side = arg; pkFocus(arg === 'a' ? QUICK.a : QUICK.b); renderQuick(`.tcard.${arg}`); },
   qdiff(arg) { SETTINGS.diff = +arg; saveSettings(); renderQuick(`[data-act="qdiff"][data-arg="${arg}"]`); },
   qlen(arg) { SETTINGS.hlen = +arg; saveSettings(); renderQuick(`[data-act="qlen"][data-arg="${arg}"]`); },
   qmode(arg) { QUICK.mode = arg; renderQuick(`[data-act="qmode"][data-arg="${arg}"]`); },
@@ -99,7 +98,7 @@ const ACT = {
   about() {
     show(`<div class="panel narrow"><h2>ÜBER DAS SPIEL</h2>
       <p><b>Kreisliga-Legenden ist ein Fußballspiel im Retro-Pixel-Look</b> über den Amateurfußball – vom Ascheplatz bis zur deutschen Kreisliga-Meisterschaft.</p>
-      <p>Die Ligen des Kreises Coburg/Kronach/Lichtenfels tragen die echten Vereinsnamen der Saison 2026/27. Spieler, Spielstärken, Trikotfarben, Werbebanden und die Gegner aus den anderen Regionen sind frei erfunden. Kein offizielles Produkt des BFV oder der Vereine.</p>
+      <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (Quelle: öffentliche Tabellen auf fussball.de). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Kurze Nachricht über das Impressum genügt.</p>
       <p>Kostenlos, ohne Werbung, ohne Anmeldung. Spielstände bleiben nur ${ON_WEB ? 'in deinem Browser' : 'auf diesem Gerät'}.</p>
       <p class="muted">Aus der Familie von Hallen-Legenden und Korb-Legenden. Schriften: Press Start 2P und VT323 (SIL Open Font License).</p>
       <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
@@ -212,17 +211,17 @@ const ACT = {
 function renderQuick(focusSel) {
   const card = (side, tid) => { const T = TEAMS[tid], s = teamStr(tid); return `<div class="tcard ${side} ${QUICK.side === side ? 'active' : ''}" data-act="qside" data-arg="${side}" tabindex="-1">
     <h3>${side === 'a' ? 'DEIN VEREIN' : 'GEGNER'}</h3><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>
-    ${bars([['Gesamt', s.ovr], ['Angriff', s.att], ['Abwehr', s.def]], 50, 82)}<div class="tag">${GROUNDS[T.ground]} · ${T.real ? esc(KREIS_LIGEN[T.lg].short) : esc(T.region.toUpperCase())}</div></div>`; };
-  const list = QUICK.lg < 2 ? LEAGUE(QUICK.lg) : REGION_TEAMS.map(i => TEAMS[i]);
+    ${bars([['Gesamt', s.ovr], ['Angriff', s.att], ['Abwehr', s.def]], 50, 82)}<div class="tag">${GROUNDS[T.ground]} · ${esc(homeTag(tid).toUpperCase())}</div></div>`; };
+  PK.act = 'qpick'; PK.sel = [QUICK.a, QUICK.b]; PK_RENDER = renderQuick;
   show(`<div class="panel"><div class="row spread"><h2>FREUNDSCHAFTSSPIEL</h2><button class="small" data-act="main">ZURÜCK</button></div>
     <div class="duel">${card('a', QUICK.a)}<div class="vs">VS</div>${card('b', QUICK.b)}</div>
     <h3>${QUICK.side === 'a' ? 'WÄHLE DEINEN VEREIN' : 'WÄHLE DEN GEGNER'}</h3>
-    <div class="ctabs">${['KREISLIGA 1', 'KREISLIGA 2', 'ANDERE REGIONEN'].map((l, i) => `<button class="small ${QUICK.lg === i ? 'on' : ''}" data-act="qlg" data-arg="${i}">${l}</button>`).join('')}</div>
-    <div class="grid">${list.map(T => `<button class="tbtn ${T.id === QUICK.a ? 'sel-a' : ''} ${T.id === QUICK.b ? 'sel-b' : ''}" data-act="qpick" data-arg="${T.id}"><img src="${iconURL(T.home)}" alt=""><b>${esc(T.k)}</b><small>${esc(T.short)}</small>${starHTML(stars(teamOvr(T.id)))}</button>`).join('')}</div>
+    ${pickerHTML()}
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${SETTINGS.diff === i ? 'on' : ''}" data-act="qdiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
     <div class="row"><span class="tag">HALBZEIT</span>${[2, 3, 5, 8].map(q => `<button class="small ${SETTINGS.hlen === q ? 'on' : ''}" data-act="qlen" data-arg="${q}">${q} MIN</button>`).join('')}
     <span class="tag">MODUS</span>${[['play', 'SELBST SPIELEN'], ['watch', 'ZUSCHAUEN']].map(([m, n]) => `<button class="small ${QUICK.mode === m ? 'on' : ''}" data-act="qmode" data-arg="${m}">${n}</button>`).join('')}</div>
     <div class="row"><button class="main" data-act="qstart" ${focusSel ? '' : 'autofocus'}>ANPFIFF</button></div></div>`, { back: ACT.main });
+  pickerWire(renderQuick);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }
 // ---------- Noten (Schulnoten 1–6 wie im Kicker), Statistik ----------
@@ -274,7 +273,7 @@ function startMatch(ta, tb, o) {
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }
 function startDemo() {
-  const L = LEAGUE(0), a = L[(Math.random() * L.length) | 0].id; let b = L[(Math.random() * L.length) | 0].id; if (b === a) b = L[(L.findIndex(t => t.id === a) + 1) % L.length].id;
+  const L = LEAGUE(Math.random() < 0.3 ? TEAMS[HOME_TEAM].lg : (Math.random() * LIGEN.length) | 0), a = L[(Math.random() * L.length) | 0].id; let b = L[(Math.random() * L.length) | 0].id; if (b === a) b = L[(L.findIndex(t => t.id === a) + 1) % L.length].id;
   newMatch(a, b, { demo: true, hlen: 2 });
   AU.ambience(false);
 }
