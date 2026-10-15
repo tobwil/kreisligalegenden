@@ -459,6 +459,30 @@ test('Kopfball: Flanke auf deinen Stürmer im Strafraum, er läuft hin und köpf
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Abwehr-Kopfball: hoher Ball kommt, Tackling-Taste köpft in Stickrichtung weg, Pass-Taste zum Mitspieler; gelber Ring zeigt den Landepunkt', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const out = {}, s = atkDir(0), ox = ownX(0), d = teamP(0).find(q => grpOf(q) === 'AB'), a = teamP(1).find(q => grpOf(q) === 'ST');
+    const frame = () => { readInput(1 / 60); step(1 / 60); };
+    const fly = () => { for (const q of G.players) if (!isGK(q) && q !== d) place(q, CW / 2, q.team ? 4 : CH - 4); place(d, ox + s * 22, MY); G.ctrl = d; G.manT = G.t; d.cd = 0;
+      const b = G.ball; b.owner = null; Object.assign(b, { x: ox + s * 22, y: MY - 14, z: 2.2, vx: 0, vy: 0, vz: 0 }); b.last = a; b.lastTeam = 1; b.fid++; b.kind = 'cross'; b.passer = a; b.passTo = null; b.shot = null;
+      launchAir(ox + s * 22, MY, 1.8, 0.9); };
+    fly(); render(); out.ring = true;
+    KEY.ArrowRight = s > 0; KEY.ArrowLeft = s < 0; KEY.KeyD = true; KEYP.KeyD = true; frame(); KEY.KeyD = false; KEY.ArrowRight = KEY.ArrowLeft = false;   // Richtung beim Drücken, dann Stick los: er läuft zum Ball
+    let hd = false; for (let i = 0; i < 70 && !hd; i++) { frame(); hd = G.ball.kind === 'head' && G.ball.last === d; }
+    out.clear = hd && G.ball.vx * s > 3;
+    fly(); KEY.KeyS = true; KEYP.KeyS = true; frame(); KEY.KeyS = false;
+    hd = false; for (let i = 0; i < 70 && !hd; i++) { frame(); hd = G.ball.kind === 'head' && G.ball.last === d; }
+    out.pass = hd && G.ball.passTo && G.ball.passTo.team === 0;
+    return out;
+  });
+  ok(r.clear, 'Tackling-Taste köpft nicht nach vorn weg');
+  ok(r.pass, 'Pass-Taste köpft nicht zum Mitspieler');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Touch: Knöpfe verdecken das Tor nicht, die Kamera schwenkt am Tor weiter hinaus', async () => {
   const { page, ctx, errors } = await open(MOBILE);
   const r = await page.evaluate(() => {
@@ -565,10 +589,12 @@ test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Opt
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, halten und ziehen: hoher Ball, Schlenzer, Grätsche; tippen: Tackling', async () => {
+test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, halten und ziehen: hoher Ball, zielen, Grätsche; tippen: Tackling', async () => {
   const { page, ctx, errors } = await open(MOBILE);
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
+  const tip = await page.evaluate(() => { localStorage.removeItem('krl_touchtip'); tipG = null; G.phase = 'kickoff'; touchTip(); const on = !!document.getElementById('ttip') && G.paused; closeTouchTip(); G.phase = 'play'; return on && !G.paused; });
+  ok(tip, 'Touch-Tipp im ersten Spiel fehlt oder schließt nicht');
   const lbl = await page.evaluate(() => document.querySelector('.tb-a span').textContent + '|' + document.querySelectorAll('#pad .tb[data-k]').length);
   ok(lbl === 'PASS|2', 'Angriffs-Beschriftung oder zwei Knöpfe fehlen: ' + lbl);
   const bb = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
@@ -585,10 +611,10 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await drag('.tb-a', -40, -10);
   const hi = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
   ok(hi, 'PASS ziehen spielt keinen hohen Ball');
-  await setup(); await page.waitForTimeout(80);
-  await drag('.tb-b', -40, 10, 200);
-  const fin = await page.evaluate(() => !!(G.ball.shot && G.ball.shot.finesse));
-  ok(fin, 'SCHUSS aufladen und ziehen gibt keinen Schlenzer');
+  // SCHUSS halten und Daumen ziehen = zielen (wie Padel-Legenden): nach oben = Ecke oben im Bild, nach unten = Ecke unten
+  const aimShot = async dy => { await page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; }); await page.waitForTimeout(80); await drag('.tb-b', 0, dy, 150); return page.evaluate(() => G.ball.shot ? G.ball.vy : null); };
+  const vUp = await aimShot(-60), vDown = await aimShot(60);
+  ok(vUp != null && vDown != null && vUp < 0 && vDown > 0, 'Zielen mit dem Daumen: ' + vUp + ' / ' + vDown);
   const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
   await def(); await page.waitForTimeout(80);
   const lb = await page.evaluate(() => document.querySelector('.tb-b span').textContent);

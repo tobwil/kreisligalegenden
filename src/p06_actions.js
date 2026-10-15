@@ -186,6 +186,7 @@ function shoot(p, power, aimY, o = {}) {
     const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1);
     ty = MY + away * rnd(2.3, 3.4); tz = o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + rnd(-0.1, 0.4);
   } else { const a = shotAim(p, power, aimY); ty = a.y; tz = o.header ? rnd(0.2, 1.4) : a.z; }
+  if (o.aimPt) { ty = o.aimPt.y; tz = 0.15 + Math.min(power, 1) * 1.75; const k = shotKind(p, power, ty); if (k === 'chip') o.chip = true; if (k === 'finesse') o.finesse = true; }
   if (o.finesse) { const side = Math.sign(ty - MY) || 1; ty = MY + side * (GW / 2 - 0.5); tz = 0.35 + Math.min(power, 0.8) * 1.1; }   // Schlenzer: flach-halbhoch an den Innenpfosten
   if (o.chip) { const side = Math.abs(ty - MY) > 1 ? Math.sign(ty - MY) : 0; ty = MY + side * 1.6; tz = 1.75; }                       // Heber: unter die Latte
   if (power > 0.93 && !o.pen && !o.target && !o.finesse && !o.chip) tz += (power - 0.93) * 12;   // überzogen: drüber
@@ -210,6 +211,7 @@ function shoot(p, power, aimY, o = {}) {
   G.stats.shots[p.team]++; p.d.ms.sh++;
   if (!G.so) G.excite = Math.max(G.excite, 0.8);
   AU.crowd(0.5); if (o.header) AU.header();
+  if (isHumanCtrl(p)) buzz(power > 0.7 ? 25 : 15);
   if (isHumanCtrl(p) && !G.so && (power > 0.7 || o.volley || o.header)) { G.hitStop = 0.055; G.shake = Math.max(G.shake, 0.12); }
   p.act = { type: o.header ? 'head' : 'kick', t: 0, dur: 0.38 };
 }
@@ -220,6 +222,14 @@ function shotAim(p, power, aimY) {
   if (Math.abs(aimY) < 0.25) { const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1); y = MY + away * 2.3; }
   else y = MY + clamp(aimY * 1.4, -1, 1) * (GW / 2 - 0.55);
   return { y, z: 0.15 + Math.min(power, 1) * 1.75 };
+}
+// Schussart beim Zielen mit dem Daumen, ganz nach Gefühl: leicht gegen einen herausgelaufenen Torwart = Heber,
+// leicht in die Ecke = Schlenzer, sonst ein normaler Schuss (fest = Hammer)
+function shotKind(p, power, ty) {
+  const gk = G.gk[1 - p.team], gx = goalX(p.team), d = dist(G.ball.x, G.ball.y, gx, MY);
+  if (power < 0.42 && gk && !gk.off && Math.abs(gk.x - gx) > 3 && d < 24) return 'chip';
+  if (power < 0.62 && Math.abs(ty - MY) > 2.2) return 'finesse';
+  return power > 0.75 ? 'hammer' : 'shot';
 }
 // Kopfball: aufs Tor, Abwehr oder zum Mitspieler
 function header(p, wantShot) {
@@ -233,6 +243,14 @@ function header(p, wantShot) {
     shoot(p, 0.5, p.team === G.human && G.ctrl === p && Math.abs(IN.y) > 0.25 ? IN.y : null, { header: true }); return;
   }
   AU.header();
+  const q0 = mine && p.queue && G.t - p.queue.t < 1.5 ? p.queue : null;
+  if (q0 && (q0.k === 'clear' || q0.k === 'pass')) {
+    p.queue = null; kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null; p.act = { type: 'head', t: 0, dur: 0.4 };
+    if (q0.k === 'pass') { const m = choosePass(p, q0.x, q0.y) || choosePass(p, 0, 0); if (m) { launchAir(m.x, m.y, 0, clamp(dist(p.x, p.y, m.x, m.y) / 11, 0.6, 1.4)); b.passTo = m; noteRecv(m, m.x, m.y); G.ctrl = m; return; } }
+    let dx = q0.x, dy = q0.y; if (Math.hypot(dx, dy) < 0.3) { dx = s; dy = p.y < MY ? -0.6 : 0.6; }   // ohne Richtung: nach vorn und nach außen
+    const m = Math.hypot(dx, dy); launchAir(clamp(p.x + dx / m * 18, 1, CW - 1), clamp(p.y + dy / m * 18, 1, CH - 1), 0, 1.25);
+    feat('kopf-abwehr', p); return;
+  }
   if ((inBox(p.team, p.x, p.y) || prog(p.team, p.x) < 0.3) && Math.abs(p.x - ownX(p.team)) < 13 && Math.random() < 0.3) {
     // in Not: ins Toraus köpfen (lieber Ecke als Gegentor)
     kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null;

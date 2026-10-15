@@ -286,8 +286,9 @@ body.touch.ingame #pad{display:block}
 #knob{position:absolute;width:50px;height:50px;border-radius:50%;background:var(--gold);left:35px;top:35px;box-shadow:3px 3px 0 #000}
 .tb{position:absolute;border-radius:50%;pointer-events:auto;font-family:var(--pix);text-align:center;padding:0;min-height:0!important;display:flex;align-items:center;justify-content:center;line-height:1.4;
   background:rgba(20,17,29,.32);border:2px solid rgba(243,234,214,.6);color:var(--ink);text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;box-shadow:none;transition:background .12s}
-.tb-b{width:100px;height:100px;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,200,58,.32);border-color:rgba(255,230,120,.85)}
-.tb-a{width:92px;height:92px;right:calc(max(14px,env(safe-area-inset-right,0px)) + 104px);bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,79,58,.38)}
+#pad{--tbs:1}
+.tb-b{width:calc(100px * var(--tbs));height:calc(100px * var(--tbs));right:max(14px,env(safe-area-inset-right,0px));bottom:calc(70px * var(--tbs) + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,200,58,.32);border-color:rgba(255,230,120,.85)}
+.tb-a{width:calc(92px * var(--tbs));height:calc(92px * var(--tbs));right:calc(max(14px,env(safe-area-inset-right,0px)) + 104px * var(--tbs));bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,79,58,.38)}
 .tb{flex-direction:column;gap:3px}
 .tb small{display:block;font-family:var(--term);font-size:13px;line-height:1;opacity:.85;letter-spacing:0}
 .tb.alt,.tb.alt:hover{background:var(--cyan);border-color:var(--cyan);color:#06222a;text-shadow:none;transition:none}
@@ -434,7 +435,7 @@ const store = {
   del(k) { try { (PLATFORM.storage || localStorage).removeItem(k); } catch (e) { } },
 };
 // Einstellungen: Halbzeitlänge in Minuten (echte Zeit), Schwierigkeit, Spieltempo, Abseits, automatischer Spielerwechsel in der Abwehr, Steuerhilfen
-const SETTINGS = Object.assign({ hlen: 3, diff: 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, keys: 'legenden' }, store.get('krl_settings', {}));
+const SETTINGS = Object.assign({ hlen: 3, diff: 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, keys: 'legenden', btn: 'm' }, store.get('krl_settings', {}));
 const saveSettings = () => store.set('krl_settings', SETTINGS);
 function track(name, data) {
   try { if (window.umami && name) window.umami.track(name, data); } catch (e) { }
@@ -1512,8 +1513,8 @@ function setPieceSpots(type, team, x, y, taker) {
 // ---------- Eingabe ----------
 const KEY = {}, KEYP = {};
 const IN = { x: 0, y: 0, s: false, a: false, b: false, c: false, k: false, f: false, pa: false, pb: false, pc: false, pk: false, pf: false, ra: false, rb: false, rc: false, rk: false, bHeld: 0, aHeld: 0, any: false };
-const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0 };
-let LASTIN = 'key';
+const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0 };
+let LASTIN = TOUCHDEV ? 'touch' : 'key';
 const setInput = k => { LASTIN = k; };
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
@@ -1785,6 +1786,7 @@ function shoot(p, power, aimY, o = {}) {
     const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1);
     ty = MY + away * rnd(2.3, 3.4); tz = o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + rnd(-0.1, 0.4);
   } else { const a = shotAim(p, power, aimY); ty = a.y; tz = o.header ? rnd(0.2, 1.4) : a.z; }
+  if (o.aimPt) { ty = o.aimPt.y; tz = 0.15 + Math.min(power, 1) * 1.75; const k = shotKind(p, power, ty); if (k === 'chip') o.chip = true; if (k === 'finesse') o.finesse = true; }
   if (o.finesse) { const side = Math.sign(ty - MY) || 1; ty = MY + side * (GW / 2 - 0.5); tz = 0.35 + Math.min(power, 0.8) * 1.1; }   // Schlenzer: flach-halbhoch an den Innenpfosten
   if (o.chip) { const side = Math.abs(ty - MY) > 1 ? Math.sign(ty - MY) : 0; ty = MY + side * 1.6; tz = 1.75; }                       // Heber: unter die Latte
   if (power > 0.93 && !o.pen && !o.target && !o.finesse && !o.chip) tz += (power - 0.93) * 12;   // überzogen: drüber
@@ -1809,6 +1811,7 @@ function shoot(p, power, aimY, o = {}) {
   G.stats.shots[p.team]++; p.d.ms.sh++;
   if (!G.so) G.excite = Math.max(G.excite, 0.8);
   AU.crowd(0.5); if (o.header) AU.header();
+  if (isHumanCtrl(p)) buzz(power > 0.7 ? 25 : 15);
   if (isHumanCtrl(p) && !G.so && (power > 0.7 || o.volley || o.header)) { G.hitStop = 0.055; G.shake = Math.max(G.shake, 0.12); }
   p.act = { type: o.header ? 'head' : 'kick', t: 0, dur: 0.38 };
 }
@@ -1819,6 +1822,14 @@ function shotAim(p, power, aimY) {
   if (Math.abs(aimY) < 0.25) { const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1); y = MY + away * 2.3; }
   else y = MY + clamp(aimY * 1.4, -1, 1) * (GW / 2 - 0.55);
   return { y, z: 0.15 + Math.min(power, 1) * 1.75 };
+}
+// Schussart beim Zielen mit dem Daumen, ganz nach Gefühl: leicht gegen einen herausgelaufenen Torwart = Heber,
+// leicht in die Ecke = Schlenzer, sonst ein normaler Schuss (fest = Hammer)
+function shotKind(p, power, ty) {
+  const gk = G.gk[1 - p.team], gx = goalX(p.team), d = dist(G.ball.x, G.ball.y, gx, MY);
+  if (power < 0.42 && gk && !gk.off && Math.abs(gk.x - gx) > 3 && d < 24) return 'chip';
+  if (power < 0.62 && Math.abs(ty - MY) > 2.2) return 'finesse';
+  return power > 0.75 ? 'hammer' : 'shot';
 }
 // Kopfball: aufs Tor, Abwehr oder zum Mitspieler
 function header(p, wantShot) {
@@ -1832,6 +1843,14 @@ function header(p, wantShot) {
     shoot(p, 0.5, p.team === G.human && G.ctrl === p && Math.abs(IN.y) > 0.25 ? IN.y : null, { header: true }); return;
   }
   AU.header();
+  const q0 = mine && p.queue && G.t - p.queue.t < 1.5 ? p.queue : null;
+  if (q0 && (q0.k === 'clear' || q0.k === 'pass')) {
+    p.queue = null; kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null; p.act = { type: 'head', t: 0, dur: 0.4 };
+    if (q0.k === 'pass') { const m = choosePass(p, q0.x, q0.y) || choosePass(p, 0, 0); if (m) { launchAir(m.x, m.y, 0, clamp(dist(p.x, p.y, m.x, m.y) / 11, 0.6, 1.4)); b.passTo = m; noteRecv(m, m.x, m.y); G.ctrl = m; return; } }
+    let dx = q0.x, dy = q0.y; if (Math.hypot(dx, dy) < 0.3) { dx = s; dy = p.y < MY ? -0.6 : 0.6; }   // ohne Richtung: nach vorn und nach außen
+    const m = Math.hypot(dx, dy); launchAir(clamp(p.x + dx / m * 18, 1, CW - 1), clamp(p.y + dy / m * 18, 1, CH - 1), 0, 1.25);
+    feat('kopf-abwehr', p); return;
+  }
   if ((inBox(p.team, p.x, p.y) || prog(p.team, p.x) < 0.3) && Math.abs(p.x - ownX(p.team)) < 13 && Math.random() < 0.3) {
     // in Not: ins Toraus köpfen (lieber Ecke als Gegentor)
     kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null;
@@ -2296,6 +2315,11 @@ const halfLen = () => G.half <= 2 ? G.hlen : G.hlen / 3;
 const isHumanTeam = t => G.human === t && !G.watch;
 function gameTick(dt) {
   if (G.hitStop > 0) { G.hitStop -= dt; return; }   // Treffer-Stopp: ein paar Frames Standbild beim Hammer und beim Ballgewinn
+  // Zeitlupe beim Zielen mit dem Daumen (wie bei Padel- und Korb-Legenden): weich auf halbes Tempo, höchstens 1,6 s pro Schuss
+  const aiming = !!TOUCH.aim && G.phase === 'play' && G.ctrl && G.ball.owner === G.ctrl && G.ctrl.chargeArm;
+  G.aimSlowT = aiming ? (G.aimSlowT || 0) + dt : 0;
+  G.timeK = (G.timeK ?? 1) + ((aiming && G.aimSlowT < 1.6 ? 0.5 : 1) - (G.timeK ?? 1)) * Math.min(1, dt * 8);
+  dt *= G.timeK;
   dt *= SETTINGS.speed * (G.ff || 1) * (G.slowF || 1);   // Zeitlupe kurz vor einem Tor (p18)
   const steps = dt > 1 / 45 ? 2 : 1;
   for (let i = 0; i < steps; i++) step(dt / steps);
@@ -2362,6 +2386,7 @@ function humanControl(dt) {
   if (!c || c.off || c.team !== me) c = G.ctrl = nearestTo(me, b.x, b.y);
   if (!c) return;
   const hasBall = b.owner === c, ours = b.owner && b.owner.team === me;
+  G.idleT = Math.hypot(IN.x, IN.y) > 0.15 ? 0 : (G.idleT || 0) + dt;   // Stick losgelassen (Daumen weg): nach 0,8 s spielt dein Mann von selbst mit
   const incoming = !b.owner && (b.passTo === c);
   // Auto-Wechsel in der Abwehr: zum Spieler, der am nächsten dran ist (nicht während des Laufens mit dem Stick)
   if (SETTINGS.autoswitch && !ours && !incoming && G.t - (G.manT || 0) > 0.9) {
@@ -2379,14 +2404,20 @@ function humanControl(dt) {
     }
     // Schuss nur aufladen, wenn die Taste mit dem Ball am Fuß gedrückt wurde (nicht noch vom Tackling gehalten)
     // Antippen = halbhoher, platzierter Schuss; halten bis gelb = Hammer; rot = drüber (wie bei EA FC, nur flotter)
-    if (IN.pb) { c.chargeArm = true; c.charge = Math.max(c.charge || 0, 0.22); }
+    if (IN.pb) { c.chargeArm = true; c.charge = Math.max(c.charge || 0, 0.22); c.taim = null; TOUCH.aimLast = null; }
+    const ta = TOUCH.aim || TOUCH.aimLast;
+    if (ta && c.chargeArm) { if (!c.taim) c.taim = { y0: shotAim(c, 0.5, 0).y }; c.taim.y = clamp(c.taim.y0 + ta.dy * 0.09, GY1 + 0.3, GY2 - 0.3); }
     if (IN.b && c.chargeArm) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.8); }
     // während des Aufladens: Pass oder Trick = Schlenzer, Flanke/Hoch = Heber
     if (IN.b && c.chargeArm && c.charge > 0 && (IN.pa || IN.pf || IN.pc)) {
       const pw = clamp(c.charge, 0.2, 1), aim = Math.abs(IN.y) > 0.25 ? IN.y : 0; c.chargeArm = false; c.charge = 0;
       shoot(c, pw, aim, IN.pc ? { chip: true } : { finesse: true }); return;
     }
-    if (IN.rb && c.chargeArm && c.charge > 0) { c.chargeArm = false; const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); return; }
+    if (IN.rb && c.chargeArm && c.charge > 0) {
+      c.chargeArm = false; const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; TOUCH.aimLast = null;
+      if (c.taim) { const y = c.taim.y; c.taim = null; shoot(c, pw, 0, { aimPt: { y }, auto: true }); } else shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0);
+      return;
+    }
     if (IN.pa) { pass(c, choosePass(c, IN.x, IN.y)); return; }
     if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
     if (IN.pc) {
@@ -2405,6 +2436,9 @@ function humanControl(dt) {
       else if (IN.pc && !ours) c.queue = { k: 'cross', t: G.t };
     } else if (incoming) {
       // Pass zu dir noch unterwegs: nichts auslösen, der Spieler läuft dem Ball entgegen
+    } else if (!ours && !b.owner && airNear(c)) {
+      // hoher Ball kommt auf dich zu: Schuss/Tackling = wegköpfen (Stickrichtung), Pass = zum Mitspieler köpfen
+      if (IN.pb || IN.pc) c.queue = { k: 'clear', t: G.t, x: IN.x, y: IN.y }; else if (IN.pa) c.queue = { k: 'pass', t: G.t, x: IN.x, y: IN.y };
     } else if (!ours) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
       if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (LAY().swapDef && LASTIN === 'key' ? IN.pb : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
@@ -2422,6 +2456,12 @@ function humanControl(dt) {
       const o = b.owner; if (o.think > 0.1) { o.think = 0; pass(o, c); }
     }
   }
+}
+// hoher Ball (Flanke, Ecke, Abschlag) landet in den nächsten 1,2 s in Kopfhöhe in deiner Nähe
+function airNear(c) {
+  const b = G.ball; if (b.owner || (b.z < 0.9 && b.vz <= 0)) return false;
+  for (const q of ballPath()) { if (q.t > 1.2) break; if (q.z < 2.5 && q.z > 0.9 && dist(q.x, q.y, c.x, c.y) < 4) return true; }
+  return false;
 }
 function bestChaser(t) { let best = null, bt = 1e9; for (const p of teamP(t)) { if (isGK(p)) continue; const q = interceptOf(p); if (q.t < bt) { bt = q.t; best = p; } } return best; }
 function switchPlayer() {
@@ -2459,7 +2499,8 @@ function movePlayer(p, dt) {
   if (act === 'trick') { return integ(p, dt, 'run'); }
   if (p.stun > 0 || !live) { p.vx *= 1 - 6 * dt; p.vy *= 1 - 6 * dt; return integ(p, dt); }
   // Arcade: der angespielte Spieler läuft dem Ball von selbst entgegen, auch wenn noch eine Richtung gedrückt ist
-  if (G.phase === 'play' && isHumanCtrl(p) && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !(G.ball.passTo === p || (!G.ball.owner && p.role === 'chase')))) {
+  const selfRun = G.ball.passTo === p || (!G.ball.owner && p.role === 'chase') || (G.ball.owner !== p && (G.idleT || 0) > 0.8);
+  if (G.phase === 'play' && isHumanCtrl(p) && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !selfRun)) {
     sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : 1);
     dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 38 : 44;   // direktes Ansprechen auf den Stick (ISS-Gefühl)
     // Torwart mit Ball in der Hand bleibt im Strafraum
@@ -2651,6 +2692,8 @@ function missesPass(p) {
   if (p.icptMiss && !p.act) p.act = { type: 'stumble', t: 0, dur: 0.22 };
   return p.icptMiss;
 }
+// Reichweite bei hohen Bällen: dein gesteuerter Spieler und Verteidiger im eigenen Strafraum springen höher und weiter
+function airR(p) { const b = G.ball; let r = 0.8; if (inBox(p.team, b.x, b.y)) r = 1.15; if (isHumanCtrl(p)) r += 0.3; return r; }
 function tryCollect() {
   const b = G.ball; if (b.owner) return;
   let best = null, bd = 1e9;
@@ -2660,11 +2703,12 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
     if (d < r && !mine && missesPass(p)) continue;
-    if (d < r && (mine ? d * 0.6 : d) < bd) { bd = mine ? d * 0.6 : d; best = p; }
+    const w = mine ? d * 0.6 : b.z > 1.0 && inBox(p.team, b.x, b.y) ? d * 0.7 : d;   // Kopfballduell im Strafraum: Verteidiger ebenbürtig
+    if (d < r && w < bd) { bd = w; best = p; }
   }
   if (!best) return;
   const p = best, gk = isGK(p) && inBox(p.team, b.x, b.y);
@@ -2688,7 +2732,8 @@ function tryCollect() {
     const defend = prog(p.team, p.x) < 0.3 && b.lastTeam !== p.team;
     const overHim = b.vz < 0 ? false : b.z > 1.5;
     const slow = Math.hypot(b.vx, b.vy) < 11;
-    if (wantShot || attackBox || defend || (overHim && b.z < 2.3)) { header(p, wantShot); return; }
+    const hq = isHumanCtrl(p) && q && ['clear', 'pass'].includes(q.k) && G.t - q.t < 1.5;
+    if (wantShot || hq || attackBox || defend || (overHim && b.z < 2.3)) { header(p, wantShot); return; }
     if ((b.z <= 1.6 && slow) || (passIncoming(p) && b.z <= 2)) { giveBall(p, true); AU.touch(); return; }
     return;
   }
@@ -2830,6 +2875,7 @@ function spShot(tk, pw, aim, target) {
 // ---------- Tor ----------
 function scoreGoal(team, y, z) {
   const b = G.ball, sh = b.shot, last = b.last;
+  if (team === G.human && !G.watch && !G.demo) buzz(60);
   // abgefälschte Parade, die doch reingeht, zählt für den Schützen
   const shooter = last && isGK(last) && b.kind === 'parry' && b.parryBy && b.parryBy.team === team ? b.parryBy : null;
   const scorer = shooter || (last && last.team === team ? last : null), og = !scorer;
@@ -3135,7 +3181,7 @@ for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { C
 function camLimits() {
   const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
   if (!touchPad()) return [lo, hi];
-  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}`;
+  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}|${SETTINGS.btn}`;
   if (CAMLIM.key === key && performance.now() - CAMLIM.t < 1000) return CAMLIM.v;
   const pad = document.getElementById('pad'), cr = cv.getBoundingClientRect();
   if (!pad || !pad.getBoundingClientRect().width || !cr.width) return [lo, hi];
@@ -3175,12 +3221,22 @@ function render() {
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
   items.push({ y: by, draw: () => drawBall(b) });
+  if (!G.demo && G.human >= 0 && !G.watch && G.phase === 'play') drawLanding();
   items.sort((a, c) => a.y - c.y).forEach(i => i.draw());
   drawParts();
   if (PITCH.wet) drawRain(t);
   if (G.phase === 'replay') { drawReplayOverlay(); return; }
   if (!G.demo) drawHUD();
   else if (menu.hidden) text('DEMO', 8, 8, '#9b90ad', 8);
+}
+// hoher Ball: gelber Ring dort, wo er in Kopfhöhe ankommt (Flanke, Ecke, Abschlag), damit man hinlaufen und köpfen kann
+function drawLanding() {
+  const b = G.ball; if (b.owner || b.shot || b.z < 1.2 || !['cross', 'lob', 'clear', 'punt', 'head', 'parry', 'loose'].includes(b.kind)) return;
+  let q = null; for (const p of ballPath()) if (p.z < 2.4 && p.t > 0.15 && (q = p)) break;
+  if (!q || q.x < 0 || q.x > CW || q.y < 0 || q.y > CH) return;
+  const x = sx(q.x, q.y), y = sy(q.y), r = 5 + Math.round(Math.min(q.t, 1) * 4), k = (Math.floor(G.t * 6) % 2) ? '#ffc83a' : '#fff1a8';
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = k; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r * 1.6, r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
 }
 function drawRain(t) {
   ctx.fillStyle = 'rgba(205,222,255,0.5)';
@@ -3220,7 +3276,7 @@ function drawHUD(lite) {
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
-      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZIEHEN: SCHLENZER · NACH OBEN: HEBER' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
+      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
     }
   }
   // Name des Ballführers
@@ -3243,7 +3299,9 @@ function drawPower(p, v) {
 }
 // Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
 function drawAimCross(c) {
-  const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), x = sx(gx, a.y), over = c.charge > 0.93;
+  const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), over = c.charge > 0.93;
+  if (c.taim) a.y = c.taim.y;
+  const x = sx(gx, a.y);
   const y = sy(a.y, over ? GH + 0.5 : a.z), col = over ? '#ff4f3a' : c.charge > 0.6 ? '#ffc83a' : '#3ddc84', r = 6 + (Math.floor(G.t * 8) % 2);
   if (x < -10 || x > W + 10) return;
   // gestrichelte Schusslinie vom Ball zum Ziel
@@ -3256,6 +3314,7 @@ function drawAimCross(c) {
   ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y - 2, r * 2 + 3, 5); ctx.fillRect(x - 2, y - r - 1, 5, r * 2 + 3);
   ctx.fillStyle = col; ctx.fillRect(x - r, y - 1, r * 2 + 1, 3); ctx.fillRect(x - 1, y - r, 3, r * 2 + 1);
   ctx.fillStyle = '#fff'; ctx.fillRect(x, y, 1, 1);
+  if (c.taim) { const k = shotKind(c, c.charge, a.y); text({ chip: 'HEBER', finesse: 'SCHLENZER', hammer: 'HAMMER', shot: '' }[k], x, y - r - 12, col, 8, 'center'); }
 }
 // Radar: 1 Pixel pro Meter
 function drawRadar() {
@@ -3446,6 +3505,7 @@ const ACT = {
         <b>${L.moveN.toUpperCase()}</b><span>Laufen${L.move[0] === 'KeyW' ? ' (die Pfeiltasten gehen auch)' : ''}</span>
         <b>${ks('a')}</b><span>Angriff: Pass in Laufrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Kurz bevor ein Pass bei dir ankommt drücken = Direktpass. Abwehr: Spieler wechseln</span>
         <b>${ks('k')}</b><span>Angriff: Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
+        <b>KOPFBALL</b><span>Gelber Ring = dort kommt ein hoher Ball in Kopfhöhe an. Im Strafraum des Gegners köpft dein Stürmer von selbst aufs Tor (${ks('a')} vorher = ablegen). In der Abwehr: ${ks('b')} oder ${ks('c')} = wegköpfen in Stickrichtung, ${ks('a')} = zum Mitspieler köpfen</span>
         <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: ${L.swapDef ? 'Tackling (nur von vorn, von hinten gibt es Fouls)' : 'Grätsche (Ball zuerst treffen!)'}</span>
         <b>${ks('b')}</b><span>Angriff: Schuss – antippen = platziert, halten lädt auf (grün flach, gelb hoch, rot drüber), ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke, das Zielkreuz im Tor zeigt wohin. Beim Aufladen ${ks('a')} = Schlenzer an den Innenpfosten, ${ks('c')} = Heber über den Torwart. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Freistoß und Elfmeter: Zielansicht hinter dem Ball, Richtung = Fadenkreuz. Abwehr: ${L.swapDef ? 'Grätsche (Ball zuerst treffen!)' : 'Tackling (nur von vorn, von hinten gibt es Fouls)'}</span>
         <b>${ks('f')}</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
@@ -3455,7 +3515,7 @@ const ACT = {
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
         <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss (beim Aufladen A = Schlenzer, X = Heber) · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = Pass, lang halten = Steilpass, ziehen = Flanke/hoher Ball. SCHUSS: halten lädt auf, beim Aufladen ziehen = Schlenzer, nach oben ziehen = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche). Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm</span>
+        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = Pass, lang halten = Steilpass, ziehen = Flanke/hoher Ball. SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm, deinen Spieler antippen = Haken. Knopfgröße in den Optionen</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });
@@ -3487,6 +3547,7 @@ const ACT = {
         <span>Radar</span>${tog(SETTINGS.radar, 'optRadar', 'AN', 'AUS')}
         <span>Steuerhilfen</span><div class="row">${[['auto', 'AUTO'], ['1', 'AN'], ['0', 'AUS']].map(([v, n]) => `<button class="small ${String(SETTINGS.helps === true ? '1' : SETTINGS.helps === false ? '0' : 'auto') === v ? 'on' : ''}" data-act="optHelps" data-arg="${v}">${n}</button>`).join('')}</div>
         <span>Tastatur</span><div class="row">${Object.entries(LAYOUTS).map(([id, l]) => `<button class="small ${SETTINGS.keys === id ? 'on' : ''}" data-act="optKeys" data-arg="${id}">${l.n}</button>`).join('')}</div>
+        ${TOUCHDEV ? `<span>Knopfgröße</span><div class="row">${[['s', 'KLEIN'], ['m', 'NORMAL'], ['l', 'GROSS']].map(([v, n]) => `<button class="small ${SETTINGS.btn === v ? 'on' : ''}" data-act="optBtn" data-arg="${v}">${n}</button>`).join('')}</div>` : ''}
         <span>Spieltempo</span><div class="row">${[[0.85, 'RUHIG'], [1, 'NORMAL'], [1.15, 'SCHNELL']].map(([s, n]) => `<button class="small ${SETTINGS.speed === s ? 'on' : ''}" data-act="optSpeed" data-arg="${s}">${n}</button>`).join('')}</div>
       </div>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button></div></div>`, { back: () => ACT.back() });
@@ -3503,6 +3564,7 @@ const ACT = {
   optRadar(a) { SETTINGS.radar = a === '1'; saveSettings(); ACT.options(); },
   optHelps(a) { SETTINGS.helps = a === 'auto' ? 'auto' : a === '1'; saveSettings(); ACT.options(); },
   optSpeed(a) { SETTINGS.speed = +a; saveSettings(); ACT.options(); },
+  optBtn(a) { SETTINGS.btn = a; saveSettings(); applyBtnSize(); ACT.options(); },
   pause() {
     INGAME_MENU = true; G.paused = true; AU.ambience(false);
     show(`<div class="panel narrow"><h2>PAUSE</h2>
@@ -4380,7 +4442,7 @@ const LESSONS = [
   { t: 'STEILPASS', need: 2, txt: k => `${k.through} spielt den Ball in den Lauf deines Stürmers – hinter die Abwehr. Achte aufs Abseits!`,
     setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'MF', gx - s * 36, MY); giveBall(p, true); tutUse(0, 'ST', gx - s * 23, MY); tutHold(tutUse(1, 'AB', gx - s * 20, MY - 9)); tutHold(tutUse(1, 'AB', gx - s * 20, MY + 9)); G.ctrl = p; },
     on(T, e) { if (e.k === 'recv' && e.p.team === 0 && e.kind === 'through') { T.n++; T.reset = 1.2; } } },
-  { t: 'SCHIESSEN', need: 3, txt: k => `${k.shot}: kurz = flach, lang = hoch, zu lang = drüber. Mit ${k.aim} zielst du in die Ecke, das Zielkreuz im Tor zeigt wohin. ${LASTIN === 'touch' ? 'Beim Aufladen ziehen = Schlenzer, nach oben ziehen = Heber' : `Beim Aufladen ${k.pass} = Schlenzer, ${k.cross} = Heber`}. Schieß 3 Tore.`,
+  { t: 'SCHIESSEN', need: 3, txt: k => `${k.shot}: kurz = flach, lang = hoch, zu lang = drüber. Mit ${k.aim} zielst du in die Ecke, das Zielkreuz im Tor zeigt wohin. ${LASTIN === 'touch' ? 'Beim Aufladen den Daumen ziehen = zielen (Zeitlupe), leicht in die Ecke = Schlenzer' : `Beim Aufladen ${k.pass} = Schlenzer, ${k.cross} = Heber`}. Schieß 3 Tore.`,
     setup(T) { const s = atkDir(0), gx = goalX(0), p = tutUse(0, 'ST', gx - s * 19, MY + rnd(-6, 6)); giveBall(p, true); G.ctrl = p; G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 55); },
     on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
   { t: 'FLANKE & KOPFBALL', need: 2, txt: k => `Vom Flügel flanken: ${k.cross}. Dein Stürmer läuft zur Flanke und köpft im Strafraum von selbst aufs Tor – ${k.aim} wählt die Ecke. Kommt der Ball flach, drück schnell ${k.shot.split(' ')[0]} für die Direktabnahme.`,
@@ -5032,7 +5094,7 @@ fitView(); addEventListener('resize', fitView); addEventListener('orientationcha
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 const buzz = ms => { if (TOUCHDEV && LASTIN === 'touch' && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { } };
-const attacking = () => !!(G && G.human >= 0 && G.ball.owner && G.ball.owner.team === G.human);
+const attacking = () => !!(G && G.human >= 0 && (G.ball.owner ? G.ball.owner.team === G.human : G.ball.passTo && G.ball.passTo.team === G.human));   // eigener Pass unterwegs zählt als Angriff
 // Tippen aufs Spielfeld: Mitspieler = Pass zu ihm, in der Abwehr = Wechsel zu diesem Spieler
 function tapAt(cx0, cy0) {
   if (!G || G.demo || !menu.hidden) return;
@@ -5041,9 +5103,13 @@ function tapAt(cx0, cy0) {
   const r = cv.getBoundingClientRect(); if (cx0 < r.left || cx0 > r.right || cy0 < r.top || cy0 > r.bottom) return;
   const cx = (cx0 - r.left) * W / r.width, cy = (cy0 - r.top) * H / r.height, me = G.human; if (me < 0) return;
   let hit = null, hd = 1e9;
-  for (const p of G.players) { if (p.off || p.team !== me) continue; const px = sx(p.x, p.y), py = sy(p.y, p.z) - 14, d = Math.hypot((cx - px) * 1.2, cy - py); if (Math.abs(cx - px) < 14 && Math.abs(cy - py) < 22 && d < hd) { hd = d; hit = p; } }
+  for (const p of G.players) { if (p.off || (p.team !== me && attacking())) continue; const px = sx(p.x, p.y), py = sy(p.y, p.z) - 14, d = Math.hypot((cx - px) * 1.2, cy - py); if (Math.abs(cx - px) < 14 && Math.abs(cy - py) < 22 && d < hd) { hd = d; hit = p; } }
   if (!hit) return;
   const c = G.ctrl, own = G.ball.owner;
+  // Abwehr: Gegner antippen = dein Spieler, der ihm am nächsten ist
+  if (hit.team !== me) { if (G.phase === 'play' && !isGK(hit)) { const n = nearestTo(me, hit.x, hit.y); if (n) { G.ctrl = n; G.manT = G.t; AU.select(); buzz(8); } } return; }
+  // eigenen Ballführer antippen = Haken (Richtung vom Stick)
+  if (own === c && hit === c && G.phase === 'play' && !isGK(c)) { trick(c, IN.x, IN.y); buzz(12); return; }
   if (own && own === c && c.team === me && hit !== c) {
     if (G.phase === 'play' && !isGK(c)) { pass(c, hit); buzz(12); }
     else if (G.phase === 'play' && isGK(c)) { gkThrow(c, hit); buzz(12); }
@@ -5077,7 +5143,8 @@ function tapAt(cx0, cy0) {
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
   //   Angriff  PASS:   tippen = Pass · lang halten = Steilpass · ziehen = hoher Ball/Flanke
-  //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Schlenzer, nach oben ziehen = Heber
+  //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Zielkreuz im Tor schieben (wie bei Padel-Legenden),
+  //                    das Spiel läuft dabei kurz in Zeitlupe; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber
   //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
   //            TACKLING: tippen = Tackling · ziehen = Grätsche (Richtung vom Stick)
   const DRAG = 26;
@@ -5096,16 +5163,16 @@ function tapAt(cx0, cy0) {
     });
     b.addEventListener('pointermove', e => {
       if (!st || st.done) return;
-      const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < DRAG) return;
+      const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
       if (k === 'a') { if (!st.att) return; st.done = true; if (holdT) { clearTimeout(holdT); holdT = null; } TOUCH.pulseC = 1; alt('HOCH'); }
-      else if (st.att) { if (!TOUCH.b) return; st.done = true; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseA = 1; alt(up ? 'HEBER' : 'SCHLENZER'); }
+      else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
       if (st && !st.done) { if (k === 'a' && st.att) TOUCH.pulseA = 1; else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
-      if (k === 'b') TOUCH.b = false; if (k === 'a') TOUCH.k = false;
-      st = null; b.classList.remove('on', 'lob', 'alt'); tbMode = ''; updateTouchLabels();
+      if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
+      st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
   });
@@ -5115,7 +5182,7 @@ function updateTouchLabels() {
   if (!TOUCHDEV || !G || G.demo) return;
   if (TBL.a.classList.contains('on') || TBL.b.classList.contains('on')) return;   // während des Drückens nicht umbeschriften
   const m = attacking() || (G.sp && isHumanTeam(G.sp.team)) ? 'att' : 'def'; if (m === tbMode) return; tbMode = m;
-  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: Schlenzer']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
+  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: zielen']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
   for (const [i, el] of [TBL.a, TBL.b].entries()) { el.querySelector('span').textContent = L[i][0]; el.querySelector('small').textContent = L[i][1]; }
 }
 addEventListener('pointerdown', () => AU.init());
@@ -5153,10 +5220,31 @@ function updateWatchBar() {
 document.querySelectorAll('#watchbar button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); if (!G) return; if (b.dataset.w === 'join') joinGame(); else G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; }));
 addEventListener('keydown', e => { if (e.code === 'KeyF' && G && G.watch && menu.hidden) G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; });
 
+// Touch-Tipp in den ersten zwei Spielen auf dem Handy (wie bei Hallen- und Padel-Legenden): Spiel hält an, bis VERSTANDEN
+let TTIP = null, tipG = null;
+function closeTouchTip() { if (!TTIP) return false; TTIP.remove(); TTIP = null; clearEdges(); if (G && menu.hidden) G.paused = false; return true; }
+function touchTip() {
+  if (!TOUCHDEV || !G || G.demo || G.watch || G.tut || G === tipG || G.phase !== 'kickoff' || !menu.hidden) return;
+  tipG = G; if (LASTIN !== 'touch') return;
+  const n = store.get('krl_touchtip', 0); if (n >= 2) return; store.set('krl_touchtip', n + 1);
+  const el = document.createElement('div'); el.id = 'ttip'; el.setAttribute('role', 'dialog');
+  el.innerHTML = `<b>SO SPIELST DU AUF DEM HANDY</b><ul>
+    <li>Linker Daumen: Der Stick erscheint, wo du aufsetzt. Weit ziehen = Sprint.</li>
+    <li><b>PASS</b> tippen = Pass · lang halten = Steilpass · drücken und ziehen = Flanke</li>
+    <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
+    <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
+    <li>Mitspieler antippen = Pass zu ihm · deinen Spieler antippen = Haken</li></ul><button>VERSTANDEN</button>`;
+  el.querySelector('button').addEventListener('click', closeTouchTip);
+  document.body.appendChild(el); TTIP = el; G.paused = true;
+}
+const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
+function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
+applyBtnSize();
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(1 / 30, (now - lastT) / 1000)); lastT = now;
-  readInput(dt); menuPad(); updateTouchLabels();
+  readInput(dt); menuPad(); updateTouchLabels(); touchTip();
+  if (TTIP && (IN.pa || IN.pb)) closeTouchTip();
   document.body.classList.toggle('ingame', !!(G && !G.demo));
   if (G && !G.paused) gameTick(dt);
   updateWatchBar();

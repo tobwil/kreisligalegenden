@@ -21,7 +21,7 @@ for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { C
 function camLimits() {
   const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
   if (!touchPad()) return [lo, hi];
-  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}`;
+  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}|${SETTINGS.btn}`;
   if (CAMLIM.key === key && performance.now() - CAMLIM.t < 1000) return CAMLIM.v;
   const pad = document.getElementById('pad'), cr = cv.getBoundingClientRect();
   if (!pad || !pad.getBoundingClientRect().width || !cr.width) return [lo, hi];
@@ -61,12 +61,22 @@ function render() {
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
   items.push({ y: by, draw: () => drawBall(b) });
+  if (!G.demo && G.human >= 0 && !G.watch && G.phase === 'play') drawLanding();
   items.sort((a, c) => a.y - c.y).forEach(i => i.draw());
   drawParts();
   if (PITCH.wet) drawRain(t);
   if (G.phase === 'replay') { drawReplayOverlay(); return; }
   if (!G.demo) drawHUD();
   else if (menu.hidden) text('DEMO', 8, 8, '#9b90ad', 8);
+}
+// hoher Ball: gelber Ring dort, wo er in Kopfhöhe ankommt (Flanke, Ecke, Abschlag), damit man hinlaufen und köpfen kann
+function drawLanding() {
+  const b = G.ball; if (b.owner || b.shot || b.z < 1.2 || !['cross', 'lob', 'clear', 'punt', 'head', 'parry', 'loose'].includes(b.kind)) return;
+  let q = null; for (const p of ballPath()) if (p.z < 2.4 && p.t > 0.15 && (q = p)) break;
+  if (!q || q.x < 0 || q.x > CW || q.y < 0 || q.y > CH) return;
+  const x = sx(q.x, q.y), y = sy(q.y), r = 5 + Math.round(Math.min(q.t, 1) * 4), k = (Math.floor(G.t * 6) % 2) ? '#ffc83a' : '#fff1a8';
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = k; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r * 1.6, r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
 }
 function drawRain(t) {
   ctx.fillStyle = 'rgba(205,222,255,0.5)';
@@ -106,7 +116,7 @@ function drawHUD(lite) {
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
-      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZIEHEN: SCHLENZER · NACH OBEN: HEBER' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
+      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
     }
   }
   // Name des Ballführers
@@ -129,7 +139,9 @@ function drawPower(p, v) {
 }
 // Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
 function drawAimCross(c) {
-  const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), x = sx(gx, a.y), over = c.charge > 0.93;
+  const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), over = c.charge > 0.93;
+  if (c.taim) a.y = c.taim.y;
+  const x = sx(gx, a.y);
   const y = sy(a.y, over ? GH + 0.5 : a.z), col = over ? '#ff4f3a' : c.charge > 0.6 ? '#ffc83a' : '#3ddc84', r = 6 + (Math.floor(G.t * 8) % 2);
   if (x < -10 || x > W + 10) return;
   // gestrichelte Schusslinie vom Ball zum Ziel
@@ -142,6 +154,7 @@ function drawAimCross(c) {
   ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y - 2, r * 2 + 3, 5); ctx.fillRect(x - 2, y - r - 1, 5, r * 2 + 3);
   ctx.fillStyle = col; ctx.fillRect(x - r, y - 1, r * 2 + 1, 3); ctx.fillRect(x - 1, y - r, 3, r * 2 + 1);
   ctx.fillStyle = '#fff'; ctx.fillRect(x, y, 1, 1);
+  if (c.taim) { const k = shotKind(c, c.charge, a.y); text({ chip: 'HEBER', finesse: 'SCHLENZER', hammer: 'HAMMER', shot: '' }[k], x, y - r - 12, col, 8, 'center'); }
 }
 // Radar: 1 Pixel pro Meter
 function drawRadar() {

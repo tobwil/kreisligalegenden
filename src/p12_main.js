@@ -4,7 +4,7 @@ fitView(); addEventListener('resize', fitView); addEventListener('orientationcha
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 const buzz = ms => { if (TOUCHDEV && LASTIN === 'touch' && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { } };
-const attacking = () => !!(G && G.human >= 0 && G.ball.owner && G.ball.owner.team === G.human);
+const attacking = () => !!(G && G.human >= 0 && (G.ball.owner ? G.ball.owner.team === G.human : G.ball.passTo && G.ball.passTo.team === G.human));   // eigener Pass unterwegs zählt als Angriff
 // Tippen aufs Spielfeld: Mitspieler = Pass zu ihm, in der Abwehr = Wechsel zu diesem Spieler
 function tapAt(cx0, cy0) {
   if (!G || G.demo || !menu.hidden) return;
@@ -13,9 +13,13 @@ function tapAt(cx0, cy0) {
   const r = cv.getBoundingClientRect(); if (cx0 < r.left || cx0 > r.right || cy0 < r.top || cy0 > r.bottom) return;
   const cx = (cx0 - r.left) * W / r.width, cy = (cy0 - r.top) * H / r.height, me = G.human; if (me < 0) return;
   let hit = null, hd = 1e9;
-  for (const p of G.players) { if (p.off || p.team !== me) continue; const px = sx(p.x, p.y), py = sy(p.y, p.z) - 14, d = Math.hypot((cx - px) * 1.2, cy - py); if (Math.abs(cx - px) < 14 && Math.abs(cy - py) < 22 && d < hd) { hd = d; hit = p; } }
+  for (const p of G.players) { if (p.off || (p.team !== me && attacking())) continue; const px = sx(p.x, p.y), py = sy(p.y, p.z) - 14, d = Math.hypot((cx - px) * 1.2, cy - py); if (Math.abs(cx - px) < 14 && Math.abs(cy - py) < 22 && d < hd) { hd = d; hit = p; } }
   if (!hit) return;
   const c = G.ctrl, own = G.ball.owner;
+  // Abwehr: Gegner antippen = dein Spieler, der ihm am nächsten ist
+  if (hit.team !== me) { if (G.phase === 'play' && !isGK(hit)) { const n = nearestTo(me, hit.x, hit.y); if (n) { G.ctrl = n; G.manT = G.t; AU.select(); buzz(8); } } return; }
+  // eigenen Ballführer antippen = Haken (Richtung vom Stick)
+  if (own === c && hit === c && G.phase === 'play' && !isGK(c)) { trick(c, IN.x, IN.y); buzz(12); return; }
   if (own && own === c && c.team === me && hit !== c) {
     if (G.phase === 'play' && !isGK(c)) { pass(c, hit); buzz(12); }
     else if (G.phase === 'play' && isGK(c)) { gkThrow(c, hit); buzz(12); }
@@ -49,7 +53,8 @@ function tapAt(cx0, cy0) {
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
   //   Angriff  PASS:   tippen = Pass · lang halten = Steilpass · ziehen = hoher Ball/Flanke
-  //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Schlenzer, nach oben ziehen = Heber
+  //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Zielkreuz im Tor schieben (wie bei Padel-Legenden),
+  //                    das Spiel läuft dabei kurz in Zeitlupe; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber
   //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
   //            TACKLING: tippen = Tackling · ziehen = Grätsche (Richtung vom Stick)
   const DRAG = 26;
@@ -68,16 +73,16 @@ function tapAt(cx0, cy0) {
     });
     b.addEventListener('pointermove', e => {
       if (!st || st.done) return;
-      const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < DRAG) return;
+      const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
       if (k === 'a') { if (!st.att) return; st.done = true; if (holdT) { clearTimeout(holdT); holdT = null; } TOUCH.pulseC = 1; alt('HOCH'); }
-      else if (st.att) { if (!TOUCH.b) return; st.done = true; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseA = 1; alt(up ? 'HEBER' : 'SCHLENZER'); }
+      else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
       if (st && !st.done) { if (k === 'a' && st.att) TOUCH.pulseA = 1; else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
-      if (k === 'b') TOUCH.b = false; if (k === 'a') TOUCH.k = false;
-      st = null; b.classList.remove('on', 'lob', 'alt'); tbMode = ''; updateTouchLabels();
+      if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
+      st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
   });
@@ -87,7 +92,7 @@ function updateTouchLabels() {
   if (!TOUCHDEV || !G || G.demo) return;
   if (TBL.a.classList.contains('on') || TBL.b.classList.contains('on')) return;   // während des Drückens nicht umbeschriften
   const m = attacking() || (G.sp && isHumanTeam(G.sp.team)) ? 'att' : 'def'; if (m === tbMode) return; tbMode = m;
-  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: Schlenzer']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
+  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: zielen']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
   for (const [i, el] of [TBL.a, TBL.b].entries()) { el.querySelector('span').textContent = L[i][0]; el.querySelector('small').textContent = L[i][1]; }
 }
 addEventListener('pointerdown', () => AU.init());
@@ -125,10 +130,31 @@ function updateWatchBar() {
 document.querySelectorAll('#watchbar button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); if (!G) return; if (b.dataset.w === 'join') joinGame(); else G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; }));
 addEventListener('keydown', e => { if (e.code === 'KeyF' && G && G.watch && menu.hidden) G.ff = G.ff === 1 ? 2 : G.ff === 2 ? 4 : 1; });
 
+// Touch-Tipp in den ersten zwei Spielen auf dem Handy (wie bei Hallen- und Padel-Legenden): Spiel hält an, bis VERSTANDEN
+let TTIP = null, tipG = null;
+function closeTouchTip() { if (!TTIP) return false; TTIP.remove(); TTIP = null; clearEdges(); if (G && menu.hidden) G.paused = false; return true; }
+function touchTip() {
+  if (!TOUCHDEV || !G || G.demo || G.watch || G.tut || G === tipG || G.phase !== 'kickoff' || !menu.hidden) return;
+  tipG = G; if (LASTIN !== 'touch') return;
+  const n = store.get('krl_touchtip', 0); if (n >= 2) return; store.set('krl_touchtip', n + 1);
+  const el = document.createElement('div'); el.id = 'ttip'; el.setAttribute('role', 'dialog');
+  el.innerHTML = `<b>SO SPIELST DU AUF DEM HANDY</b><ul>
+    <li>Linker Daumen: Der Stick erscheint, wo du aufsetzt. Weit ziehen = Sprint.</li>
+    <li><b>PASS</b> tippen = Pass · lang halten = Steilpass · drücken und ziehen = Flanke</li>
+    <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
+    <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
+    <li>Mitspieler antippen = Pass zu ihm · deinen Spieler antippen = Haken</li></ul><button>VERSTANDEN</button>`;
+  el.querySelector('button').addEventListener('click', closeTouchTip);
+  document.body.appendChild(el); TTIP = el; G.paused = true;
+}
+const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
+function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
+applyBtnSize();
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(1 / 30, (now - lastT) / 1000)); lastT = now;
-  readInput(dt); menuPad(); updateTouchLabels();
+  readInput(dt); menuPad(); updateTouchLabels(); touchTip();
+  if (TTIP && (IN.pa || IN.pb)) closeTouchTip();
   document.body.classList.toggle('ingame', !!(G && !G.demo));
   if (G && !G.paused) gameTick(dt);
   updateWatchBar();
