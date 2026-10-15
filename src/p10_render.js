@@ -154,6 +154,7 @@ function drawPower(p, v, col) {
 }
 // Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
 function drawAimCross(c) {
+  if (dist(G.ball.x, G.ball.y, goalX(c.team), MY) > CLEAR_D) { text('BEFREIUNGSSCHLAG', sx(c.x, c.y), sy(c.y, c.z) - 66, '#ffc83a', 8, 'center'); return; }   // zu weit fürs Tor
   const a = shotAim(c, c.charge, Math.abs(IN.y) > 0.25 ? IN.y : 0), gx = goalX(c.team), over = c.charge > 0.93;
   if (c.taim) a.y = c.taim.y;
   const x = sx(gx, a.y);

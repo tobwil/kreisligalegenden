@@ -328,6 +328,23 @@ test('Abschluss: Zielkreuz beim Aufladen, Antippen schießt platziert, Schlenzer
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Schusstaste aus dem eigenen Strafraum = Befreiungsschlag: landet vor dem gegnerischen Strafraum, nicht im Toraus', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, res = [];
+    for (const pw of [0.2, 0.6, 1]) for (let n = 0; n < 4; n++) {
+      startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+      const s = atkDir(0), ox = ownX(0), p = teamP(0).find(q => grpOf(q) === 'AB'); place(p, ox + s * 12, MY + 6); giveBall(p, true); G.ctrl = p;
+      shoot(p, pw, null); const B = G.ball; let land = null;
+      for (let i = 0; i < 60 * 3 && land == null; i++) { step(1 / 60); if (B.z < 0.05 && i > 5) land = (B.x - ox) * s; }
+      res.push({ land, shot: !!B.shot, goalKick: G.sp && G.sp.type === 'goal' });
+    }
+    return res;
+  });
+  ok(r.every(x => x.land != null && x.land > 25 && x.land < 82 && !x.shot && !x.goalKick), JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

@@ -178,10 +178,22 @@ function gkPunt(p, q) {
 }
 
 // ---------- Schuss ----------
+// Weiter als 40 m vom Tor ist die Schusstaste ein Befreiungsschlag: hoch und weit nach vorn (Kraft = Weite), landet vor dem
+// gegnerischen Strafraum statt als Schuss aus dem eigenen Sechzehner hinter dem gegnerischen Tor ins Aus zu fliegen
+const CLEAR_D = 40;
+function longClear(p, power, aimY) {
+  const b = G.ball, s = atkDir(p.team), gx = goalX(p.team);
+  let tx = b.x + s * (22 + clamp(power, 0, 1) * 26); if ((gx - tx) * s < 20) tx = gx - s * 20;
+  const ty = clamp(b.y + (aimY || 0) * 12 + (MY - b.y) * 0.25 + gauss() * 4, 4, CH - 4);
+  kickBall(p, 'clear', 0.8); launchAir(tx + gauss() * 3, ty, 0, 1.5 + clamp(power, 0, 1) * 0.9);
+  p.act = { type: 'kick', t: 0, dur: 0.38 };
+  if (isHumanCtrl(p)) buzz(18);
+}
 // power 0..1 (Aufladen), aimY -1 (hinterer Pfosten, oben im Bild) … 1 (vorderer Pfosten) oder null (automatisch), o: { header, volley, pen }
 function shoot(p, power, aimY, o = {}) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), gk = G.gk[1 - p.team];
   const d = dist(b.x, b.y, gx, MY);
+  if (d > CLEAR_D && !o.target && !o.pen && !o.header) return longClear(p, power, aimY);
   let ty, tz;
   if (o.target) { ty = o.target.y; tz = o.target.z; }   // Zielansicht: Ziel und Streuung kommen fertig
   else if (aimY == null) {

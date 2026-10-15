@@ -83,7 +83,7 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 | Pass (antippen = kurz, halten = fester und weiter) · Abwehr: Spieler wechseln | S | K | S |
 | Flanke / hoher Ball | A | J | A |
 | Steilpass (antippen = normal, halten = weiter in die Tiefe) | D | I | W |
-| Schuss und Kopfball (antippen = platziert, halten = fester) | Leertaste | L | D / Leertaste |
+| Schuss und Kopfball (antippen = platziert, halten = fester; weiter als 40 m vom Tor = Befreiungsschlag) | Leertaste | L | D / Leertaste |
 | beim Aufladen: Schlenzer · Heber | S · A | K · J | S · A |
 | Abwehr: Tackling · Grätsche · Druck | D · Leertaste · A | L · J · I | D · A · W |
 | Trick | F | U / O | Q |
