@@ -402,6 +402,38 @@ test('Flanke halten = kurzer bis langer Pfosten; Kopfball: Spieler läuft selbst
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Spielerwechsel in der Abwehr: Verteidiger vor dem Gegner statt des überlaufenen, mit Richtung, schnell weiterschalten, Auto-Wechsel beim Überlaufen', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    const frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    let P;
+    const setup = () => {
+      startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+      const s = atkDir(0), ox = ownX(0), o = teamP(1).find(q => grpOf(q) === 'ST'), ab = teamP(0).filter(q => grpOf(q) === 'AB'), [behind, front, side, up] = ab;
+      for (const q of G.players) if (!isGK(q)) place(q, CW / 2 + (q.team ? 1 : -1) * 0, q.team ? 3 : CH - 3);
+      const cx = ox + s * 40; place(o, cx, MY); o.vx = -s * 6; o.vy = 0; giveBall(o, true); o.think = 9;
+      place(behind, cx + s * 3, MY + 0.5); place(front, cx - s * 9, MY + 1); place(side, cx + s * 4, MY + 6); place(up, cx - s * 2, MY - 12);
+      G.ctrl = behind; G.manT = -9; for (const k in KEY) KEY[k] = false; frame();
+      P = { behind, front, side, up, o, s };
+    };
+    const press = k => { KEY[k] = KEYP[k] = true; frame(); KEY[k] = false; frame(); };
+    setup(); press('KeyS'); out.smart = G.ctrl === P.front;
+    press('KeyS'); out.cycle = G.ctrl !== P.front && G.ctrl !== P.behind;
+    setup(); KEY.ArrowUp = true; press('KeyS'); KEY.ArrowUp = false; out.dir = G.ctrl === P.up;
+    setup(); render(); out.drawn = true;
+    // Auto-Wechsel: dein Spieler ist überlaufen und du läufst noch hinterher
+    setup(); SETTINGS.autoswitch = true; KEY[P.s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; G.autoT = -9; frame(); out.auto = G.ctrl === P.front;
+    return out;
+  });
+  ok(r.smart, 'Wechsel nimmt nicht den Verteidiger vor dem Gegner: ' + JSON.stringify(r));
+  ok(r.cycle, 'schnell nochmal drücken schaltet nicht weiter: ' + JSON.stringify(r));
+  ok(r.dir, 'Wechsel mit Richtung: ' + JSON.stringify(r));
+  ok(r.auto && r.drawn, 'Auto-Wechsel beim Überlaufen: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
