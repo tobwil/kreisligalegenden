@@ -17,7 +17,7 @@ const ACHS = [
   ['haken3', 'KNOTENLÖSER', 'Lass in einem Spiel 3 Gegner stehen'], ['alle3', 'ALLES ERLEDIGT', 'Erfülle alle drei Aufgaben eines Spiels'], ['aufg25', 'FLEISSBIENCHEN', 'Erfülle 25 Aufgaben'],
   ['siege10', 'SERIENTÄTER', 'Gewinne 10 Spiele'], ['tore50', 'TORFABRIK', 'Schieß 50 Tore'], ['shootout', 'NERVENSTARK', 'Gewinne ein Elfmeterschießen'],
   ['derby', 'DERBYSIEGER', 'Gewinne ein Derby gegen den Erzrivalen'], ['meister', 'KREISMEISTER', 'Werde Meister deiner Kreisliga'], ['pokal', 'POKALSIEGER', 'Gewinne den Kreispokal'],
-  ['dkm', 'DEUTSCHER MEISTER', 'Gewinne die Goldene Eckfahne'], ['training', 'MUSTERSCHÜLER', 'Schließe das Training ab'], ['teilen', 'LOKALPRESSE', 'Teile ein Ergebnis'],
+  ['dkm', 'DEUTSCHER MEISTER', 'Gewinne die Goldene Eckfahne'], ['training', 'MUSTERSCHÜLER', 'Schließe das Training ab'], ['teilen', 'LOKALPRESSE', 'Teile ein Ergebnis'], ['flitzer', 'FLITZER-ZEUGE', 'Erlebe einen Flitzer (extrem selten)'],
 ];
 function unlock(id) {
   if (PROF.ach[id]) return false;
@@ -38,7 +38,7 @@ const CHALS = [
   { id: 'drei', t: 'Schieß 3 Tore', done: c => c.my >= 3 },
   { id: 'dp', t: 'Spiel einen Doppelpass', done: c => c.feat('doppelpass') },
   { id: 'erst', t: 'Schieß das erste Tor des Spiels', done: c => c.first === c.me, fail: c => c.first === 1 - c.me },
-  { id: 'haken', t: 'Lass 2 Gegner mit dem Haken stehen', done: c => c.count('haken') >= 2 },
+  { id: 'haken', t: 'Lass 2 Gegner mit einem Trick stehen', done: c => c.count('haken') >= 2 },
   { id: 'aus', t: 'Spiel 3 Gegner im Dribbling aus', done: c => c.count('aus') >= 3 },
   { id: 'fair', t: 'Keine Karte für dein Team', end: c => G.stats.yellow[c.me] + G.stats.red[c.me] === 0 },
   { id: 'schuss', t: 'Mindestens 8 Torschüsse', done: c => G.stats.shots[c.me] >= 8 },

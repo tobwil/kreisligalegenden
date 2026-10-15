@@ -36,11 +36,12 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 
 #### Spiel
 - **11 gegen 11** auf einem 100 × 64 m großen Platz mit TV-Kamera, die mitschwenkt und sich neigt, dazu ein Radar
-- **Aktionen:** Pass mit Vorschau (blaues Dreieck über dem Empfänger), Steilpass in den Lauf, Flanke vom Flügel, hoher Ball, Schuss mit Aufladen (flach, hoch, drüber), Zielkreuz im Tor und gestrichelter Schusslinie, **Schlenzer** an den Innenpfosten und **Heber** über den Torwart, Direktabnahme, Volley und Kopfball, Haken, Doppelpass (wer abspielt, startet von selbst in den Raum)
+- **Aktionen:** Pass mit Vorschau (blaues Dreieck über dem Empfänger), Steilpass in den Lauf, Flanke vom Flügel, hoher Ball, Schuss mit Aufladen (flach, hoch, drüber), Zielkreuz im Tor und gestrichelter Schusslinie, **Schlenzer** an den Innenpfosten und **Heber** über den Torwart, Direktabnahme, Volley und Kopfball, Tricks nach Richtung (zur Seite Haken, zurück Zurückziehen, nach vorn Tempo-Dribbling, ohne Richtung Übersteiger; auf dem Handy rechts auf dem Platz wischen), Doppelpass (wer abspielt, startet von selbst in den Raum)
 - **Abwehr:** Tackling (von hinten gibt es Fouls), Grätsche (Ball zuerst treffen!), Spielerwechsel (automatisch oder per Taste), Druck mit einem zweiten Mann
 - **Regeln:** Abseits (abschaltbar), Einwurf, Ecke, Abstoß, Freistoß mit Mauer, Elfmeter (der Torwart rät die Ecke), Gelb, Gelb-Rot und Rot (Notbremse), Nachspielzeit, Verlängerung und Elfmeterschießen in K.-o.-Spielen
 - **Torwart-KI** mit Paraden, Glanzparaden um den Pfosten und über die Latte, Rauslaufen, Flanken abfangen, Abwurf und Abschlag
 - **Taktik & Wechsel** (Q): fünf Formationen (4-4-2, 4-3-3, 4-2-3-1, 3-5-2, 5-3-2), Ausrichtung defensiv/normal/offensiv, fünf Auswechslungen, Kondition
+- **Flitzer:** extrem selten (etwa jedes 35. Spiel) rennt einer in Unterhose über den Platz, zwei Ordner hinterher
 - **Präsentation:** Pixel-Sportplatz mit Sportheim, Tribüne, Flutlicht, Bratwurststand mit Rauch, Burg auf dem Hügel, Zuschauer mit Bierbecher und Hund am Geländer, Banden lokaler Betriebe, Trainerbänke, Schiedsrichter und Linienrichter mit Fahne, Torjubel, Wiederholung, Eisspray
 - **Platzarten:** Rasen mit Mähstreifen und abgespielten Stellen, Kunstrasen mit Jugendfeld-Linien, Hartplatz (Asche) mit Pfützen und Staub; das Endspiel unter Flutlicht
 - **Ton** komplett synthetisiert: Schuss, Pfiff, Pfosten, Netz, Zuschauer, Autohupe vom Parkplatz, Blaskapellen-Chiptune

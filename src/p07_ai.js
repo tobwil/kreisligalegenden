@@ -232,7 +232,7 @@ function dribble(p) {
   const mm = Math.hypot(dx, dy) || 1;
   p.tx = p.x + dx / mm * 5; p.ty = p.y + dy / mm * 5; p.urg = spaceAhead(p) > 7 ? 1 : 0.8;
   // Haken, wenn ein Gegner direkt vor ihm steht
-  if (p.cd <= 0 && Math.random() < 0.02 && pressure(p) < 1.6) trick(p, 0, 0);
+  if (p.cd <= 0 && Math.random() < 0.02 && pressure(p) < 1.6) { const s = atkDir(p.team), r = Math.random(); trick(p, r < 0.45 ? 0 : r < 0.7 ? s : r < 0.85 ? -s : 0, r < 0.45 ? (Math.random() < 0.5 ? 1 : -1) : 0); }
 }
 
 // ---------- Torwart ----------

@@ -87,14 +87,14 @@ const ACT = {
         <b>KOPFBALL</b><span>Gelber Ring = dort kommt ein hoher Ball in Kopfhöhe an. Im Strafraum des Gegners köpft dein Stürmer von selbst aufs Tor (${ks('a')} vorher = ablegen). In der Abwehr: ${ks('b')} oder ${ks('c')} = wegköpfen in Stickrichtung, ${ks('a')} = zum Mitspieler köpfen</span>
         <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: ${L.swapDef ? 'Tackling (nur von vorn, von hinten gibt es Fouls)' : 'Grätsche (Ball zuerst treffen!)'}</span>
         <b>${ks('b')}</b><span>Angriff: Schuss – antippen = platziert, halten lädt auf (grün flach, gelb hoch, rot drüber), ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke, das Zielkreuz im Tor zeigt wohin. Beim Aufladen ${ks('a')} = Schlenzer an den Innenpfosten, ${ks('c')} = Heber über den Torwart. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Freistoß und Elfmeter: Zielansicht hinter dem Ball, Richtung = Fadenkreuz. Abwehr: ${L.swapDef ? 'Grätsche (Ball zuerst treffen!)' : 'Tackling (nur von vorn, von hinten gibt es Fouls)'}</span>
-        <b>${ks('f')}</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
+        <b>${ks('f')}</b><span>Angriff: Trick – die Richtung entscheidet: zur Seite Haken, zurück Zurückziehen, nach vorn Tempo-Dribbling, ohne Richtung Übersteiger. Abwehr: Spieler wechseln</span>
         <b>${ks('s')}</b><span>Sprint (kostet Kraft)</span>
         <b>T / TAB</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
         <b>ESC / P</b><span>Pause · M: Ton an/aus</span>
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
         <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss (beim Aufladen A = Schlenzer, X = Heber) · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben wischen = Flanke/hoher Ball. SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm, deinen Spieler antippen = Haken. Knopfgröße in den Optionen</span>
+        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben wischen = Flanke/hoher Ball. SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (halten = Druck), TACKLING (ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (weit ziehen = Sprint). Mitspieler antippen = Pass zu ihm, rechts auf dem Platz wischen = Trick in Wischrichtung, deinen Spieler antippen = Übersteiger. Knopfgröße in den Optionen</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });
@@ -296,7 +296,7 @@ function startMatch(ta, tb, o) {
   if (o.mp) setupMulti(o.mp, o.mpIn || 0);
   if (!o.watch && !o.tut && !o.resume) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
-  startFlair(o);
+  startFlair(o); planFlitzer(o);
   track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }

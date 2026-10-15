@@ -10,6 +10,7 @@ function camTarget() {
     x += lead + b.owner.vx * 0.3;
   } else if (!b.owner) x += b.vx * 0.25;
   if (G.phase === 'goal' && G.scorer) { x = lerp(b.x, G.scorer.x, 0.5); y = G.scorer.y; }
+  if (G.flitzer && G.flitzer.st) { x = G.flitzer.st.runner.x; y = clamp(G.flitzer.st.runner.y, 4, CH - 4); }
   const [lo, hi] = camLimits();
   return [clamp(x, lo, hi), y];
 }
@@ -57,7 +58,7 @@ function render() {
   for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, selCol(p)) });
   for (const side of [0, 1]) { items.push({ y: GY1 - 0.05, draw: () => drawGoalBack(side) }); items.push({ y: GY2 + 0.05, draw: () => drawGoalFront(side) }); }
   for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) items.push({ y, draw: () => drawCornerFlag(x, y, t) });
-  items.push(...officialsItems(dt), ...benchItems());
+  items.push(...officialsItems(dt), ...benchItems(), ...flitzerItems());
   const dog = dogItem(dt); if (dog) items.push(dog);
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
@@ -129,6 +130,10 @@ function drawCtrlHUD(c, col, num) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
     if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = col; ctx.fillRect(ex, ey, 6, 6); }
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
+    if (G.ball.owner === c && !isGK(c) && G.phase === 'play' && (PROF.games < 15 || G.tut) && !c.charge && !G.pl && opps(c).some(o => !isGK(o) && dist(o.x, o.y, c.x, c.y) < 4)) {
+      const K = KEYN(), tk = TRICK_N[trickKind(c, IN.x, IN.y)];
+      text(LASTIN === 'touch' ? 'WISCHEN: TRICK' : `${K.f || 'F'}: ${tk}`, sx(c.x, c.y), sy(c.y) + 13, '#7cf2ff', 8, 'center');
+    }
     if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
@@ -187,7 +192,7 @@ function drawShootoutTally(x0, y0) {
     for (let i = 0; i < n; i++) { const v = S.k[t][i]; ctx.fillStyle = '#000'; ctx.fillRect(x0 + 30 + i * 9, y0 + t * 11, 7, 7); ctx.fillStyle = v === 1 ? '#3ddc84' : v === 0 ? '#ff4f3a' : '#3a2f4d'; ctx.fillRect(x0 + 31 + i * 9, y0 + 1 + t * 11, 5, 5); }
   }
 }
-const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'PASS NACH OBEN WISCHEN', k: 'PASS WISCHEN' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : LAY().keyN;
+const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'PASS NACH OBEN WISCHEN', k: 'PASS WISCHEN' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y', f: 'LB' } : LAY().keyN;
 function drawSetPieceHint() {
   const c = G.ctrl, K0 = KEYN();
   if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);

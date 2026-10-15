@@ -33,6 +33,7 @@ function step(dt) {
     case 'intro': if (G.phaseT > 0.3 && (IN.any || G.watch)) { G.phase = 'kickoff'; G.phaseT = 0; AU.whistle(1); clearEdges(); } return;
     case 'replay': return stepReplay(dt);
     case 'halfend': moveAll(dt); if (G.phaseT > 2.2) endOfHalf(); return;
+    case 'flitzer': stepFlitzer(dt); return;
     case 'end': moveAll(dt); return;
     case 'pause': case 'etpause': return;
   }
@@ -45,6 +46,7 @@ function step(dt) {
       const hold = cap && (b.shot || (b.owner && Math.abs(b.x - CW / 2) > 30) || (!b.owner && b.passTo && Math.abs(b.x - CW / 2) > 30));
       if (!hold) return whistleHalf();
     }
+    if (G.flitzer) flitzerCheck();
     if (G.clock > halfLen() * 0.97 && !G.addShown && !G.so) { G.addShown = true; G.added = 1 + ((Math.random() * 3) | 0) + (G.half === 2 && G.score[0] === G.score[1] ? 1 : 0); if (!G.demo) banner(`+${G.added}`, '#3ddc84', 'NACHSPIELZEIT', 1.4); }
   }
   // Standards: CPU führt nach kurzer Pause aus, der Mensch wählt selbst
@@ -118,7 +120,7 @@ function humanControl(dt) {
       else lob(c, choosePass(c, IN.x, IN.y, 'lob'));
       return;
     }
-    if (IN.pf) trick(c, IN.x, IN.y);
+    if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y); }
   } else {
     c.charge = 0; c.chargeArm = false;
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;

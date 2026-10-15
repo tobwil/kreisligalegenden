@@ -25,7 +25,7 @@ function tapAt(cx0, cy0) {
   // Abwehr: Gegner antippen = dein Spieler, der ihm am nächsten ist
   if (hit.team !== me) { if (G.phase === 'play' && !isGK(hit)) { const n = nearestTo(me, hit.x, hit.y); if (n) { G.ctrl = n; G.manT = G.t; AU.select(); buzz(8); } } return; }
   // eigenen Ballführer antippen = Haken (Richtung vom Stick)
-  if (own === c && hit === c && G.phase === 'play' && !isGK(c)) { trick(c, IN.x, IN.y); buzz(12); return; }
+  if (own === c && hit === c && G.phase === 'play' && !isGK(c)) { trick(c, 0, 0); buzz(12); return; }   // eigenen Spieler antippen = Übersteiger
   if (own && own === c && c.team === me && hit !== c) {
     if (G.phase === 'play' && !isGK(c)) { pass(c, hit); buzz(12); }
     else if (G.phase === 'play' && isGK(c)) { gkThrow(c, hit); buzz(12); }
@@ -54,7 +54,10 @@ function tapAt(cx0, cy0) {
   const end = e => {
     if (e.pointerId === sid) { sid = null; rest(); return; }
     const p = pend.get(e.pointerId); pend.delete(e.pointerId);
-    if (e.type === 'pointerup' && p && performance.now() - p.t < 380 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 16) tapAt(e.clientX, e.clientY);
+    if (e.type !== 'pointerup' || !p) return;
+    const ddx = e.clientX - p.x, ddy = e.clientY - p.y, dur = performance.now() - p.t, dd = Math.hypot(ddx, ddy);
+    if (dur < 380 && dd < 16) tapAt(e.clientX, e.clientY);
+    else if (!p.left && dur < 450 && dd > 30 && attacking() && G && G.ball.owner === G.ctrl) { TOUCH.fdir = { x: ddx / dd, y: ddy / dd }; TOUCH.pulseF = 1; buzz(12); }   // rechts wischen = Trick
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
@@ -151,7 +154,7 @@ function touchTip() {
     <li><b>PASS</b> tippen = kurz · halten = fester und weiter · wischen = Steilpass · nach oben wischen = hoch</li>
     <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
     <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
-    <li>Mitspieler antippen = Pass zu ihm · deinen Spieler antippen = Haken</li></ul><button>VERSTANDEN</button>`;
+    <li>Rechts auf dem Platz wischen = Trick: zur Seite Haken, zurück Zurückziehen, nach vorn Tempo · deinen Spieler antippen = Übersteiger</li></ul><button>VERSTANDEN</button>`;
   el.querySelector('button').addEventListener('click', closeTouchTip);
   document.body.appendChild(el); TTIP = el; G.paused = true;
 }

@@ -238,6 +238,26 @@ test('Zu zweit: miteinander (zwei Menschen, zwei verschiedene Spieler, geteilte 
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Tricks: Richtung entscheidet (Haken, Zurückziehen, Tempo-Dribbling, Übersteiger), Handy: rechts wischen; Flitzer unterbricht und es geht weiter', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const c = teamP(0).find(q => grpOf(q) === 'MF'), s = atkDir(0);
+    const kinds = [[0, 1], [-s, 0], [s, 0], [0, 0]].map(([x, y]) => { place(c, CW / 2, MY); c.hx = s; c.hy = 0; c.cd = 0; giveBall(c, true); trick(c, x, y); return c.act && c.act.kind; });
+    out.kinds = kinds.join(',');
+    // Flitzer erzwingen: Spiel steht, Uhr steht, danach Freistoß
+    startMatch(L[0], L[1], { human: 0, flitzer: 1 }); G.paused = true; G.flitzer.half = 1; G.flitzer.at = 1; G.phase = 'play'; G.sp = null;
+    let seen = false, clk = null, n = 0;
+    for (; n < 60 * 30; n++) { step(1 / 60); if (G.phase === 'flitzer') { if (!seen) clk = G.clock; seen = true; render(); } else if (seen) break; }
+    out.flitzer = seen && G.flitzer.done && G.phase === 'setpiece' && Math.abs(G.clock - clk) < 0.05;
+    return out;
+  });
+  ok(r.kinds === 'haken,zurueck,tempo,ueber', 'Tricks: ' + r.kinds);
+  ok(r.flitzer, 'Flitzer läuft nicht sauber durch');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Abschluss: Zielkreuz beim Aufladen, Antippen schießt platziert, Schlenzer und Heber beim Aufladen, Treffer-Stopp', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

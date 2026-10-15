@@ -267,7 +267,7 @@ function setPieceSpots(type, team, x, y, taker) {
 // ---------- Eingabe ----------
 const KEY = {}, KEYP = {};
 const IN = { x: 0, y: 0, s: false, a: false, b: false, c: false, k: false, f: false, pa: false, pb: false, pc: false, pk: false, pf: false, ra: false, rb: false, rc: false, rk: false, bHeld: 0, aHeld: 0, any: false };
-const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pow: null, passT: 0, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0 };
+const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pow: null, passT: 0, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0, pulseF: 0, fdir: null };
 let LASTIN = TOUCHDEV ? 'touch' : 'key';
 const setInput = k => { if (k === LASTIN) return; LASTIN = k; document.body.classList.toggle('padin', k === 'pad' || (k === 'key' && TOUCHDEV)); };
 // Gamepad oder Tastatur am Tablet: Touch-Knöpfe weg; der erste Finger auf dem Bildschirm holt sie zurück
@@ -317,8 +317,8 @@ function readInput(dt) {
     break;
   }
   if (TOUCH.x || TOUCH.y) { x += TOUCH.x; y += TOUCH.y; }
-  a = a || TOUCH.a || !!TOUCH.pulseA; b = b || TOUCH.b || !!TOUCH.pulseB; c = c || TOUCH.c || !!TOUCH.pulseC; k = k || TOUCH.k || !!TOUCH.pulseK; s = s || TOUCH.s;
-  TOUCH.pulseA = 0; TOUCH.pulseB = 0; TOUCH.pulseC = 0; TOUCH.pulseK = 0;
+  a = a || TOUCH.a || !!TOUCH.pulseA; b = b || TOUCH.b || !!TOUCH.pulseB; c = c || TOUCH.c || !!TOUCH.pulseC; k = k || TOUCH.k || !!TOUCH.pulseK; s = s || TOUCH.s; f = f || !!TOUCH.pulseF;
+  TOUCH.pulseA = 0; TOUCH.pulseB = 0; TOUCH.pulseC = 0; TOUCH.pulseK = 0; TOUCH.pulseF = 0;
   const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
   IN.x = x; IN.y = y; IN.s = s;
   IN.pa = a && !prevIN.a; IN.pb = b && !prevIN.b; IN.pc = c && !prevIN.c; IN.pk = k && !prevIN.k; IN.pf = f && !prevIN.f;
