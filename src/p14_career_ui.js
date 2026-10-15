@@ -60,25 +60,25 @@ function renderNewCareer(focusSel) {
   pickerWire(renderNewCareer);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }
-const TABS = [['blatt', 'KREISBLATT'], ['tab', 'TABELLE'], ['kader', 'KADER'], ['elf', 'AUFSTELLUNG'], ['plan', 'SPIELPLAN'], ['cup', 'KREISPOKAL'], ['po', 'PLAYOFFS'], ['stat', 'STATISTIK'], ['verein', 'VEREIN']];
+const TABS = [['blatt', 'KREISBLATT'], ['tab', 'TABELLE'], ['kader', 'KADER'], ['elf', 'AUFSTELLUNG'], ['plan', 'SPIELPLAN'], ['cup', 'KREISPOKAL'], ['po', 'PLAYOFFS'], ['stat', 'STATISTIK'], ['hist', 'HISTORIE'], ['verein', 'VEREIN']];
 function renderHub(focusSel) {
   const C = CAREER, T = TEAMS[C.team], S = C.S, ev = curEvent(), g = myGame(ev);
   const head = `<div class="csticky"><div class="row spread chead"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>
     <div class="cbud"><b>${fmtMoney(C.money)}</b><span class="tag">SAISON ${seasonLabel(C.year)}${S.ci < S.cal.length && curEvent().t !== 'po' ? ` · ${posOf(C.team)}. PLATZ` : ''}</span></div></div>
     <div class="ctabw"><div class="ctabs">${TABS.map(([k, n]) => `<button class="small ${CTAB === k ? 'on' : ''}" data-act="ctab" data-arg="${k}">${n}</button>`).join('')}</div></div></div>`;
-  const body = { blatt: blattHTML, tab: tableHTML, kader: squadHTML, elf: lineupHTML, plan: planHTML, cup: cupHTML, po: poHTML, stat: statHTML, verein: clubHTML }[CTAB] || blattHTML;
+  const body = { blatt: blattHTML, tab: tableHTML, kader: squadHTML, elf: lineupHTML, plan: planHTML, cup: cupHTML, po: poHTML, stat: statHTML, hist: histHTML, verein: clubHTML }[CTAB] || blattHTML;
   let foot;
   if (S.done || S.ci >= S.cal.length) {
     const sm = seasonSummary();
     foot = `<div class="cfoot"><h2>SAISON ${seasonLabel(C.year)} BEENDET</h2><p>${sm.pos}. Platz · ${sm.pkt} Punkte · ${sm.tore} Tore · ${esc(sm.cupRes)} · ${esc(sm.poRes)}</p><p class="muted">Ziel des Vorstands: ${esc(sm.goal)} – ${sm.ok ? 'erfüllt! Der Vorstand spendiert ein Fass.' : 'verfehlt. Beim Stammtisch wird diskutiert.'}${sm.top && sm.top.p ? ` · Torschützenkönig im Verein: ${esc(sm.top.p.name)} (${sm.top.n})` : ''}</p>
       ${S.po && S.po.champ != null ? `<p class="champ">${esc(TEAMS[S.po.champ].n.toUpperCase())} IST DEUTSCHER KREISLIGA-MEISTER!</p>` : ''}
-      <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
+      <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="cshareSeason">SAISON ALS BILD TEILEN</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
   } else if (g) {
     const opp = TEAMS[g.h === C.team ? g.a : g.h], home = g.h === C.team, M = matchSquad(C.team), miss = ensureSquad(C.team).filter(p => p.inj > 0 || p.ban > 0);
     foot = `<div class="cfoot"><h3>${isDerby(g.h, g.a) ? '<span class="badge hot">DERBY</span> ' : ''}${esc(eventLabel(ev))}</h3>
       <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div>
       <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
-      <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
+      <div class="row"><button class="main" data-act="cpre" autofocus>VOR DEM SPIEL ›</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
   } else {
     foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : ev.t === 'cup' ? (S.cupOut != null ? 'Im Kreispokal schon ausgeschieden – die anderen spielen weiter.' : 'Freilos im Kreispokal – eine Runde weiter ohne Spiel.') : 'Spielfrei.'}</p>
       <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
@@ -226,8 +226,7 @@ function statHTML() {
     ${list('BESTE NOTE (AB 3 SPIELEN)', best(p => p.ss.nn >= 3, p => -avg(p)), p => noteAvg(p.ss))}
     ${list('EINSÄTZE', best(() => true, p => p.ss.sp), p => p.ss.sp)}
   </div>
-  <h3>TORJÄGER ${esc(LIGEN[C.lg].n.toUpperCase())}</h3><table class="dt">${topScorers(C.lg, 10).map((x, i) => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td>${i + 1}</td><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].short)}</span></td><td>${x.n}</td></tr>`).join('') || '<tr><td class="l">noch keine Tore</td></tr>'}</table>
-  ${C.hist.length ? `<h3>VEREINSCHRONIK</h3><table class="dt"><tr><th class="l">SAISON</th><th>PLATZ</th><th>PKT</th><th>TORE</th><th class="l">POKAL</th><th class="l">PLAYOFFS</th></tr>${C.hist.map(h => `<tr><td class="l">${seasonLabel(h.year)}</td><td>${h.pos}.</td><td>${h.pkt}</td><td>${h.tore}</td><td class="l">${esc(h.cup || '–')}</td><td class="l">${esc(h.po)}</td></tr>`).join('')}</table>` : ''}`;
+  <h3>TORJÄGER ${esc(LIGEN[C.lg].n.toUpperCase())}</h3><table class="dt">${topScorers(C.lg, 10).map((x, i) => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td>${i + 1}</td><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].short)}</span></td><td>${x.n}</td></tr>`).join('') || '<tr><td class="l">noch keine Tore</td></tr>'}</table>`;
 }
 // ---------- Verein: Kasse, Training, Wechselbörse, Titel ----------
 function clubHTML() {

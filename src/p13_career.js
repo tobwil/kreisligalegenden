@@ -326,6 +326,7 @@ function noteOwnResult(r, played, tie, kind) {
   const body = tie ? (won ? `${tie.so ? `Nach Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}weiter im ${kind === 'cup' ? 'Kreispokal' : 'Turnier'}!` : `${tie.so ? `Im Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}ausgeschieden.${kind === 'cup' ? ' Jetzt zählt die Liga.' : ' Die Saison ist vorbei.'}`) : (sc.length ? `Tore: ${sc.join(', ')}.` : 'Kein eigenes Tor.') + (played ? '' : ' (simuliert)');
   news(kind === 'cup' ? 'Kreispokal' : tie ? 'Playoffs' : `${curEvent().md}. Spieltag`, pick(heads), body, won ? 'win' : lost ? 'loss' : 'draw');
   derbyResult(r, played);
+  trackRecords(r);
 }
 
 // ---------- Eigenes Spiel ----------
@@ -388,7 +389,8 @@ function seasonSummary() {
 }
 function endSeason() {
   const C = CAREER, sm = seasonSummary();
-  C.hist.push({ year: C.year, team: C.team, pos: sm.pos, pkt: sm.pkt, tore: sm.tore, po: sm.poRes, cup: sm.cupRes, champ: C.S.po ? C.S.po.champ : null });
+  C.hist.push({ year: C.year, team: C.team, pos: sm.pos, pkt: sm.pkt, tore: sm.tore, po: sm.poRes, cup: sm.cupRes, champ: C.S.po ? C.S.po.champ : null, goal: sm.goal, ok: sm.ok, top: sm.top && sm.top.p ? { name: `${sm.top.p.first} ${sm.top.p.name}`, n: sm.top.n } : null });
+  chronikEndSeason(sm);
   // Gegner von weit her (Playoffs) verlassen den Spielstand wieder
   const keep = new Set(klTeams());
   for (const tid of Object.keys(C.squads)) if (!keep.has(+tid)) delete C.squads[tid];

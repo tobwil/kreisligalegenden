@@ -608,6 +608,22 @@ test('Spielstand robust: verschobene Vereinsnummern werden zugeordnet, kaputter 
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Saison: Vor dem Spiel, Rekorde, Auszeichnungen, Legenden, Reiter HISTORIE, Saison als Bild (1080 × 1350)', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    ACT.career(); ACT.ncGo(); let n = 0; while (!myGame() && n < 10) { runEvent(null); n++; }
+    ACT.cpre(); const pre = !!menu.querySelector('.duel') && !!menu.querySelector('[data-act="cplay"]');
+    n = 0; while (!CAREER.S.done && n < 150) { runEvent(null); n++; }
+    ACT.cseason(); ACT.ctab('hist'); const tab = menu.textContent.includes('REKORDE') && menu.textContent.includes('AUSZEICHNUNGEN');
+    const cv = seasonCanvas(CAREER.hist[0]);
+    return { pre, tab, rec: Object.keys(CAREER.records || {}).length, aw: (CAREER.awards || []).length, size: [cv.width, cv.height].join('x') };
+  });
+  ok(r.pre, 'keine Vorschau vor dem Spiel');
+  ok(r.tab && r.rec >= 4 && r.aw >= 2, 'Historie/Rekorde/Auszeichnungen: ' + JSON.stringify(r));
+  ok(r.size === '1080x1350', 'Saisonbild ' + r.size);
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Saison: echtes Spiel zählt (Ergebnis, Tabelle, Torschützen, Noten) und Aufstellung wird verwendet', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
