@@ -4,4 +4,4 @@ Disallow: /tests/
 Disallow: /src/
 Disallow: /tools/
 
-Sitemap: https://kreisligalegenden.de/sitemap.xml
+Sitemap: https://kreisliga-legenden.de/sitemap.xml
