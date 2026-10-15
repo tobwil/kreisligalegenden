@@ -144,6 +144,11 @@ function drawCtrlHUD(c, col, num) {
     const m = Math.hypot(IN.x, IN.y), ux = IN.x / m, uy = IN.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
     for (let i = 0; i < 5; i++) { const px = Math.round(x0 + ux * (10 + i * 4) * 1.4), py = Math.round(y0 + uy * (10 + i * 4) * 0.7); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 4, 4); ctx.fillStyle = i === 4 ? '#ffc83a' : '#7cf2ff'; ctx.fillRect(px, py, 2, 2); }
   }
+  // Abwehr: kleiner Pfeil über dem Spieler, den du beim nächsten Wechsel bekommst
+  if (c && !G.watch && !G.pl && G.phase === 'play' && G.ball.owner && G.ball.owner.team !== c.team) {
+    const n = switchCands()[0];
+    if (n) { const x = sx(n.x, n.y), y = sy(n.y, n.z) - 36; ctx.globalAlpha = 0.75; ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#f3ead6'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); ctx.globalAlpha = 1; }
+  }
   // Steuermarke über dem eigenen Spieler
   if (c && (G.human >= 0 || G.pl) && !G.watch && !c.off) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
