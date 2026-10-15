@@ -156,7 +156,7 @@ function drawBanner(B) {
   ctx.globalAlpha = 1;
 }
 function drawCard(c) {
-  const p = c.p, k = clamp(c.t / 0.25, 0, 1), x = W - 150, y = 92;
+  const p = c.p, k = clamp(c.t / 0.25, 0, 1), x = W - 150, y = 134;
   ctx.globalAlpha = c.t > c.dur - 0.3 ? (c.dur - c.t) / 0.3 : 1;
   ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(x - 6, y - 6, 140, 60);
   ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, 26, 36); ctx.fillStyle = c.col; ctx.fillRect(x, y + (1 - k) * 10, 24, 34 - (1 - k) * 10);

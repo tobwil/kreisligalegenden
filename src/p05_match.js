@@ -46,13 +46,18 @@ const effO = p => p.ovr + (p.form || 0) * 0.5 - (100 - (p.fit ?? 100)) * 0.06;
 
 const KIT_NAMES = ['HEIM', 'AUSWÄRTS'];
 const GK_COLS = ['#ffd23f', '#3fd0ff', '#9cff57', '#ff8bd1', '#ff9f1c', '#c58bff', '#1d1d24'];
+// Wie wirkt ein Trikot aus der Entfernung? Streifen und Ringel mischen beide Farben
+const kitVis = k => k.pat === 1 || k.pat === 2 ? mix(k.c1, k.c2, 0.45) : k.pat === 3 ? mix(k.c1, k.c2, 0.2) : k.c1;
+const kitGap = (k1, k2) => Math.min(colDist(kitVis(k1), kitVis(k2)), colDist(k1.c1, k2.c1) + 40);
 function makeKits(a, b) {
-  const A = TEAMS[a], B = TEAMS[b];
-  const ka = { ...A.home }, kb = colDist(B.home.c1, ka.c1) < 130 || (lum(B.home.c1) > 0.72 && lum(ka.c1) > 0.72) ? { ...B.away } : { ...B.home };
-  if (colDist(kb.c1, ka.c1) < 110) Object.assign(kb, { c1: lum(ka.c1) > 0.6 ? '#1d1d24' : '#f4f4f0', c2: B.home.c1, pat: 0 });
+  const A = TEAMS[a], B = TEAMS[b], ka = { ...A.home };
+  // Gast: Heimtrikot, Auswärtstrikot oder ein Ausweichtrikot – das mit dem größten Abstand zum Heimteam
+  const cands = [{ ...B.home }, { ...B.away }, { c1: '#1d1d24', c2: B.home.c1, pat: 0 }, { c1: '#ffd200', c2: '#1d1d24', pat: 0 }, { c1: '#e30613', c2: '#f4f4f0', pat: 0 }, { c1: '#0a8a3e', c2: '#f4f4f0', pat: 0 }];
+  let kb = cands[0];
+  if (kitGap(kb, ka) < 175) kb = kitGap(cands[1], ka) >= 175 ? cands[1] : cands.slice(2).sort((x, y) => kitGap(y, ka) - kitGap(x, ka))[0];
   const ok = (g, os) => os.every(o => colDist(g, o) > 110);
-  ka.gk = GK_COLS.find(g => ok(g, [ka.c1, kb.c1])) || '#ffd23f';
-  kb.gk = GK_COLS.find(g => ok(g, [ka.c1, kb.c1, ka.gk])) || '#3fd0ff';
+  ka.gk = GK_COLS.find(g => ok(g, [kitVis(ka), kitVis(kb)])) || '#ffd23f';
+  kb.gk = GK_COLS.find(g => ok(g, [kitVis(ka), kitVis(kb), ka.gk])) || '#3fd0ff';
   return [ka, kb];
 }
 // o: { human (0/1, -1 = keiner), diff, hlen (Minuten echte Zeit je Halbzeit), event, career, xi: [[11],[11]], bench, form, ko (K.-o.-Spiel), et (Verlängerung) }

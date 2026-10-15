@@ -165,7 +165,13 @@ function drawPitch() {
     ctx.drawImage(FIELD, 0, ty, TEXW, 1, Math.round(dx), row, Math.round(TEXW * k), 1);
   }
   if (r1 < H) { ctx.fillStyle = PITCH.ground === 1 ? '#5b5d63' : '#3f7a35'; ctx.fillRect(0, r1, W, H - r1); }
-  if (PITCH.night) { ctx.fillStyle = 'rgba(10,14,40,0.22)'; ctx.fillRect(0, r0, W, H - r0); }
+  if (PITCH.night) {
+    ctx.fillStyle = 'rgba(8,12,38,0.34)'; ctx.fillRect(0, r0, W, H - r0);
+    // Lichtkegel der Flutlichtmasten auf dem Rasen
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const mx of PITCH.masts || []) { const x = sx(mx, CH * 0.35), y = sy(CH * 0.35), g = ctx.createRadialGradient(x, y, 10, x, y, 260); g.addColorStop(0, 'rgba(255,250,220,0.10)'); g.addColorStop(1, 'rgba(255,250,220,0)'); ctx.fillStyle = g; ctx.fillRect(x - 260, y - 160, 520, 320); }
+    ctx.restore();
+  }
   else if (PITCH.wet) { ctx.fillStyle = 'rgba(30,40,60,0.12)'; ctx.fillRect(0, r0, W, H - r0); }
 }
 

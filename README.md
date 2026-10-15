@@ -4,7 +4,23 @@
 
 **Fußball im Retro-Pixel-Look: 11 gegen 11 auf Rasen, Kunstrasen und Hartplatz, mit den Vereinen aus dem Kreis Coburg/Kronach/Lichtenfels. Wer Kreismeister wird, spielt in den Playoffs gegen die Kreismeister aus ganz Deutschland um die Goldene Eckfahne.** Ein komplettes Browserspiel in einer einzigen HTML-Datei, aus der Familie von [Hallen-Legenden](https://github.com/tobwil/hallenlegenden) und [Korb-Legenden](https://github.com/tobwil/korblegenden).
 
-**[Deutsch](#deutsch) · [English](#english)**
+**[Screenshots](#screenshots) · [Deutsch](#deutsch) · [English](#english)**
+
+## Screenshots
+
+Echte Aufnahmen aus dem Browserspiel. Für die volle Ansicht auf ein Bild klicken.
+
+| Spielgeschehen · Gameplay | Titelbildschirm · Title screen |
+|:---:|:---:|
+| [![Staffelstein gegen Krecktal auf Rasen, Radar oben rechts, Banden lokaler Betriebe](docs/screenshots/gameplay.jpg)](docs/screenshots/gameplay.jpg) | [![Titelbildschirm Kreisliga-Legenden mit Demo-Spiel im Hintergrund](docs/screenshots/title-screen.jpg)](docs/screenshots/title-screen.jpg) |
+| **Hartplatz bei Regen · Cinder pitch in the rain** | **Ecke · Corner kick** |
+| [![Spiel auf dem Hartplatz mit Pfützen und Regen](docs/screenshots/hartplatz-regen.jpg)](docs/screenshots/hartplatz-regen.jpg) | [![Ecke auf Kunstrasen mit Jugendfeld-Linien, Strafraum voll besetzt](docs/screenshots/ecke.jpg)](docs/screenshots/ecke.jpg) |
+| **Aufstellungen unter Flutlicht · Line-ups** | **Kreisblatt · Newspaper** |
+| [![Intro mit beiden Aufstellungen, Formation und Sportplatz](docs/screenshots/intro.jpg)](docs/screenshots/intro.jpg) | [![Saison mit Kreisblatt: Schlagzeile, Ticker, nächstes Spiel, Tabelle, Torjäger](docs/screenshots/kreisblatt.jpg)](docs/screenshots/kreisblatt.jpg) |
+| **Tabelle Kreisliga 1 · League table** | **Playoffs der Kreismeister · Playoff bracket** |
+| [![Tabelle der Kreisliga 1 Coburg](docs/screenshots/tabelle.jpg)](docs/screenshots/tabelle.jpg) | [![Turnierbaum der Playoffs um die Goldene Eckfahne](docs/screenshots/playoffs.jpg)](docs/screenshots/playoffs.jpg) |
+| **Kader · Squad** | **Handy quer · Phone landscape** |
+| [![Kader mit Stärke, Potenzial, Fitness, Form und Noten](docs/screenshots/kader.jpg)](docs/screenshots/kader.jpg) | [![Spiel auf dem Handy mit Stick und Knöpfen](docs/screenshots/mobile.jpg)](docs/screenshots/mobile.jpg) |
 
 ---
 
