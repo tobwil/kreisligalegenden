@@ -106,7 +106,7 @@ function drawHUD(lite) {
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
-      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'AUF PASS ZIEHEN: SCHLENZER · AUF HOCH: HEBER' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
+      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZIEHEN: SCHLENZER · NACH OBEN: HEBER' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
     }
   }
   // Name des Ballführers
@@ -167,7 +167,7 @@ function drawShootoutTally(x0, y0) {
     for (let i = 0; i < n; i++) { const v = S.k[t][i]; ctx.fillStyle = '#000'; ctx.fillRect(x0 + 30 + i * 9, y0 + t * 11, 7, 7); ctx.fillStyle = v === 1 ? '#3ddc84' : v === 0 ? '#ff4f3a' : '#3a2f4d'; ctx.fillRect(x0 + 31 + i * 9, y0 + 1 + t * 11, 5, 5); }
   }
 }
-const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'HOCH', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : LAY().keyN;
+const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'PASS ZIEHEN', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : LAY().keyN;
 function drawSetPieceHint() {
   const c = G.ctrl, K0 = KEYN();
   if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);

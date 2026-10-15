@@ -282,9 +282,12 @@ body.touch.ingame #pad{display:block}
 #knob{position:absolute;width:50px;height:50px;border-radius:50%;background:var(--gold);left:35px;top:35px;box-shadow:3px 3px 0 #000}
 .tb{position:absolute;border-radius:50%;pointer-events:auto;font-family:var(--pix);text-align:center;padding:0;min-height:0!important;display:flex;align-items:center;justify-content:center;line-height:1.4;
   background:rgba(20,17,29,.32);border:2px solid rgba(243,234,214,.6);color:var(--ink);text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;box-shadow:none;transition:background .12s}
-.tb-b{width:90px;height:90px;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(78px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,200,58,.32);border-color:rgba(255,230,120,.85)}
-.tb-a{width:90px;height:90px;right:calc(max(14px,env(safe-area-inset-right,0px)) + 98px);bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,79,58,.38)}
-.tb-c{width:58px;height:58px;right:calc(max(14px,env(safe-area-inset-right,0px)) + 112px);bottom:calc(116px + env(safe-area-inset-bottom,0px));font-size:8px!important}
+.tb-b{width:100px;height:100px;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,200,58,.32);border-color:rgba(255,230,120,.85)}
+.tb-a{width:92px;height:92px;right:calc(max(14px,env(safe-area-inset-right,0px)) + 104px);bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:11px!important;background:rgba(255,79,58,.38)}
+.tb{flex-direction:column;gap:3px}
+.tb small{display:block;font-family:var(--term);font-size:13px;line-height:1;opacity:.85;letter-spacing:0}
+.tb.alt,.tb.alt:hover{background:var(--cyan);border-color:var(--cyan);color:#06222a;text-shadow:none;transition:none}
+.tb.alt small,.tb.on small{opacity:0}
 .tb:hover,.tb:focus-visible{background:rgba(20,17,29,.32);color:var(--ink)}
 .tb.on,.tb.on:hover{background:var(--gold);color:#1a1205;text-shadow:none;border-color:var(--gold);box-shadow:3px 3px 0 #000;transition:none}
 .tb.lob,.tb.lob:hover{background:var(--cyan);border-color:var(--cyan)}
@@ -352,8 +355,7 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 <div id="pad" aria-hidden="true">
   <div id="zone"></div>
   <div id="stick"><div id="knob"></div></div>
-  <button class="tb tb-c" data-k="c">HOCH</button>
-  <button class="tb tb-b" data-k="b">SCHUSS</button>
-  <button class="tb tb-a" data-k="a">PASS</button>
+  <button class="tb tb-b" data-k="b"><span>SCHUSS</span><small>ziehen: Schlenzer</small></button>
+  <button class="tb tb-a" data-k="a"><span>PASS</span><small>ziehen: hoch</small></button>
   <button id="tbPause" aria-label="Pause">II</button>
 </div>

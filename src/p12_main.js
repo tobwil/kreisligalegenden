@@ -47,40 +47,48 @@ function tapAt(cx0, cy0) {
     if (e.type === 'pointerup' && p && performance.now() - p.t < 380 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 16) tapAt(e.clientX, e.clientY);
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
-  // PASS: kurz = Pass, lang = Steilpass · SCHUSS: halten lädt auf · HOCH: Flanke oder hoher Ball (Abwehr: Tackling)
-  document.querySelectorAll('.tb').forEach(b => {
-    const k = b.dataset.k; let holdT = null, held = false;
+  // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
+  //   Angriff  PASS:   tippen = Pass · lang halten = Steilpass · ziehen = hoher Ball/Flanke
+  //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Schlenzer, nach oben ziehen = Heber
+  //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
+  //            TACKLING: tippen = Tackling · ziehen = Grätsche (Richtung vom Stick)
+  const DRAG = 26;
+  document.querySelectorAll('.tb[data-k]').forEach(b => {
+    const k = b.dataset.k; let holdT = null, st = null;
+    const alt = lbl => { b.classList.add('alt'); b.querySelector('span').textContent = lbl; buzz(15); };
     b.addEventListener('pointerdown', e => {
-      e.preventDefault(); b.setPointerCapture(e.pointerId); AU.init(); setInput('touch'); b.classList.add('on'); held = false;
-      if (G && (G.phase === 'intro' || G.phase === 'replay')) { KEYP.Enter = true; return; }
-      if (k === 'a') { if (attacking() || (G && G.sp && isHumanTeam(G.sp.team))) holdT = setTimeout(() => { holdT = null; held = true; TOUCH.pulseK = 1; b.classList.add('lob'); buzz(20); }, 380); else TOUCH.pulseA = 1; }
-      else if (k === 'c') TOUCH.pulseC = 1;
-      else TOUCH.b = true;
+      e.preventDefault(); b.setPointerCapture(e.pointerId); AU.init(); setInput('touch'); b.classList.add('on');
+      if (G && (G.phase === 'intro' || G.phase === 'replay')) { KEYP.Enter = true; st = null; return; }
+      const att = attacking() || !!(G && G.sp && isHumanTeam(G.sp.team));
+      st = { x: e.clientX, y: e.clientY, att, done: false };
+      if (k === 'a') {
+        if (att) holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.done = true; TOUCH.pulseK = 1; b.classList.add('lob'); buzz(20); } }, 380);
+        else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
+      } else if (att) TOUCH.b = true;
+    });
+    b.addEventListener('pointermove', e => {
+      if (!st || st.done) return;
+      const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < DRAG) return;
+      if (k === 'a') { if (!st.att) return; st.done = true; if (holdT) { clearTimeout(holdT); holdT = null; } TOUCH.pulseC = 1; alt('HOCH'); }
+      else if (st.att) { if (!TOUCH.b) return; st.done = true; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseA = 1; alt(up ? 'HEBER' : 'SCHLENZER'); }
+      else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
     const rel = () => {
-      b.classList.remove('on', 'lob');
-      if (k === 'a') { if (holdT) { clearTimeout(holdT); holdT = null; if (!held && (attacking() || (G && G.sp && isHumanTeam(G.sp.team)))) TOUCH.pulseA = 1; } }
-      else if (k === 'b') TOUCH.b = false;
+      if (holdT) { clearTimeout(holdT); holdT = null; }
+      if (st && !st.done) { if (k === 'a' && st.att) TOUCH.pulseA = 1; else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
+      if (k === 'b') TOUCH.b = false; if (k === 'a') TOUCH.k = false;
+      st = null; b.classList.remove('on', 'lob', 'alt'); tbMode = ''; updateTouchLabels();
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
-    // SCHUSS halten und auf PASS ziehen = Schlenzer, auf HOCH ziehen = Heber (geht mit einem Daumen)
-    if (k === 'b') {
-      let slid = false;
-      b.addEventListener('pointerdown', () => { slid = false; });
-      b.addEventListener('pointermove', e => {
-        if (slid || !TOUCH.b) return;
-        const inR = el => { const r = el.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
-        if (inR(TBL.a)) { slid = true; TOUCH.pulseA = 1; buzz(15); } else if (inR(TBL.c)) { slid = true; TOUCH.pulseC = 1; buzz(15); }
-      });
-    }
   });
 })();
-const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb-b'), c: document.querySelector('.tb-c') }; let tbMode = '';
+const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb-b') }; let tbMode = '';
 function updateTouchLabels() {
   if (!TOUCHDEV || !G || G.demo) return;
+  if (TBL.a.classList.contains('on') || TBL.b.classList.contains('on')) return;   // während des Drückens nicht umbeschriften
   const m = attacking() || (G.sp && isHumanTeam(G.sp.team)) ? 'att' : 'def'; if (m === tbMode) return; tbMode = m;
-  const L = m === 'att' ? ['PASS', 'SCHUSS', 'HOCH'] : ['WECHSEL', 'TACKLING', 'GRÄTSCHE'];
-  TBL.a.textContent = L[0]; TBL.b.textContent = L[1]; TBL.c.textContent = L[2];
+  const L = m === 'att' ? [['PASS', 'ziehen: hoch'], ['SCHUSS', 'ziehen: Schlenzer']] : [['WECHSEL', 'halten: Druck'], ['TACKLING', 'ziehen: Grätsche']];
+  for (const [i, el] of [TBL.a, TBL.b].entries()) { el.querySelector('span').textContent = L[i][0]; el.querySelector('small').textContent = L[i][1]; }
 }
 addEventListener('pointerdown', () => AU.init());
 document.getElementById('tbPause').addEventListener('pointerdown', e => { e.preventDefault(); AU.init(); if (!menu.hidden) menuBack(); else togglePause(); });

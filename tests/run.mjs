@@ -565,18 +565,41 @@ test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Opt
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Touch: Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, Mitspieler antippen passt, Stick bewegt', async () => {
+test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, halten und ziehen: hoher Ball, Schlenzer, Grätsche; tippen: Tackling', async () => {
   const { page, ctx, errors } = await open(MOBILE);
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
-  const lbl = await page.evaluate(() => document.querySelector('.tb-a').textContent);
-  ok(lbl === 'PASS', 'Angriffs-Beschriftung fehlt: ' + lbl);
+  const lbl = await page.evaluate(() => document.querySelector('.tb-a span').textContent + '|' + document.querySelectorAll('#pad .tb[data-k]').length);
+  ok(lbl === 'PASS|2', 'Angriffs-Beschriftung oder zwei Knöpfe fehlen: ' + lbl);
   const bb = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   // gezählte Pässe statt Ball in der Luft prüfen: der Mitspieler nimmt den Pass auf langsamen Rechnern sonst schon an, bevor der Test hinschaut
   const p0 = await page.evaluate(() => G.stats.passes[0]);
   await page.touchscreen.tap(bb.x, bb.y);
   const passed = await page.waitForFunction(p0 => G.stats.passes[0] > p0, p0, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'PASS-Knopf passt nicht');
+  // gedrückt halten und ziehen: Angriff PASS ziehen = Flanke/hoher Ball, SCHUSS aufladen und ziehen = Schlenzer; Abwehr TACKLING ziehen = Grätsche, tippen = Tackling
+  const ctr = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, sel);
+  const drag = async (sel, dx, dy, hold = 60) => { const c = await ctr(sel); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(hold); await page.mouse.move(c.x + dx / 2, c.y + dy / 2); await page.mouse.move(c.x + dx, c.y + dy); await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(60); };
+  const setup = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY + 3); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; });
+  await setup(); await page.waitForTimeout(80);
+  await drag('.tb-a', -40, -10);
+  const hi = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
+  ok(hi, 'PASS ziehen spielt keinen hohen Ball');
+  await setup(); await page.waitForTimeout(80);
+  await drag('.tb-b', -40, 10, 200);
+  const fin = await page.evaluate(() => !!(G.ball.shot && G.ball.shot.finesse));
+  ok(fin, 'SCHUSS aufladen und ziehen gibt keinen Schlenzer');
+  const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
+  await def(); await page.waitForTimeout(80);
+  const lb = await page.evaluate(() => document.querySelector('.tb-b span').textContent);
+  ok(lb === 'TACKLING', 'Abwehr-Beschriftung: ' + lb);
+  await drag('.tb-b', 0, -40);
+  const sl = await page.evaluate(() => __d.act && __d.act.type === 'slide' || __d.cd > 0.5);
+  ok(sl, 'TACKLING ziehen grätscht nicht');
+  await def(); await page.waitForTimeout(80);
+  const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y); await page.waitForTimeout(80);
+  const tk = await page.evaluate(() => ({ ok: __d.d.ms.tk > 0 || (__d.act && ['tackle', 'stumble'].includes(__d.act.type)) || __d.cd > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));
+  ok(tk.ok, 'TACKLING tippen tackelt nicht ' + JSON.stringify(tk));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
