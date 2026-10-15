@@ -345,8 +345,10 @@ test('Touch: Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, Mitspie
   const lbl = await page.evaluate(() => document.querySelector('.tb-a').textContent);
   ok(lbl === 'PASS', 'Angriffs-Beschriftung fehlt: ' + lbl);
   const bb = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  // gezählte Pässe statt Ball in der Luft prüfen: der Mitspieler nimmt den Pass auf langsamen Rechnern sonst schon an, bevor der Test hinschaut
+  const p0 = await page.evaluate(() => G.stats.passes[0]);
   await page.touchscreen.tap(bb.x, bb.y);
-  const passed = await page.waitForFunction(() => G.ball.kind === 'pass' && !G.ball.owner, null, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
+  const passed = await page.waitForFunction(p0 => G.stats.passes[0] > p0, p0, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'PASS-Knopf passt nicht');
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
