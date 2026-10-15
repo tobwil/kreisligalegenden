@@ -247,6 +247,34 @@ test('Zielansicht: Freistoß und Elfmeter mit Kamera hinter dem Ball, Fadenkreuz
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Flair: drei Aufgaben pro Spiel, Doppelpass erkannt, Kopfballtor mit eigenem Banner, Endstand mit Aufgaben, Erfolge-Menü', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const out = {};
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true;
+    out.chal = G.chal && G.chal.length; render();
+    G.phase = 'play'; G.sp = null;
+    const ps = teamP(0).filter(q => !isGK(q)), a = ps[5], b = ps[6];
+    // Doppelpass: a -> b -> a
+    place(a, 50, 30); place(b, 50 + atkDir(0) * 6, 30); giveBall(a, true); pass(a, b); G.ball.x = b.x; G.ball.y = b.y; giveBall(b, true); place(a, 50 + atkDir(0) * 4, 33); pass(b, a); G.ball.x = a.x; G.ball.y = a.y; giveBall(a, true);
+    out.dp = G.feats.some(f => f.k === 'doppelpass');
+    // Kopfballtor von a
+    const gx = goalX(0); place(a, gx - atkDir(0) * 8, MY); giveBall(a, true); a.gotT = G.t - 2;
+    G.ball.owner = null; G.ball.shot = { by: a, team: 0, t0: G.t, d: 8, header: true }; G.ball.last = a; G.ball.lastTeam = 0; G.ball.kind = 'shot';
+    scoreGoal(0, MY, 1.5);
+    out.banner = G.banner && G.banner.txt; out.kopf = G.feats.some(f => f.k === 'goal-kopf');
+    G.phase = 'end'; ACT.fulltime(); out.endChal = !!menu.querySelector('.chal'); out.lp = PROF.lp > 0; out.ach = !!PROF.ach.tor1 && !!PROF.ach.kopf;
+    ACT.erfolge(); out.achs = menu.querySelectorAll('.ach').length; out.achOn = menu.querySelectorAll('.ach.on').length;
+    return out;
+  });
+  ok(r.chal === 3, 'keine drei Aufgaben: ' + r.chal);
+  ok(r.dp, 'Doppelpass nicht erkannt');
+  ok(r.kopf && r.banner === 'KOPFBALLTOR!', 'Kopfballtor-Banner: ' + r.banner);
+  ok(r.endChal && r.lp && r.ach, 'Endstand/Punkte/Erfolge: ' + JSON.stringify(r));
+  ok(r.achs >= 20 && r.achOn >= 2, 'Erfolge-Menü: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Regeln: Seitenaus gibt Einwurf, Toraus Ecke oder Abstoß, Foul im Strafraum Elfmeter, Abseits wird gepfiffen', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: -1 }); G.paused = true; });

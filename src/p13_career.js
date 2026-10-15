@@ -303,7 +303,7 @@ function startPlayoffs() {
   news('Meister', meCh ? `MEISTER! ${TEAMS[C.team].short.toUpperCase()} HOLT DEN TITEL` : `${ch.short} ist Meister der ${LIGEN[C.lg].n}`, meCh ? `Die Schale bleibt im Dorf! Jetzt geht es in den Playoffs gegen die besten Kreismeister Deutschlands um die ${TROPHY}.` : `Für ${TEAMS[C.team].short} reicht es diesmal nicht. ${ch.short} vertritt den Kreis bei der deutschen Kreisliga-Meisterschaft.`, meCh ? 'title' : '');
 }
 function prize(v, why) { CAREER.money += v; news('Kasse', `+${fmtMoney(v)}`, `Prämie: ${why}.`, 'money'); }
-function title(kind) { CAREER.titles.push({ year: CAREER.year, kind }); track('titel', { art: kind }); }
+function title(kind) { CAREER.titles.push({ year: CAREER.year, kind }); unlock(kind); track('titel', { art: kind }); }
 function news(d, h, t, k = '') { CAREER.news.unshift({ d, h, t, k, ev: CAREER.S ? CAREER.S.ci : 0, y: CAREER.year }); CAREER.news = CAREER.news.slice(0, 40); }
 function bookGate(h, a) {
   if (h !== CT()) return;

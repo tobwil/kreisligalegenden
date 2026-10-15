@@ -59,6 +59,7 @@ const ACT = {
         <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
         <button data-act="career">${ok ? 'SAISON FORTSETZEN' : 'SAISON'} <i>${ok ? `${esc(TEAMS[sv.team].short)} · ${seasonLabel(sv.year)}` : 'Kreisliga, Meisterschaft, Playoffs'}</i></button>
         <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
+        <button data-act="erfolge">ERFOLGE <i>Stufe ${lpLevel(PROF.lp)} · ${Object.keys(PROF.ach).length}/${ACHS.length} Abzeichen</i></button>
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Spielzeit, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
@@ -143,6 +144,7 @@ const ACT = {
     INGAME_MENU = true; G.paused = true; AU.ambience(false);
     show(`<div class="panel narrow"><h2>PAUSE</h2>
       <p class="muted">${G.T[0].k} ${G.score[0]} : ${G.score[1]} ${G.T[1].k} · ${minuteTxt()}</p>
+      ${G.chal ? `<div class="chal">${G.chal.map(x => `<div class="${x.ok ? 'ok' : x.failed ? 'no' : ''}"><b>${x.ok ? '✔' : x.failed ? '✘' : '·'}</b>${esc(x.t)}</div>`).join('')}</div>` : ''}
       <div class="btns menu-list">
         <button class="main" data-act="resume" autofocus>WEITER</button>
         ${G.watch ? '<button data-act="wresume">EINSTEIGEN <i>dein Team übernehmen</i></button>' : ''}
@@ -196,6 +198,7 @@ const ACT = {
     rateMatch();
     AU.jingle(w === me ? 'win' : 'half');
     const res = G.career ? careerAfterMatch() : null;
+    const fl = flairEnd();
     track('spiel-ende', { modus: G.career ? 'saison' : 'freundschaftsspiel', ergebnis: me < 0 || G.watch ? 'zuschauen' : w === me ? 'sieg' : w < 0 ? 'remis' : 'niederlage' });
     const mvp = G.potm;
     const verdict = me < 0 || G.watch ? (w < 0 ? 'UNENTSCHIEDEN.' : `${esc(G.T[w].short.toUpperCase())} GEWINNT.`) : w === me ? 'SIEG! FREIBIER IM SPORTHEIM.' : w < 0 ? 'UNENTSCHIEDEN.' : 'NIEDERLAGE.';
@@ -204,6 +207,7 @@ const ACT = {
       ${G.so ? `<p class="muted" style="text-align:center">nach Elfmeterschießen ${G.so.k[0].reduce((a, b) => a + b, 0)}:${G.so.k[1].reduce((a, b) => a + b, 0)}</p>` : G.half > 2 ? '<p class="muted" style="text-align:center">nach Verlängerung</p>' : ''}
       <p class="muted" style="text-align:center">${verdict}</p>
       ${scorersHTML()}
+      ${flairHTML(fl)}
       ${mvp ? `<div class="potm"><canvas id="mvpc" width="40" height="40"></canvas><div><h3>SPIELER DES SPIELS</h3><b style="font-family:var(--pix);font-size:12px">${esc(mvp.d.name.toUpperCase())}</b><div>${G.T[mvp.team].k} · NOTE ${fmtNote(mvp.d.note)}${mvp.d.ms.g ? ` · ${mvp.d.ms.g} TOR${mvp.d.ms.g > 1 ? 'E' : ''}` : ''}${mvp.d.ms.sv ? ` · ${mvp.d.ms.sv} PARADEN` : ''}</div></div></div>` : ''}
       ${statsHTML()}
       ${notesHTML()}
@@ -275,6 +279,7 @@ function startMatch(ta, tb, o) {
   newMatch(ta, tb, o); G.opts = o;
   if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
+  startFlair(o);
   track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }

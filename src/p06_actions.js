@@ -274,7 +274,7 @@ function trick(p, dx, dy) {
   p.act = { type: 'trick', t: 0, dur: 0.3, dx, dy }; p.vx = dx * 7.5; p.vy = dy * 7.5; p.hx = dx; p.hy = dy;
   for (const o of opps(p)) if (!isGK(o) && dist(o.x, o.y, p.x, p.y) < 2.2 && Math.random() < 0.38 + (A_(p, 'tec') - A_(o, 'zwk')) / 120 + (p.d.trait === 'Schlitzohr' ? 0.1 : 0)) {
     o.stun = 0.7; o.act = { type: 'stumble', t: 0, dur: 0.6 };
-    if (G.human === p.team) banner('HAKEN!', '#7cf2ff', `${p.d.name.toUpperCase()} LÄSST ${o.d.name.toUpperCase()} STEHEN`, 0.9);
+    feat('haken', p, 'HAKEN!', `${p.d.name.toUpperCase()} LÄSST ${o.d.name.toUpperCase()} STEHEN`);
   }
   AU.touch();
 }

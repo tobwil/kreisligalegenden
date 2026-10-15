@@ -317,6 +317,15 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 .bracket .bt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.logo,.logo::after,.press{animation:none}}
 #menu a{color:var(--gold)}
+/* Aufgaben und Erfolge */
+.chal{display:flex;flex-direction:column;gap:3px;border:2px solid var(--line);padding:8px 10px;background:#0d0b14}
+.chal div{display:flex;gap:8px;align-items:baseline}.chal div b{width:12px;color:var(--mute)}
+.chal div.ok{color:var(--green)}.chal div.ok b{color:var(--green)}.chal div.no{color:var(--mute)}.chal div.no b{color:var(--hot)}
+.gold{color:var(--gold)}
+.achs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.ach{border:2px solid var(--line);padding:6px 8px;display:grid;grid-template-columns:auto 1fr;gap:0 8px;opacity:.55;background:#0d0b14}
+.ach b{grid-row:span 2;font-size:22px;color:var(--mute)}.ach span{font-family:var(--pix);font-size:9px}.ach i{font-style:normal;color:var(--dim);font-size:16px}
+.ach.on{opacity:1;border-color:var(--gold)}.ach.on b{color:var(--gold)}
 /* Vereinsauswahl: Karte, Verbände, Kreise, Suche */
 .picker{display:flex;flex-direction:column;gap:8px}
 .pkbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
@@ -831,6 +840,7 @@ const POSES = {
   tackle: () => ({ lf: { k: [4, -5], f: [7, -1] }, lb: { k: [-2, -5], f: [-4, 0] }, af: { e: [3, -17], h: [5, -15] }, ab: { e: [-3, -17], h: [-5, -15] }, b: [1, 2], lean: 2 }),
   cheer: fr => { const r = runPose(fr); r.af = { e: [2, -23], h: [3, -27] }; r.ab = { e: [-2, -23], h: [-3, -27] }; return r; },
   plane: fr => { const r = runPose(fr); r.af = { e: [4, -19], h: [8, -20] }; r.ab = { e: [-4, -19], h: [-8, -20] }; return r; },
+  faust: fr => ({ lf: { k: [2, -6], f: [2, 0] }, lb: { k: [-1, -6], f: [-2, 0] }, af: { e: [3, -24], h: [4, -28 - fr] }, ab: { e: [-2, -19], h: [-1, -15] }, b: [0, 0] }),
   knee: () => ({ lf: { k: [2, -1], f: [-3, 0] }, lb: { k: [0, -1], f: [-4, 0] }, af: { e: [4, -17], h: [7, -20] }, ab: { e: [-4, -17], h: [-7, -20] }, b: [0, 5], lean: -1 }),
   sad: () => ({ lf: { k: [2, -6], f: [2, 0] }, lb: { k: [-1, -6], f: [-2, 0] }, af: { e: [2, -19], h: [1, -23] }, ab: { e: [-2, -19], h: [-1, -23] }, b: [0, 1], lean: 1 }),
   throw1: () => ({ lf: { k: [2, -6], f: [2, 0] }, lb: { k: [-1, -6], f: [-2, 0] }, af: { e: [0, -24], h: [-1, -27] }, ab: { e: [-2, -24], h: [-3, -27] }, b: [-1, 0], lean: -2 }),
@@ -1350,6 +1360,7 @@ function banner(txt, col = '#ffc83a', sub = '', dur = 1.6, big = false) { if (G.
 function place(p, x, y) { Object.assign(p, { x, y, z: 0, vx: 0, vy: 0, vz: 0, tx: x, ty: y, act: null, stun: 0, pose: 'idle' }); }
 function giveBall(p, quiet) {
   const b = G.ball, from = b.last;
+  if (b.passer && ['pass', 'through', 'lob'].includes(b.kind)) flairRecv(p, b.passer);
   if (G.tut && b.passer && b.passer.team === p.team && b.passer !== p) tutEvent({ k: 'recv', p, kind: b.kind });
   p.assistFrom = b.passer && b.passer !== p && b.passer.team === p.team && ['pass', 'through', 'lob', 'cross', 'head'].includes(b.kind) ? b.passer : null;
   if (b.passer && b.passer.team === p.team && b.passer !== p && b.kind && b.kind !== 'shot') G.stats.passOk[p.team]++;
@@ -1851,7 +1862,7 @@ function trick(p, dx, dy) {
   p.act = { type: 'trick', t: 0, dur: 0.3, dx, dy }; p.vx = dx * 7.5; p.vy = dy * 7.5; p.hx = dx; p.hy = dy;
   for (const o of opps(p)) if (!isGK(o) && dist(o.x, o.y, p.x, p.y) < 2.2 && Math.random() < 0.38 + (A_(p, 'tec') - A_(o, 'zwk')) / 120 + (p.d.trait === 'Schlitzohr' ? 0.1 : 0)) {
     o.stun = 0.7; o.act = { type: 'stumble', t: 0, dur: 0.6 };
-    if (G.human === p.team) banner('HAKEN!', '#7cf2ff', `${p.d.name.toUpperCase()} LÄSST ${o.d.name.toUpperCase()} STEHEN`, 0.9);
+    feat('haken', p, 'HAKEN!', `${p.d.name.toUpperCase()} LÄSST ${o.d.name.toUpperCase()} STEHEN`);
   }
   AU.touch();
 }
@@ -2221,7 +2232,7 @@ const minuteOf = () => {
 const halfLen = () => G.half <= 2 ? G.hlen : G.hlen / 3;
 const isHumanTeam = t => G.human === t && !G.watch;
 function gameTick(dt) {
-  dt *= SETTINGS.speed * (G.ff || 1);
+  dt *= SETTINGS.speed * (G.ff || 1) * (G.slowF || 1);   // Zeitlupe kurz vor einem Tor (p18)
   const steps = dt > 1 / 45 ? 2 : 1;
   for (let i = 0; i < steps; i++) step(dt / steps);
 }
@@ -2237,6 +2248,7 @@ function step(dt) {
   if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
   updateParts(dt);
   if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
+  flairStep(dt);
   switch (G.phase) {
     case 'intro': if (G.phaseT > 0.3 && (IN.any || G.watch)) { G.phase = 'kickoff'; G.phaseT = 0; AU.whistle(1); clearEdges(); } return;
     case 'replay': return stepReplay(dt);
@@ -2740,6 +2752,7 @@ function scoreGoal(team, y, z) {
   G.scorer = who; G.scoreTeam = team; G.phase = 'goal'; G.phaseT = 0; G.excite = 2.2; G.shake = 0.3;
   const big = !G.demo;
   banner(og ? 'EIGENTOR!' : 'TOOOR!', og ? '#ff4f3a' : '#ffc83a', `${who ? who.d.name.toUpperCase() : ''} · ${min}.`, 2.6, true);
+  const special = flairGoal(team, scorer, sh, og); if (special && G.banner) G.banner.txt = special;
   if (big) {
     AU.jingle('goal');
     const homeFans = team === 0 && !(G.event && G.event.neutral);
@@ -2764,7 +2777,7 @@ function celebrate() {
 }
 function celebPose(p) {
   if (G.phase !== 'goal' || p.off) return null;
-  if (p === G.scorer && p.celeb) return dist(p.x, p.y, p.celeb.x, p.celeb.y) < 2 ? (p.celeb.pose === 'knee' ? 'knee' : 'cheer') : p.celeb.pose === 'plane' ? 'plane' : 'cheer';
+  if (p === G.scorer && p.celeb) return dist(p.x, p.y, p.celeb.x, p.celeb.y) < 2 ? (p.celeb.pose === 'knee' ? 'knee' : p.celeb.pose === 'faust' ? 'faust' : 'cheer') : p.celeb.pose === 'plane' ? 'plane' : 'cheer';
   if (G.scorer && p.team === G.scorer.team && G.scoreTeam === p.team && Math.hypot(p.vx, p.vy) > 0.5) return 'cheer';
   if (p.team !== G.scoreTeam && Math.hypot(p.vx, p.vy) < 0.8) return 'sad';
   return null;
@@ -3091,6 +3104,7 @@ function drawHUD(lite) {
   const o = G.ball.owner;
   if (o && (G.phase === 'play' || G.phase === 'setpiece')) text(`${o.d.num} ${o.d.name.toUpperCase()}`, sx(o.x, o.y), sy(o.y) + 4, o.team === G.human ? '#ffc83a' : '#cfd6f2', 8, 'center');
   drawSetPieceHint();
+  if (G.phase === 'goal' && G.scorer && G.scorer.team === G.human && !G.watch && !G.celebSet && G.phaseT < 2.6) { const K = KEYN(); hint(`JUBEL: ${K.a} KNIE-RUTSCHER · ${K.b} FLIEGER · ${K.c} BECKER-FAUST`); }
   if (G.ticker) { const a = clamp(G.ticker.t * 3, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(0, H - 18, W, 14); text(G.ticker.txt, W / 2, H - 15, '#f3ead6', 8, 'center', false); ctx.globalAlpha = 1; }
   else drawKeyBar();
   if (G.cut) drawCard(G.cut);
@@ -3204,7 +3218,8 @@ function drawIntro() {
     teamP(t).forEach((p, i) => text(`${slotOf(p).padEnd(2)} ${p.d.name.toUpperCase().slice(0, 12)}`, cx, 168 + i * 13, '#cfd6f2', 8, 'center'));
   }
   text('VS', W / 2, 74, '#ffc83a', 16, 'center');
-  if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 22, '#f3ead6', 8, 'center');
+  if (G.chal) { text('AUFGABEN', W / 2, H - 66, '#ffc83a', 8, 'center'); G.chal.forEach((x, i) => text(x.t.toUpperCase(), W / 2, H - 54 + i * 10, '#cfd6f2', 8, 'center')); }
+  if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 20, '#f3ead6', 8, 'center');
 }
 // ================= Menüs =================
 const menu = document.getElementById('menu');
@@ -3267,6 +3282,7 @@ const ACT = {
         <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
         <button data-act="career">${ok ? 'SAISON FORTSETZEN' : 'SAISON'} <i>${ok ? `${esc(TEAMS[sv.team].short)} · ${seasonLabel(sv.year)}` : 'Kreisliga, Meisterschaft, Playoffs'}</i></button>
         <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
+        <button data-act="erfolge">ERFOLGE <i>Stufe ${lpLevel(PROF.lp)} · ${Object.keys(PROF.ach).length}/${ACHS.length} Abzeichen</i></button>
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Spielzeit, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
@@ -3351,6 +3367,7 @@ const ACT = {
     INGAME_MENU = true; G.paused = true; AU.ambience(false);
     show(`<div class="panel narrow"><h2>PAUSE</h2>
       <p class="muted">${G.T[0].k} ${G.score[0]} : ${G.score[1]} ${G.T[1].k} · ${minuteTxt()}</p>
+      ${G.chal ? `<div class="chal">${G.chal.map(x => `<div class="${x.ok ? 'ok' : x.failed ? 'no' : ''}"><b>${x.ok ? '✔' : x.failed ? '✘' : '·'}</b>${esc(x.t)}</div>`).join('')}</div>` : ''}
       <div class="btns menu-list">
         <button class="main" data-act="resume" autofocus>WEITER</button>
         ${G.watch ? '<button data-act="wresume">EINSTEIGEN <i>dein Team übernehmen</i></button>' : ''}
@@ -3404,6 +3421,7 @@ const ACT = {
     rateMatch();
     AU.jingle(w === me ? 'win' : 'half');
     const res = G.career ? careerAfterMatch() : null;
+    const fl = flairEnd();
     track('spiel-ende', { modus: G.career ? 'saison' : 'freundschaftsspiel', ergebnis: me < 0 || G.watch ? 'zuschauen' : w === me ? 'sieg' : w < 0 ? 'remis' : 'niederlage' });
     const mvp = G.potm;
     const verdict = me < 0 || G.watch ? (w < 0 ? 'UNENTSCHIEDEN.' : `${esc(G.T[w].short.toUpperCase())} GEWINNT.`) : w === me ? 'SIEG! FREIBIER IM SPORTHEIM.' : w < 0 ? 'UNENTSCHIEDEN.' : 'NIEDERLAGE.';
@@ -3412,6 +3430,7 @@ const ACT = {
       ${G.so ? `<p class="muted" style="text-align:center">nach Elfmeterschießen ${G.so.k[0].reduce((a, b) => a + b, 0)}:${G.so.k[1].reduce((a, b) => a + b, 0)}</p>` : G.half > 2 ? '<p class="muted" style="text-align:center">nach Verlängerung</p>' : ''}
       <p class="muted" style="text-align:center">${verdict}</p>
       ${scorersHTML()}
+      ${flairHTML(fl)}
       ${mvp ? `<div class="potm"><canvas id="mvpc" width="40" height="40"></canvas><div><h3>SPIELER DES SPIELS</h3><b style="font-family:var(--pix);font-size:12px">${esc(mvp.d.name.toUpperCase())}</b><div>${G.T[mvp.team].k} · NOTE ${fmtNote(mvp.d.note)}${mvp.d.ms.g ? ` · ${mvp.d.ms.g} TOR${mvp.d.ms.g > 1 ? 'E' : ''}` : ''}${mvp.d.ms.sv ? ` · ${mvp.d.ms.sv} PARADEN` : ''}</div></div></div>` : ''}
       ${statsHTML()}
       ${notesHTML()}
@@ -3483,6 +3502,7 @@ function startMatch(ta, tb, o) {
   newMatch(ta, tb, o); G.opts = o;
   if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
+  startFlair(o);
   track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }
@@ -3797,7 +3817,7 @@ function startPlayoffs() {
   news('Meister', meCh ? `MEISTER! ${TEAMS[C.team].short.toUpperCase()} HOLT DEN TITEL` : `${ch.short} ist Meister der ${LIGEN[C.lg].n}`, meCh ? `Die Schale bleibt im Dorf! Jetzt geht es in den Playoffs gegen die besten Kreismeister Deutschlands um die ${TROPHY}.` : `Für ${TEAMS[C.team].short} reicht es diesmal nicht. ${ch.short} vertritt den Kreis bei der deutschen Kreisliga-Meisterschaft.`, meCh ? 'title' : '');
 }
 function prize(v, why) { CAREER.money += v; news('Kasse', `+${fmtMoney(v)}`, `Prämie: ${why}.`, 'money'); }
-function title(kind) { CAREER.titles.push({ year: CAREER.year, kind }); track('titel', { art: kind }); }
+function title(kind) { CAREER.titles.push({ year: CAREER.year, kind }); unlock(kind); track('titel', { art: kind }); }
 function news(d, h, t, k = '') { CAREER.news.unshift({ d, h, t, k, ev: CAREER.S ? CAREER.S.ci : 0, y: CAREER.year }); CAREER.news = CAREER.news.slice(0, 40); }
 function bookGate(h, a) {
   if (h !== CT()) return;
@@ -4244,7 +4264,7 @@ function checkTutDone() {
 }
 function nextLesson() {
   const T = G.tut; T.i++; T.n = 0; T.done = false;
-  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); track('training-fertig'); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
+  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); track('training-fertig'); unlock('training'); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
   tutSetup();
 }
 // pro Bild: Markierungen, Haltepositionen, Ballverlust, Neustart
@@ -4575,6 +4595,174 @@ function drawAimView() {
     if (sp.type === 'free') text('WENIG KRAFT = BOGEN ÜBER DIE MAUER · VIEL KRAFT = HART UND FLACH', W / 2, H - 20, '#cfd6f2', 8, 'center', false);
   }
 }
+// ================= Flair: Zeitlupe, Jubel, besondere Aktionen, Aufgaben pro Spiel, Erfolge, Legenden-Punkte =================
+// Alles, was ein Spiel „noch eins“ machen soll: Tore fühlen sich groß an, schöne Aktionen werden gefeiert, jedes Spiel hat
+// drei kleine Aufgaben, und Erfolge bleiben dauerhaft im Profil (localStorage, nur auf diesem Gerät).
+const PROFILE_KEY = 'krl_profil';
+const PROF = Object.assign({ lp: 0, games: 0, wins: 0, goals: 0, chal: 0, ach: {} }, store.get(PROFILE_KEY, {}));
+const saveProf = () => store.set(PROFILE_KEY, PROF);
+const lpLevel = lp => Math.floor(Math.sqrt(lp / 120)) + 1;
+const lpNext = lv => (lv * lv) * 120;
+
+// ---------- Erfolge ----------
+const ACHS = [
+  ['sieg1', 'ERSTER SIEG', 'Gewinne ein Spiel'], ['tor1', 'ERSTES TOR', 'Schieß selbst ein Tor'], ['hattrick', 'HATTRICK-HELD', 'Ein Spieler trifft dreimal in einem Spiel'],
+  ['traum', 'TRAUMTOR', 'Tor aus mehr als 22 Metern'], ['freistoss', 'FREISTOSSKÖNIG', 'Direkter Freistoß ins Tor'], ['elfer', 'EISKALT', 'Verwandle einen Elfmeter'],
+  ['kopf', 'KOPFBALLUNGEHEUER', 'Erziele ein Kopfballtor'], ['direkt', 'DIREKTABNAHME', 'Tor direkt nach einem Zuspiel'], ['doppelpass', 'DOPPELPASS-TOR', 'Tor kurz nach einem Doppelpass'],
+  ['null', 'DIE NULL STEHT', 'Gewinne ohne Gegentor'], ['kanter', 'KANTERSIEG', 'Gewinne mit 5 Toren Unterschied'], ['comeback', 'COMEBACK', 'Gewinne nach Rückstand'],
+  ['haken3', 'KNOTENLÖSER', 'Lass in einem Spiel 3 Gegner stehen'], ['alle3', 'ALLES ERLEDIGT', 'Erfülle alle drei Aufgaben eines Spiels'], ['aufg25', 'FLEISSBIENCHEN', 'Erfülle 25 Aufgaben'],
+  ['siege10', 'SERIENTÄTER', 'Gewinne 10 Spiele'], ['tore50', 'TORFABRIK', 'Schieß 50 Tore'], ['shootout', 'NERVENSTARK', 'Gewinne ein Elfmeterschießen'],
+  ['derby', 'DERBYSIEGER', 'Gewinne ein Derby gegen den Erzrivalen'], ['meister', 'KREISMEISTER', 'Werde Meister deiner Kreisliga'], ['pokal', 'POKALSIEGER', 'Gewinne den Kreispokal'],
+  ['dkm', 'DEUTSCHER MEISTER', 'Gewinne die Goldene Eckfahne'], ['training', 'MUSTERSCHÜLER', 'Schließe das Training ab'], ['teilen', 'LOKALPRESSE', 'Teile ein Ergebnis'],
+];
+function unlock(id) {
+  if (PROF.ach[id]) return false;
+  const a = ACHS.find(x => x[0] === id); if (!a) return false;
+  PROF.ach[id] = Date.now(); PROF.lp += 150; saveProf();
+  if (G && !G.demo) { G.achNew = (G.achNew || []).concat(id); G.ticker = { txt: `ERFOLG FREIGESCHALTET: ${a[1]}`, t: 3.2 }; }
+  track('erfolg', { id });
+  return true;
+}
+
+// ---------- Aufgaben pro Spiel ----------
+// done(c): während des Spiels prüfen; end(c): erst beim Abpfiff
+const CHALS = [
+  { id: 'win2', t: 'Gewinne mit 2 Toren Unterschied', end: c => c.my - c.op >= 2 },
+  { id: 'null', t: 'Spiel zu null', end: c => c.op === 0 },
+  { id: 'kopf', t: 'Erziele ein Kopfballtor', done: c => c.feat('goal-kopf') },
+  { id: 'weit', t: 'Tor von außerhalb des Strafraums', done: c => c.feat('goal-weit') },
+  { id: 'drei', t: 'Schieß 3 Tore', done: c => c.my >= 3 },
+  { id: 'dp', t: 'Spiel einen Doppelpass', done: c => c.feat('doppelpass') },
+  { id: 'erst', t: 'Schieß das erste Tor des Spiels', done: c => c.first === c.me, fail: c => c.first === 1 - c.me },
+  { id: 'haken', t: 'Lass 2 Gegner mit dem Haken stehen', done: c => c.count('haken') >= 2 },
+  { id: 'aus', t: 'Spiel 3 Gegner im Dribbling aus', done: c => c.count('aus') >= 3 },
+  { id: 'fair', t: 'Keine Karte für dein Team', end: c => G.stats.yellow[c.me] + G.stats.red[c.me] === 0 },
+  { id: 'schuss', t: 'Mindestens 8 Torschüsse', done: c => G.stats.shots[c.me] >= 8 },
+  { id: 'direkt', t: 'Tor per Direktabnahme', done: c => c.feat('goal-direkt') },
+];
+function chalCtx() {
+  const me = G.human, my = G.score[me], op = G.score[1 - me], f = G.feats || [];
+  return { me, my, op, first: G.firstGoal ?? -1, feat: k => f.some(x => x.k === k && x.team === me), count: k => f.filter(x => x.k === k && x.team === me).length };
+}
+function startFlair(o = {}) {
+  G.feats = []; G.firstGoal = null; G.wasBehind = false; G.achNew = []; G.slowF = 1; G.celebSet = false; G.flairDone = false;
+  if (G.human < 0 || o.watch || o.tut || G.tut || G.demo) { G.chal = null; return; }
+  // drei verschiedene Aufgaben, je Spiel neu
+  G.chal = shuffle(CHALS.slice()).slice(0, 3).map(c => ({ id: c.id, t: c.t, ok: false, failed: false }));
+}
+function chalCheck(final) {
+  if (!G.chal) return;
+  const c = chalCtx();
+  for (const x of G.chal) {
+    if (x.ok || x.failed) continue;
+    const d = CHALS.find(q => q.id === x.id);
+    if (d.fail && d.fail(c)) { x.failed = true; continue; }
+    if ((d.done && d.done(c)) || (final && d.end && d.end(c))) { x.ok = true; if (!final) { G.ticker = { txt: `AUFGABE ERFÜLLT: ${x.t.toUpperCase()}`, t: 2.6 }; AU.select(); } }
+  }
+}
+// ---------- besondere Aktionen ----------
+function feat(k, p, label, sub) {
+  if (!G.feats) G.feats = [];
+  G.feats.push({ k, team: p.team, t: G.t, pid: p.d.pid });
+  if (label && !G.demo && (p.team === G.human || G.watch || G.human < 0)) banner(label, '#7cf2ff', sub || p.d.name.toUpperCase(), 1.1);
+  if (k !== 'aus' || Math.random() < 0.5) AU.crowd(0.6);
+  G.excite = Math.max(G.excite, 0.9);
+  chalCheck(false);
+}
+// Annahme: Doppelpass erkennen (A spielt zu B, B spielt zurück zu A)
+function flairRecv(p, passer) {
+  if (!passer || passer.team !== p.team || passer === p) return;
+  // nur ein echter Doppelpass: der erste Passgeber ist gestartet und hat mindestens 3 m Richtung Tor gutgemacht
+  const lf = passer.lastFrom, gain = lf ? (p.x - lf.px) * atkDir(p.team) : 0;
+  if (lf && lf.q === p && G.t - lf.t < 4 && gain > 3 && G.phase === 'play') { feat('doppelpass', p, 'DOPPELPASS!'); G.lastDP = { team: p.team, t: G.t }; }
+  p.lastFrom = { q: passer, t: G.t, px: passer.x };
+}
+// Dribbling: Gegner vor dem Ballführer, der danach hinter ihm steht = ausgespielt
+function flairStep(dt) {
+  if (G.phase === 'goal') return celebChoice();
+  if (G.phase !== 'play') return;
+  // Zeitlupe: Schuss, den der Torwart nicht mehr kriegt, kurz vor der Linie
+  const b = G.ball;
+  if (!G.demo && b.shot && !b.owner && b.plan && b.plan.onT && !b.plan.ok && Math.min(b.x, CW - b.x) < 8) G.slowF = Math.max(0.3, (G.slowF || 1) - dt * 6);
+  else G.slowF = Math.min(1, (G.slowF || 1) + dt * 4);
+  const o = b.owner; if (!o || isGK(o)) { G.dribble = null; return; }
+  const s = atkDir(o.team);
+  if (!G.dribble || G.dribble.p !== o) G.dribble = { p: o, seen: new Map() };
+  for (const q of opps(o)) {
+    if (isGK(q)) continue;
+    const ahead = (q.x - o.x) * s, lat = Math.abs(q.y - o.y);
+    if (ahead > 0.3 && ahead < 2.2 && lat < 1.4) G.dribble.seen.set(q, G.t);
+    else if (G.dribble.seen.has(q) && ahead < -1.3 && G.t - G.dribble.seen.get(q) < 1.6) { G.dribble.seen.delete(q); if (G.t - (G.ausT || 0) > 2.5) { G.ausT = G.t; feat('aus', o, 'AUSGESPIELT!', `${o.d.name.toUpperCase()} GEHT VORBEI`); } else feat('aus', o); }
+  }
+}
+// Tor: besondere Tore erkennen und groß ankündigen (gibt den Bannertext zurück)
+function flairGoal(team, scorer, sh, og) {
+  G.slowF = 1; if (!G.feats) G.feats = [];
+  if (G.firstGoal == null) G.firstGoal = team;
+  if (G.human >= 0 && G.score[1 - G.human] > G.score[G.human]) G.wasBehind = true;
+  if (og || !scorer || !sh) { chalCheck(false); return null; }
+  const fk = G.ball.fromSP === 'free', direct = scorer.assistFrom && sh.t0 - (scorer.gotT || -9) < 0.4 && !sh.pen && !fk;
+  let label = null;
+  const add = (k, l) => { G.feats.push({ k, team, t: G.t, pid: scorer.d.pid }); if (l && !label) label = l; };
+  if (scorer.d.ms.g === 3) add('hattrick', 'HATTRICK!');
+  if (sh.pen) add('goal-elfer');
+  if (fk) add('goal-freistoss', 'FREISTOSSTOR!');
+  if (sh.header) add('goal-kopf', 'KOPFBALLTOR!');
+  if (sh.d > 22 && !fk) add('goal-traum', 'TRAUMTOR!');
+  if (sh.d > BOX_D + 1) add('goal-weit');
+  if (direct) add('goal-direkt', sh.header ? null : 'DIREKT!');
+  if (G.lastDP && G.lastDP.team === team && G.t - G.lastDP.t < 6) add('goal-dp', 'DOPPELPASS-TOR!');
+  // Erfolge nur für eigene Tore im eigenen Spiel
+  if (team === G.human && !G.watch && !G.demo && !G.tut) {
+    unlock('tor1');
+    if (scorer.d.ms.g === 3) unlock('hattrick'); if (sh.d > 22) unlock('traum'); if (fk) unlock('freistoss'); if (sh.pen && !G.so) unlock('elfer');
+    if (sh.header) unlock('kopf'); if (direct) unlock('direkt'); if (G.lastDP && G.lastDP.team === team && G.t - G.lastDP.t < 6) unlock('doppelpass');
+  }
+  chalCheck(false);
+  return label;
+}
+// Jubel selbst wählen: Pass = Knie-Rutscher, Schuss = Flieger, Flanke = Becker-Faust
+function celebChoice() {
+  const sc = G.scorer; if (!sc || !sc.celeb || G.watch || G.demo || sc.team !== G.human || G.celebSet) return;
+  const pose = IN.pa ? 'knee' : IN.pb ? 'plane' : IN.pc ? 'faust' : null;
+  if (pose) { sc.celeb.pose = pose; G.celebSet = true; AU.cheer(0.6); }
+}
+// ---------- Abpfiff: Aufgaben, Erfolge, Punkte ----------
+function flairEnd() {
+  if (!G.chal || G.flairDone) return null; G.flairDone = true;
+  chalCheck(true);
+  const me = G.human, my = G.score[me], op = G.score[1 - me], w = winnerOf(), won = w === me;
+  const done = G.chal.filter(x => x.ok).length;
+  let lp = 20 + (won ? 40 : w < 0 ? 15 : 0) + my * 8 + done * 30;
+  PROF.games++; PROF.goals += my; PROF.chal += done; if (won) PROF.wins++;
+  if (won) unlock('sieg1');
+  if (won && op === 0) unlock('null'); if (won && my - op >= 5) unlock('kanter'); if (won && G.wasBehind) unlock('comeback');
+  if ((G.feats || []).filter(f => f.team === me && f.k === 'aus').length + (G.feats || []).filter(f => f.team === me && f.k === 'haken').length >= 3) unlock('haken3');
+  if (done === 3) unlock('alle3'); if (PROF.chal >= 25) unlock('aufg25'); if (PROF.wins >= 10) unlock('siege10'); if (PROF.goals >= 50) unlock('tore50');
+  if (G.so && won) unlock('shootout');
+  const lv0 = lpLevel(PROF.lp); PROF.lp += lp; saveProf();
+  let money = 0;
+  if (G.career && CAREER) { money = done * 250; if (money) { CAREER.money += money; news('Aufgaben', `${done} ${done === 1 ? 'Aufgabe' : 'Aufgaben'} erfüllt`, `Der Vorstand legt ${fmtMoney(money)} in die Vereinskasse.`, 'money'); saveCareer(); } }
+  track('aufgaben', { erfuellt: done });
+  return { done, lp, money, levelUp: lpLevel(PROF.lp) > lv0 };
+}
+function flairHTML(r) {
+  if (!G.chal || !r) return '';
+  const ach = (G.achNew || []).map(id => ACHS.find(a => a[0] === id)).filter(Boolean);
+  return `<div class="chal"><h3>AUFGABEN</h3>${G.chal.map(x => `<div class="${x.ok ? 'ok' : 'no'}"><b>${x.ok ? '✔' : '✘'}</b>${esc(x.t)}</div>`).join('')}
+    <p class="muted">+${r.lp} Legenden-Punkte${r.money ? ` · ${fmtMoney(r.money)} für die Vereinskasse` : ''}${r.levelUp ? ` · <b class="gold">STUFE ${lpLevel(PROF.lp)}!</b>` : ''}</p>
+    ${ach.length ? `<p class="gold">NEUER ERFOLG: ${ach.map(a => esc(a[1])).join(' · ')}</p>` : ''}</div>`;
+}
+// ---------- Erfolge-Menü ----------
+Object.assign(ACT, {
+  erfolge() {
+    const lv = lpLevel(PROF.lp), n = Object.keys(PROF.ach).length;
+    show(`<div class="panel"><div class="row spread"><h2>ERFOLGE</h2><button class="small" data-act="main">ZURÜCK</button></div>
+      <p>Stufe <b class="gold">${lv}</b> · ${PROF.lp.toLocaleString('de-DE')} Legenden-Punkte (nächste Stufe ab ${lpNext(lv).toLocaleString('de-DE')}) · ${n} von ${ACHS.length} Erfolgen · ${PROF.games} Spiele, ${PROF.wins} Siege, ${PROF.goals} Tore, ${PROF.chal} Aufgaben</p>
+      <div class="achs">${ACHS.map(([id, name, d]) => `<div class="ach ${PROF.ach[id] ? 'on' : ''}"><b>${PROF.ach[id] ? '★' : '☆'}</b><span>${esc(name)}</span><i>${esc(d)}</i></div>`).join('')}</div>
+      <p class="muted">Erfolge und Punkte bleiben nur in diesem Browser gespeichert.</p></div>`, { back: ACT.main });
+  },
+});
 // ================= Touch, Hauptschleife, Start =================
 if (TOUCHDEV) document.body.classList.add('touch');
 fitView(); addEventListener('resize', fitView); addEventListener('orientationchange', () => setTimeout(fitView, 250));

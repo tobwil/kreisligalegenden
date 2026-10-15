@@ -6,7 +6,7 @@ const minuteOf = () => {
 const halfLen = () => G.half <= 2 ? G.hlen : G.hlen / 3;
 const isHumanTeam = t => G.human === t && !G.watch;
 function gameTick(dt) {
-  dt *= SETTINGS.speed * (G.ff || 1);
+  dt *= SETTINGS.speed * (G.ff || 1) * (G.slowF || 1);   // Zeitlupe kurz vor einem Tor (p18)
   const steps = dt > 1 / 45 ? 2 : 1;
   for (let i = 0; i < steps; i++) step(dt / steps);
 }
@@ -22,6 +22,7 @@ function step(dt) {
   if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
   updateParts(dt);
   if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
+  flairStep(dt);
   switch (G.phase) {
     case 'intro': if (G.phaseT > 0.3 && (IN.any || G.watch)) { G.phase = 'kickoff'; G.phaseT = 0; AU.whistle(1); clearEdges(); } return;
     case 'replay': return stepReplay(dt);
@@ -525,6 +526,7 @@ function scoreGoal(team, y, z) {
   G.scorer = who; G.scoreTeam = team; G.phase = 'goal'; G.phaseT = 0; G.excite = 2.2; G.shake = 0.3;
   const big = !G.demo;
   banner(og ? 'EIGENTOR!' : 'TOOOR!', og ? '#ff4f3a' : '#ffc83a', `${who ? who.d.name.toUpperCase() : ''} · ${min}.`, 2.6, true);
+  const special = flairGoal(team, scorer, sh, og); if (special && G.banner) G.banner.txt = special;
   if (big) {
     AU.jingle('goal');
     const homeFans = team === 0 && !(G.event && G.event.neutral);
@@ -549,7 +551,7 @@ function celebrate() {
 }
 function celebPose(p) {
   if (G.phase !== 'goal' || p.off) return null;
-  if (p === G.scorer && p.celeb) return dist(p.x, p.y, p.celeb.x, p.celeb.y) < 2 ? (p.celeb.pose === 'knee' ? 'knee' : 'cheer') : p.celeb.pose === 'plane' ? 'plane' : 'cheer';
+  if (p === G.scorer && p.celeb) return dist(p.x, p.y, p.celeb.x, p.celeb.y) < 2 ? (p.celeb.pose === 'knee' ? 'knee' : p.celeb.pose === 'faust' ? 'faust' : 'cheer') : p.celeb.pose === 'plane' ? 'plane' : 'cheer';
   if (G.scorer && p.team === G.scorer.team && G.scoreTeam === p.team && Math.hypot(p.vx, p.vy) > 0.5) return 'cheer';
   if (p.team !== G.scoreTeam && Math.hypot(p.vx, p.vy) < 0.8) return 'sad';
   return null;

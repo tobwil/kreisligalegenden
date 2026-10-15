@@ -84,6 +84,7 @@ function drawHUD(lite) {
   const o = G.ball.owner;
   if (o && (G.phase === 'play' || G.phase === 'setpiece')) text(`${o.d.num} ${o.d.name.toUpperCase()}`, sx(o.x, o.y), sy(o.y) + 4, o.team === G.human ? '#ffc83a' : '#cfd6f2', 8, 'center');
   drawSetPieceHint();
+  if (G.phase === 'goal' && G.scorer && G.scorer.team === G.human && !G.watch && !G.celebSet && G.phaseT < 2.6) { const K = KEYN(); hint(`JUBEL: ${K.a} KNIE-RUTSCHER · ${K.b} FLIEGER · ${K.c} BECKER-FAUST`); }
   if (G.ticker) { const a = clamp(G.ticker.t * 3, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(0, H - 18, W, 14); text(G.ticker.txt, W / 2, H - 15, '#f3ead6', 8, 'center', false); ctx.globalAlpha = 1; }
   else drawKeyBar();
   if (G.cut) drawCard(G.cut);
@@ -197,5 +198,6 @@ function drawIntro() {
     teamP(t).forEach((p, i) => text(`${slotOf(p).padEnd(2)} ${p.d.name.toUpperCase().slice(0, 12)}`, cx, 168 + i * 13, '#cfd6f2', 8, 'center'));
   }
   text('VS', W / 2, 74, '#ffc83a', 16, 'center');
-  if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 22, '#f3ead6', 8, 'center');
+  if (G.chal) { text('AUFGABEN', W / 2, H - 66, '#ffc83a', 8, 'center'); G.chal.forEach((x, i) => text(x.t.toUpperCase(), W / 2, H - 54 + i * 10, '#cfd6f2', 8, 'center')); }
+  if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 20, '#f3ead6', 8, 'center');
 }
