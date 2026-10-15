@@ -1641,13 +1641,26 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
   }
   return best || (hasDir && cone > 0.2 ? choosePass(p, dx, dy, kind, 0.1) : hasDir ? choosePass(p, 0, 0, kind) : null);
 }
+// Abfanggefahr: erreicht ein Gegner die Passlinie, bevor der Ball dort ist? (flacher Pass, ca. 14 m/s)
+function interceptRisk(p, q, v = 14) {
+  const dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy) || 1;
+  let risk = 0;
+  for (const o of opps(p)) {
+    const t = clamp(((o.x - p.x) * dx + (o.y - p.y) * dy) / (L * L), 0, 1); if (t < 0.08) continue;
+    const cx = p.x + dx * t, cy = p.y + dy * t, dd = Math.hypot(o.x - cx, o.y - cy);
+    const tBall = t * L / v + 0.05, tOpp = Math.max(0, dd - 0.9) / maxSpeed(o, true) + (isGK(o) ? 0.1 : 0.22);
+    if (tOpp < tBall) risk = Math.max(risk, clamp((tBall - tOpp) / 0.4 + 0.4, 0, 1));
+  }
+  return risk;
+}
 // Wert eines Passes (auch für die KI): Raumgewinn, Freiheit des Empfängers, freie Passlinie, Abseits
 function passScore(p, q, kind) {
   const d = dist(p.x, p.y, q.x, q.y), gain = prog(p.team, q.x) - prog(p.team, p.x), open = Math.min(openness(q), 9), lane = laneOpen(p, q.x, q.y);
   let sc = gain * 3.2 + open * 0.11 + Math.min(lane, 4) * (kind === 'lob' ? 0.04 : 0.22) - Math.max(0, d - (kind === 'lob' ? 45 : 28)) * 0.05 - d * 0.004;
   if (G.offs === null && SETTINGS.offside) { const line = opps(p).map(o => prog(p.team, o.x)).sort((a, b) => b - a)[1] ?? 1; if (prog(p.team, q.x) > Math.max(line, prog(p.team, p.x), 0.5) + 0.003) sc -= 5; }
-  if (lane < 1.2 && kind !== 'lob') sc -= 1.5;
+  if (lane < 1.2 && kind !== 'lob') sc -= 2.4; else if (lane < 2 && kind !== 'lob') sc -= 0.6;   // zugestellte Passwege meiden
   if (inBox(1 - p.team, q.x, q.y)) sc += 0.35;
+  if (kind === 'pass') sc -= interceptRisk(p, q) * (prog(p.team, p.x) > 0.62 ? 1.4 : 3);   // vorne darf es riskanter sein
   return sc;
 }
 
@@ -2061,8 +2074,8 @@ function aiTeam(t, dt) {
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
       const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && own.team === G.human;
-      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.6 * G.diff.tackle : 2.2)) tackle(p, own);
-      else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.25 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
+      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.2 * G.diff.tackle : 1.3)) tackle(p, own);
+      else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.16 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
   }
 }
@@ -2079,26 +2092,26 @@ function carrierAI(p, dt) {
   p.think -= dt;
   const pr = pressure(p), d = dist(p.x, p.y, gx, MY);
   if (p.think > 0 && pr > 2.4) return dribble(p);
-  p.think = rnd(0.22, 0.5) * G.diff.think * (G.human >= 0 && t === G.human ? 1 : 1);
+  p.think = (pr > 4 ? rnd(0.5, 1.0) : pr > 2.4 ? rnd(0.3, 0.6) : rnd(0.18, 0.35)) * G.diff.think;   // mit Platz: Ball führen, Spiel aufbauen
   // Optionen bewerten
   const opts = [];
   const sq = shotQuality(p);
-  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 2.8 + (d < 11 ? 0.8 : d < 17 ? 0.45 : 0) - (d > 21 ? 0.6 : 0) });
+  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 3.1 + (d < 11 ? 0.9 : d < 17 ? 0.55 : d < 22 ? 0.1 : 0) - (d > 23 ? 0.6 : 0) + (inBox(1 - t, p.x, p.y) ? 0.25 : 0) });
   // Pässe
   let bp = null, bv = -1e9;
   for (const q of mates(p)) { if (isGK(q) && pr > 3) continue; const v = passScore(p, q, 'pass'); if (v > bv) { bv = v; bp = q; } }
-  if (bp) opts.push({ k: 'pass', q: bp, v: bv * 0.5 + 0.15 });
+  if (bp) opts.push({ k: 'pass', q: bp, v: bv * 0.5 + (pr < 2 ? 0.25 : 0.05) });
   // Steilpass auf einen Läufer
   for (const q of mates(p)) {
     if (!q.run || q.run.until < G.t || isGK(q)) continue;
     const onside = prog(t, q.x) <= offLine(t) + 0.002;
     if (!onside) continue;
-    const tx = q.x + s * 9, lane = laneOpen(p, tx, q.y, null);
-    if (lane > 1.5) opts.push({ k: 'through', q, v: 1.3 + prog(t, tx) * 0.6 + rnd(0, 0.3) });
+    const tx = q.x + s * 9, lane = laneOpen(p, tx, q.y, null), risk = interceptRisk(p, { x: tx, y: q.y }, 12);
+    if (lane > 1.6 && risk < 0.55) opts.push({ k: 'through', q, v: 1.35 + prog(t, tx) * 0.7 - risk * 0.8 + rnd(0, 0.3) });
   }
   // hoher Ball nach vorn, wenn flach alles zu ist
   const fwd = mates(p).filter(q => !isGK(q) && prog(t, q.x) > prog(t, p.x) + 0.15 && prog(t, q.x) <= offLine(t)).sort((a, c) => openness(c) - openness(a))[0];
-  if (fwd && pr < 3 && bv < 0.7 && openness(fwd) > 4.5) opts.push({ k: 'lob', q: fwd, v: 0.05 + Math.min(openness(fwd), 8) * 0.04 + (prog(t, p.x) < 0.3 ? 0.1 : 0) });
+  if (fwd && pr < 2.2 && bv < 0.3 && openness(fwd) > 7) opts.push({ k: 'lob', q: fwd, v: Math.min(openness(fwd), 10) * 0.03 + (prog(t, p.x) < 0.3 ? 0.1 : 0) });
   // Flanke
   if (Math.abs(p.y - MY) > 12 && Math.abs(p.x - gx) < 26) {
     const inB = mates(p).filter(q => !isGK(q) && Math.abs(q.x - gx) < 18 && Math.abs(q.y - MY) < 14).length;
@@ -2106,9 +2119,9 @@ function carrierAI(p, dt) {
   }
   // Dribbeln
   const space = spaceAhead(p);
-  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + 0.1 });
+  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen
   // Befreiungsschlag in Not
-  if (prog(t, p.x) < 0.2 && pr < 2.5) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
+  if (prog(t, p.x) < 0.18 && pr < 1.6 && bv < 0.4) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
   for (const o of opts) o.v += rnd(0, 0.35);
   opts.sort((a, c) => c.v - a.v);
   const o = opts[0];
@@ -2467,7 +2480,11 @@ function updateBall(dt) {
     else if (G.sp && G.sp.taker === o) { /* Ball liegt am Punkt */ }
     else {
       const sp = Math.hypot(o.vx, o.vy), lead = 0.45 + (o.sprint ? 0.45 : 0) + Math.sin(o.animT * 1.2) * 0.08 * Math.min(1, sp / 4);
-      b.x = o.x + o.hx * lead; b.y = o.y + o.hy * lead * 0.9; b.z = 0; b.vx = o.vx; b.vy = o.vy; b.vz = 0;
+      // weich am Fuß führen: der Ball läuft mit und dreht beim Richtungswechsel um den Spieler herum statt zu springen
+      const tx = o.x + o.hx * lead, ty = o.y + o.hy * lead * 0.9, k = Math.min(1, dt * (G.t - (o.gotT || 0) < 0.15 ? 60 : 16));
+      b.x += o.vx * dt; b.y += o.vy * dt; b.x += (tx - b.x) * k; b.y += (ty - b.y) * k;
+      if (Math.hypot(b.x - o.x, b.y - o.y) > 1.3) { b.x = tx; b.y = ty; }
+      b.z = 0; b.vx = o.vx; b.vy = o.vy; b.vz = 0;
       if (sp > 0.5) b.roll = (b.roll || 0) + sp * dt * 3;
     }
     return;

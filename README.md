@@ -55,6 +55,13 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 - **Aufstellung** (Formation, Startelf, Elfmeterschütze), Training mit Schwerpunkt, Vereinskasse (Eintritt, Bratwurst, Sponsoren, Prämien), Wechselbörse mit Handgeld
 - **Mehrere Saisons:** Spieler entwickeln sich, Ältere hängen die Schuhe an den Nagel, Junge kommen aus der A-Jugend
 - Jedes Spiel **selbst spielen, zuschauen oder simulieren**
+- **Derbys** gegen den Erzrivalen aus der eigenen Liga: mehr Stimmung, Prämie, eigene Schlagzeilen
+
+#### Motivation
+- **Drei Aufgaben pro Spiel** (zum Beispiel Kopfballtor, zu null spielen, Doppelpass), in der Saison mit Prämie
+- **24 Erfolge** und **Legenden-Punkte** mit Stufen, eigenes Menü
+- **Zeitlupe** kurz vor Toren, **Jubel selbst wählen** (Knie-Rutscher, Flieger, Becker-Faust), Banner für Doppelpass, Ausgespielt, Traumtor, Hattrick
+- **Ergebnis teilen:** Pixel-Zeitungsausschnitt aus dem Kreisblatt (1080 × 1080) fürs Handy oder als Download
 
 ### Steuerung
 

@@ -240,7 +240,11 @@ function updateBall(dt) {
     else if (G.sp && G.sp.taker === o) { /* Ball liegt am Punkt */ }
     else {
       const sp = Math.hypot(o.vx, o.vy), lead = 0.45 + (o.sprint ? 0.45 : 0) + Math.sin(o.animT * 1.2) * 0.08 * Math.min(1, sp / 4);
-      b.x = o.x + o.hx * lead; b.y = o.y + o.hy * lead * 0.9; b.z = 0; b.vx = o.vx; b.vy = o.vy; b.vz = 0;
+      // weich am Fuß führen: der Ball läuft mit und dreht beim Richtungswechsel um den Spieler herum statt zu springen
+      const tx = o.x + o.hx * lead, ty = o.y + o.hy * lead * 0.9, k = Math.min(1, dt * (G.t - (o.gotT || 0) < 0.15 ? 60 : 16));
+      b.x += o.vx * dt; b.y += o.vy * dt; b.x += (tx - b.x) * k; b.y += (ty - b.y) * k;
+      if (Math.hypot(b.x - o.x, b.y - o.y) > 1.3) { b.x = tx; b.y = ty; }
+      b.z = 0; b.vx = o.vx; b.vy = o.vy; b.vz = 0;
       if (sp > 0.5) b.roll = (b.roll || 0) + sp * dt * 3;
     }
     return;

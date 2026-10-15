@@ -52,13 +52,26 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
   }
   return best || (hasDir && cone > 0.2 ? choosePass(p, dx, dy, kind, 0.1) : hasDir ? choosePass(p, 0, 0, kind) : null);
 }
+// Abfanggefahr: erreicht ein Gegner die Passlinie, bevor der Ball dort ist? (flacher Pass, ca. 14 m/s)
+function interceptRisk(p, q, v = 14) {
+  const dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy) || 1;
+  let risk = 0;
+  for (const o of opps(p)) {
+    const t = clamp(((o.x - p.x) * dx + (o.y - p.y) * dy) / (L * L), 0, 1); if (t < 0.08) continue;
+    const cx = p.x + dx * t, cy = p.y + dy * t, dd = Math.hypot(o.x - cx, o.y - cy);
+    const tBall = t * L / v + 0.05, tOpp = Math.max(0, dd - 0.9) / maxSpeed(o, true) + (isGK(o) ? 0.1 : 0.22);
+    if (tOpp < tBall) risk = Math.max(risk, clamp((tBall - tOpp) / 0.4 + 0.4, 0, 1));
+  }
+  return risk;
+}
 // Wert eines Passes (auch für die KI): Raumgewinn, Freiheit des Empfängers, freie Passlinie, Abseits
 function passScore(p, q, kind) {
   const d = dist(p.x, p.y, q.x, q.y), gain = prog(p.team, q.x) - prog(p.team, p.x), open = Math.min(openness(q), 9), lane = laneOpen(p, q.x, q.y);
   let sc = gain * 3.2 + open * 0.11 + Math.min(lane, 4) * (kind === 'lob' ? 0.04 : 0.22) - Math.max(0, d - (kind === 'lob' ? 45 : 28)) * 0.05 - d * 0.004;
   if (G.offs === null && SETTINGS.offside) { const line = opps(p).map(o => prog(p.team, o.x)).sort((a, b) => b - a)[1] ?? 1; if (prog(p.team, q.x) > Math.max(line, prog(p.team, p.x), 0.5) + 0.003) sc -= 5; }
-  if (lane < 1.2 && kind !== 'lob') sc -= 1.5;
+  if (lane < 1.2 && kind !== 'lob') sc -= 2.4; else if (lane < 2 && kind !== 'lob') sc -= 0.6;   // zugestellte Passwege meiden
   if (inBox(1 - p.team, q.x, q.y)) sc += 0.35;
+  if (kind === 'pass') sc -= interceptRisk(p, q) * (prog(p.team, p.x) > 0.62 ? 1.4 : 3);   // vorne darf es riskanter sein
   return sc;
 }
 

@@ -145,8 +145,8 @@ function aiTeam(t, dt) {
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
       const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && own.team === G.human;
-      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.6 * G.diff.tackle : 2.2)) tackle(p, own);
-      else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.25 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
+      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.2 * G.diff.tackle : 1.3)) tackle(p, own);
+      else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.16 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
   }
 }
@@ -163,26 +163,26 @@ function carrierAI(p, dt) {
   p.think -= dt;
   const pr = pressure(p), d = dist(p.x, p.y, gx, MY);
   if (p.think > 0 && pr > 2.4) return dribble(p);
-  p.think = rnd(0.22, 0.5) * G.diff.think * (G.human >= 0 && t === G.human ? 1 : 1);
+  p.think = (pr > 4 ? rnd(0.5, 1.0) : pr > 2.4 ? rnd(0.3, 0.6) : rnd(0.18, 0.35)) * G.diff.think;   // mit Platz: Ball führen, Spiel aufbauen
   // Optionen bewerten
   const opts = [];
   const sq = shotQuality(p);
-  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 2.8 + (d < 11 ? 0.8 : d < 17 ? 0.45 : 0) - (d > 21 ? 0.6 : 0) });
+  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 3.1 + (d < 11 ? 0.9 : d < 17 ? 0.55 : d < 22 ? 0.1 : 0) - (d > 23 ? 0.6 : 0) + (inBox(1 - t, p.x, p.y) ? 0.25 : 0) });
   // Pässe
   let bp = null, bv = -1e9;
   for (const q of mates(p)) { if (isGK(q) && pr > 3) continue; const v = passScore(p, q, 'pass'); if (v > bv) { bv = v; bp = q; } }
-  if (bp) opts.push({ k: 'pass', q: bp, v: bv * 0.5 + 0.15 });
+  if (bp) opts.push({ k: 'pass', q: bp, v: bv * 0.5 + (pr < 2 ? 0.25 : 0.05) });
   // Steilpass auf einen Läufer
   for (const q of mates(p)) {
     if (!q.run || q.run.until < G.t || isGK(q)) continue;
     const onside = prog(t, q.x) <= offLine(t) + 0.002;
     if (!onside) continue;
-    const tx = q.x + s * 9, lane = laneOpen(p, tx, q.y, null);
-    if (lane > 1.5) opts.push({ k: 'through', q, v: 1.3 + prog(t, tx) * 0.6 + rnd(0, 0.3) });
+    const tx = q.x + s * 9, lane = laneOpen(p, tx, q.y, null), risk = interceptRisk(p, { x: tx, y: q.y }, 12);
+    if (lane > 1.6 && risk < 0.55) opts.push({ k: 'through', q, v: 1.35 + prog(t, tx) * 0.7 - risk * 0.8 + rnd(0, 0.3) });
   }
   // hoher Ball nach vorn, wenn flach alles zu ist
   const fwd = mates(p).filter(q => !isGK(q) && prog(t, q.x) > prog(t, p.x) + 0.15 && prog(t, q.x) <= offLine(t)).sort((a, c) => openness(c) - openness(a))[0];
-  if (fwd && pr < 3 && bv < 0.7 && openness(fwd) > 4.5) opts.push({ k: 'lob', q: fwd, v: 0.05 + Math.min(openness(fwd), 8) * 0.04 + (prog(t, p.x) < 0.3 ? 0.1 : 0) });
+  if (fwd && pr < 2.2 && bv < 0.3 && openness(fwd) > 7) opts.push({ k: 'lob', q: fwd, v: Math.min(openness(fwd), 10) * 0.03 + (prog(t, p.x) < 0.3 ? 0.1 : 0) });
   // Flanke
   if (Math.abs(p.y - MY) > 12 && Math.abs(p.x - gx) < 26) {
     const inB = mates(p).filter(q => !isGK(q) && Math.abs(q.x - gx) < 18 && Math.abs(q.y - MY) < 14).length;
@@ -190,9 +190,9 @@ function carrierAI(p, dt) {
   }
   // Dribbeln
   const space = spaceAhead(p);
-  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + 0.1 });
+  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen
   // Befreiungsschlag in Not
-  if (prog(t, p.x) < 0.2 && pr < 2.5) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
+  if (prog(t, p.x) < 0.18 && pr < 1.6 && bv < 0.4) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
   for (const o of opts) o.v += rnd(0, 0.35);
   opts.sort((a, c) => c.v - a.v);
   const o = opts[0];
