@@ -424,6 +424,56 @@ test('Tor: Jubel, Wiederholung, Anstoß für den Gegner; Pfosten prallt ab', asy
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Vereinsstärke: alle starten gleich stark, nach einer Saison haben sich die Vereine auseinanderentwickelt', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const ids = []; for (let i = 0; i < TEAMS.length; i += Math.floor(TEAMS.length / 40)) ids.push(i);
+    const ovr = ids.map(teamOvr), out = { min: Math.min(...ovr), max: Math.max(...ovr), base: TEAMS.every(t => t.r === KL_BASE) };
+    ACT.career(); ACT.ncGo(); let n = 0; while (!CAREER.S.done && n < 120) { runEvent(null); n++; }
+    ACT.cseason();
+    const lv = Object.values(CAREER.lvl || {}); out.lvMin = Math.min(...lv); out.lvMax = Math.max(...lv);
+    const str = LIGEN[CAREER.lg].ids.map(squadStr); out.sMin = Math.min(...str); out.sMax = Math.max(...str);
+    return out;
+  });
+  ok(r.base && r.max - r.min <= 2, 'Startstärken unterschiedlich: ' + JSON.stringify(r));
+  ok(r.lvMax - r.lvMin >= 2, 'Vereinsniveau entwickelt sich nicht: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Kopfball: Flanke auf deinen Stürmer im Strafraum, er läuft hin und köpft von selbst aufs Tor', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; let shots = 0, tries = 0;
+    for (let k = 0; k < 8; k++) {
+      startMatch(L[0], L[4], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null; for (const kk in KEY) KEY[kk] = false;
+      const s = atkDir(0), gx = goalX(0), wing = teamP(0).find(q => grpOf(q) === 'MF'), st = teamP(0).find(q => grpOf(q) === 'ST');
+      for (const q of G.players) if (!isGK(q)) place(q, q.team ? gx - s * 3 : CW / 2 - s * 20, q.team ? 3 : CH - 5);   // Gegner weit weg, aber kein Abseits
+      place(wing, gx - s * 14, MY + 26); giveBall(wing, true); place(st, gx - s * 10, MY - 1); G.ctrl = wing; cross(wing, 0); tries++;
+      const sh0 = G.stats.shots[0]; let hd = false;
+      for (let i = 0; i < 200 && G.phase === 'play'; i++) { readInput(1 / 60); step(1 / 60); if (G.ball.shot && G.ball.shot.header && G.ball.shot.team === 0) hd = true; }
+      if (hd && G.stats.shots[0] > sh0) shots++;
+    }
+    return { shots, tries };
+  });
+  ok(r.shots >= 5, `nur ${r.shots} von ${r.tries} Flanken wurden zum Kopfball aufs Tor`);
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Touch: Knöpfe verdecken das Tor nicht, die Kamera schwenkt am Tor weiter hinaus', async () => {
+  const { page, ctx, errors } = await open(MOBILE);
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; startMatch(L[0], L[1], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    document.body.classList.add('ingame');
+    const [lo, hi] = camLimits(), cr = cv.getBoundingClientRect(), k = cr.width / W;
+    CAMX = hi; const goalRight = cr.left + sx(CW + NET_D, GY2) * k;
+    const btnLeft = Math.min(...[...document.querySelectorAll('#pad .tb[data-k]')].filter(e => { const q = e.getBoundingClientRect(); return q.width && q.bottom > cr.top + sy(GY1, GH) * k && q.top < cr.top + sy(GY2) * k; }).map(e => e.getBoundingClientRect().left));
+    return { lo, hi, std: [VIEW_HALF - 6, CW - VIEW_HALF + 6], goalRight, btnLeft };
+  });
+  ok(r.hi > r.std[1], 'Kamera schwenkt am rechten Tor nicht weiter: ' + JSON.stringify(r));
+  ok(!(r.btnLeft < Infinity) || r.goalRight <= r.btnLeft, 'Tor unter den Knöpfen: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('K.-o.-Spiel: Unentschieden führt zum Elfmeterschießen mit Sieger; Finale mit Verlängerung', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(RUN_MATCH);

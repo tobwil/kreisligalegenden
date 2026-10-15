@@ -37,7 +37,7 @@ function mapCenter(v) {
 }
 // Auswahl auf einen Verein stellen (zeigt dessen Liga)
 function pkFocus(tid) { const L = ligaOf(tid); PK.v = L.v; PK.k = L.kreis; PK.l = TEAMS[tid].lg; PK.q = ''; }
-const teamTile = (T, extra = '') => `<button class="tbtn ${PK.sel[0] === T.id ? 'sel-a' : ''} ${PK.sel[1] === T.id ? 'sel-b' : ''}" data-act="${PK.act}" data-arg="${T.id}" ${extra}><img src="${iconURL(T.home)}" alt=""><b>${esc(T.k)}</b><small>${esc(T.short)}</small>${starHTML(stars(teamOvr(T.id)))}</button>`;
+const teamTile = (T, extra = '') => `<button class="tbtn ${PK.sel[0] === T.id ? 'sel-a' : ''} ${PK.sel[1] === T.id ? 'sel-b' : ''}" data-act="${PK.act}" data-arg="${T.id}" ${extra}><img src="${iconURL(T.home)}" alt=""><b>${esc(T.k)}</b><small>${esc(T.short)}</small></button>`;
 function pickerHTML() {
   const crumbs = [`<button class="small crumb ${PK.v == null ? 'on' : ''}" data-act="pkTop">DEUTSCHLAND</button>`];
   if (PK.v != null) crumbs.push(`<button class="small crumb ${PK.k == null ? 'on' : ''}" data-act="pkV" data-arg="${PK.v}">${esc(VERB[PK.v].n.toUpperCase())}</button>`);

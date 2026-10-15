@@ -445,6 +445,7 @@ function track(name, data) {
 // Muster: 0 einfarbig, 1 Längsstreifen, 2 Ringel, 3 Brustring. Platzart: 0 Rasen, 1 Kunstrasen, 2 Hartplatz (Asche)
 const GROUNDS = ['RASEN', 'KUNSTRASEN', 'HARTPLATZ'];
 // Kreis Coburg/Kronach/Lichtenfels: von Hand gestaltet [Ortsteil im Namen, Kürzel, Name, Kurzname, Farbe 1, Farbe 2, Stärke, Platz, Muster]
+const KL_BASE = 64;   // Startstärke jedes Vereins: die echten Tabellen sagen zu wenig, in der Saison entwickeln sich die Vereine auseinander
 const HANDMADE = { 'Coburg': [
   ['Staffelstein', 'STA', 'TSV 1860 Staffelstein', 'Staffelstein', '#c8102e', '#ffffff', 74, 0, 0], ['Krecktal', 'KRE', 'FC Krecktal', 'Krecktal', '#0b3d91', '#ffffff', 69, 1, 1],
   ['Einberg', 'EIN', 'VfB Einberg', 'Einberg', '#ffffff', '#c8102e', 69, 2, 3], ['Lichtenfels II', 'LIC', '1. FC Lichtenfels II', 'Lichtenfels II', '#d71920', '#1a1a1a', 68, 1, 0],
@@ -525,16 +526,17 @@ for (const [vid, vn, kl, kreise] of VDB) {
         const c = tx.lastIndexOf(':'), n = tx.slice(0, c), ppg = tx.slice(c + 1), r = seeded(hashStr(n + vid));
         const hm = hand && HANDMADE[hand].find(h => n.includes(h[0]) && !used.has(h[1]));
         let t;
-        if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: hm[6], ground: hm[7], pat: hm[8] }; }
+        if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: KL_BASE, ground: hm[7], pat: hm[8] }; }
         else {
           let s = shortName(n); if (shorts.has(s)) s = n.length > 16 ? n.slice(0, 15) + '.' : n;
           const [c1, c2] = kitFromName(n, r), q = r();
-          const rating = ppg === '' ? 60 + ((r() * 8) | 0) : clamp(Math.round(56 + +ppg * 0.6 + (r() - 0.5) * 3), 55, 76);
+          void ppg;   // Punkte pro Spiel aus der echten Tabelle: bewusst ungenutzt, alle Vereine starten gleich stark
+          const rating = KL_BASE;
           const g = r(), ash = ASCHE[vid] || 0.1, kr = CITY[vid] ? 0.6 : 0.28;
           t = { k: uniqueK(s, used), n, short: s, c1, c2, r: rating, ground: g < ash ? 2 : g < ash + kr ? 1 : 0, pat: q < 0.6 ? 0 : q < 0.75 ? 1 : q < 0.9 ? 2 : 3 };
         }
         shorts.add(t.short);
-        t.lg = li; t.att = Math.round(t.r + (r() - 0.5) * 8); t.def = Math.round(t.r + (r() - 0.5) * 8);
+        t.lg = li; t.att = t.def = t.r;
         L.ids.push(addTeam(t).id);
       }
     }
@@ -600,12 +602,18 @@ function makePlayer18(r, grp, lvl, used, nums, tid) {
   p.ovr = ovr(p);
   return p;
 }
+// Kader eines Vereins: einzelne Spieler unterschiedlich, die Startelf im Schnitt genau so stark wie der Verein (alle gleich zu Beginn)
 function roster(tid) {
   const t = TEAMS[tid], r = seeded(hashStr(t.n + '#kader')), used = new Set(), nums = new Set();
-  return SQUAD_GRPS.map((grp, i) => {
+  const ro = SQUAD_GRPS.map((grp, i) => {
     const lvl = (grp === 'TW' ? t.def : grp === 'AB' ? t.def : grp === 'ST' ? t.att : (t.att + t.def) / 2) - (i >= 11 ? 6 : 0) + (i === 9 ? 3 : 0);
     return makePlayer18(r, grp, lvl, used, nums, tid);
   });
+  for (let k = 0; k < 3; k++) {
+    const d = t.r + 0.4 - ro.slice(0, 11).reduce((s, p) => s + p.ovr, 0) / 11; if (Math.abs(d) < 0.5) break;
+    for (const p of ro) { for (const a of ATTRS) p[a] = clamp(Math.round(p[a] + d), 20, 97); p.ovr = ovr(p); }
+  }
+  return ro;
 }
 const teamOvr = tid => { const ro = roster(tid).slice(0, 11); return Math.round(ro.reduce((s, p) => s + p.ovr, 0) / 11); };
 const stars = v => clamp(Math.round((v - 50) / 6), 1, 5);   // Stärke als 1 bis 5 Sterne
@@ -1779,7 +1787,7 @@ function shoot(p, power, aimY, o = {}) {
   if (o.chip) { const side = Math.abs(ty - MY) > 1 ? Math.sign(ty - MY) : 0; ty = MY + side * 1.6; tz = 1.75; }                       // Heber: unter die Latte
   if (power > 0.93 && !o.pen && !o.target && !o.finesse && !o.chip) tz += (power - 0.93) * 12;   // überzogen: drüber
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
-  let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.5 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
+  let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.3 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
   if (p.team === G.human && !G.watch) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
   if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
@@ -1816,7 +1824,9 @@ function header(p, wantShot) {
   const b = G.ball, gx = goalX(p.team), d = dist(p.x, p.y, gx, MY), s = atkDir(p.team);
   p.vz = Math.max(p.vz, 2.6); p.z = Math.max(p.z, 0.05);
   const front = (gx - p.x) * s > 0, angOk = Math.abs(p.y - MY) < d * 0.9;
-  if ((wantShot || (p.team !== G.human || G.ctrl !== p)) && d < 17 && front && angOk && (wantShot || Math.random() < 0.85)) {
+  // dein Spieler köpft im Strafraum von selbst aufs Tor (wie bei ISS), mit Pass vorgemerkt legt er stattdessen ab
+  const mine = isHumanCtrl(p), layOff = mine && p.queue && p.queue.k === 'pass' && G.t - p.queue.t < 1.5;
+  if (!layOff && (wantShot || mine || p.team !== G.human || G.ctrl !== p) && d < 17 && front && angOk && (wantShot || mine || Math.random() < 0.85)) {
     shoot(p, 0.5, p.team === G.human && G.ctrl === p && Math.abs(IN.y) > 0.25 ? IN.y : null, { header: true }); return;
   }
   AU.header();
@@ -2256,7 +2266,6 @@ function planSave(g) {
   let ok = false, catchIt = false;
   if (lat <= reach && hz < 2.65 && (onT || lat < 1.2)) {
     let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
-    if (sh && sh.header) pr += 0.05;
     if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
     if (sh && sh.finesse && lat > 1.6) pr -= 0.18;           // Schlenzer an den Innenpfosten
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
@@ -2617,7 +2626,7 @@ function checkBlocks() {
 }
 // freier Ball: wer bekommt ihn?
 // läuft gerade ein Pass genau zu diesem Spieler?
-const passIncoming = p => { const b = G.ball; return !b.owner && b.passTo === p && p.recv && p.recv.fid === b.fid && ['pass', 'through', 'throw', 'lob'].includes(b.kind); };
+const passIncoming = p => { const b = G.ball; return !b.owner && b.passTo === p && p.recv && p.recv.fid === b.fid && ['pass', 'through', 'throw', 'lob', 'cross'].includes(b.kind); };
 // Pass-Hilfe: flache Pässe ziehen auf den letzten Metern leicht zum Empfänger (gleicht kleine Ungenauigkeiten aus)
 function passAssist(dt) {
   const b = G.ball, q = b.passTo; if (!q || !passIncoming(q) || b.z > 0.6 || q.off) return;
@@ -2649,7 +2658,7 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? 1.1 : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
     if (d < r && !mine && missesPass(p)) continue;
@@ -3106,15 +3115,41 @@ function dogItem(dt) {
 function camTarget() {
   const b = G.ball;
   let x = b.x, y = b.y;
-  if (b.owner && G.phase === 'play') x += atkDir(b.owner.team) * 5 + b.owner.vx * 0.3;
-  else if (!b.owner) x += b.vx * 0.25;
+  if (b.owner && G.phase === 'play') {
+    let lead = atkDir(b.owner.team) * 5;
+    // Touch: nahe einem Tor zeigt der Vorlauf immer zu diesem Tor, sonst bliebe es unter den Knöpfen (wie bei Hallen-Legenden)
+    if (touchPad()) lead = lerp(lead, Math.sign(b.x - CW / 2) * 5, clamp((Math.abs(b.x - CW / 2) - 22) / 12, 0, 1));
+    x += lead + b.owner.vx * 0.3;
+  } else if (!b.owner) x += b.vx * 0.25;
   if (G.phase === 'goal' && G.scorer) { x = lerp(b.x, G.scorer.x, 0.5); y = G.scorer.y; }
-  const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
+  const [lo, hi] = camLimits();
   return [clamp(x, lo, hi), y];
+}
+// Kamera-Anschlag: am Desktop wie im Fernsehen kurz hinter der Torlinie. Auf dem Handy darf die Kamera so weit über das Spielfeld
+// hinaus schwenken, dass beide Tore samt Netz neben den Knöpfen (rechts) und dem Stick (links) liegen; gemessen an den echten Knöpfen.
+const touchPad = () => TOUCHDEV && document.body.classList.contains('touch') && document.body.classList.contains('ingame');
+let CAMLIM = { key: '' };
+for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { CAMLIM = { key: '' }; });
+function camLimits() {
+  const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
+  if (!touchPad()) return [lo, hi];
+  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}`;
+  if (CAMLIM.key === key && performance.now() - CAMLIM.t < 1000) return CAMLIM.v;
+  const pad = document.getElementById('pad'), cr = cv.getBoundingClientRect();
+  if (!pad || !pad.getBoundingClientRect().width || !cr.width) return [lo, hi];
+  const k = cr.width / W, kk = kOf(GY2), M = 6, back = NET_D + 0.6;
+  const top = cr.top + sy(GY1, GH + 0.6) * k, bot = cr.top + sy(GY2) * k;              // Tor auf dem Bildschirm, Latte bis Boden
+  const onGoal = q => q.width && q.bottom > top && q.top < bot;
+  const btn = [...pad.querySelectorAll('.tb[data-k]')].map(e => e.getBoundingClientRect()).filter(onGoal), st = document.getElementById('stick').getBoundingClientRect();
+  let l = lo, h = hi;
+  if (btn.length) { const T = (Math.min(...btn.map(q => q.left)) - cr.left) / k - M; h = Math.max(hi, CW + back - (T - W / 2) / (PX * kk)); }
+  if (onGoal(st)) { const T = (st.right - cr.left) / k + M; l = Math.min(lo, -back - (T - W / 2) / (PX * kk)); }
+  CAMLIM = { key, t: performance.now(), v: [l, h] };
+  return CAMLIM.v;
 }
 function render() {
   const now = performance.now(), dt = Math.min(0.05, (now - (G.lastR || now)) / 1000); G.lastR = now;
-  const [tx, ty] = G.phase === 'replay' && G.replay ? [clamp(G.ball.x, VIEW_HALF - 6, CW - VIEW_HALF + 6), G.ball.y] : camTarget();
+  const [tx, ty] = G.phase === 'replay' && G.replay ? [clamp(G.ball.x, ...camLimits()), G.ball.y] : camTarget();
   const k = Math.min(1, dt * (G.phase === 'replay' ? 5 : 2.6));
   if (G.camSnap) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; }
   G.cam.x = lerp(G.cam.x, tx, k); G.cam.y = lerp(G.cam.y, ty, Math.min(1, dt * 1.8));
@@ -3646,6 +3681,9 @@ function ensureSquad(tid) {
   if (!CAREER.squads[tid]) CAREER.squads[tid] = roster(tid).map(p => careerize(p, tid));
   return CAREER.squads[tid];
 }
+// Vereinsniveau: alle starten gleich, danach zieht Erfolg bessere Spieler an (Platzierung, Zugänge, Abgänge, A-Jugend)
+const clubLvl = tid => (CAREER.lvl && CAREER.lvl[tid]) ?? TEAMS[tid].r;
+function lift(sq, d) { for (const p of sq) { for (const a of ATTRS) if (a !== 'tw' || p.grp === 'TW') p[a] = clamp(Math.round(p[a] + d), 20, 97); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr); } }
 const playerById = pid => { for (const k in CAREER.squads) { const p = CAREER.squads[k].find(q => q.pid === pid); if (p) return p; } return null; };
 function genPlayer(grp, lvl, age, tid) {
   const used = new Set((CAREER.squads[tid] || []).map(q => q.name)), nums = new Set((CAREER.squads[tid] || []).map(q => q.num));
@@ -3723,10 +3761,11 @@ function newSeason() {
     S.cal.push({ t: 'lg', md: md + 1, games });
   }
   drawCup();
-  // Ziel des Vorstands nach Kaderstärke im Liga-Vergleich
+  // Ziel des Vorstands nach Kaderstärke im Liga-Vergleich (erste Saison: alle gleich stark, also obere Tabellenhälfte)
   const ids = LIGEN[C.lg].ids, n = ids.length, rank = ids.slice().sort((a, b) => squadStr(b) - squadStr(a)).indexOf(C.team);
   const top = Math.ceil(n / 3), mid = Math.ceil(n * 2 / 3);
-  S.goal = rank < 2 ? { k: 'champ', txt: 'Meisterschaft' } : rank < top + 1 ? { k: 'top', v: top, txt: `Platz 1 bis ${top}` } : rank < mid + 1 ? { k: 'mid', v: mid, txt: `Platz 1 bis ${mid}` } : { k: 'stay', v: n - 2, txt: `Klassenerhalt (Platz ${n - 2} oder besser)` };
+  if (!C.seasonsPlayed) S.goal = { k: 'top', v: Math.ceil(n / 2), txt: `Obere Tabellenhälfte (Platz 1 bis ${Math.ceil(n / 2)})` };
+  else S.goal = rank < 2 ? { k: 'champ', txt: 'Meisterschaft' } : rank < top + 1 ? { k: 'top', v: top, txt: `Platz 1 bis ${top}` } : rank < mid + 1 ? { k: 'mid', v: mid, txt: `Platz 1 bis ${mid}` } : { k: 'stay', v: n - 2, txt: `Klassenerhalt (Platz ${n - 2} oder besser)` };
   for (const sq of Object.values(C.squads)) for (const p of sq) { p.ss = newSS(); p.ycs = 0; }
 }
 // Kreispokal: alle Vereine der mitlaufenden Ligen (höchstens 32), Freilose in Runde 1, Runden zwischen den Spieltagen
@@ -3900,8 +3939,8 @@ function farChampions(n) {
   for (let pass = 0; out.length < n && pass < 4; pass++) for (const vi of vs) {
     if (out.length >= n) break;
     const ks = VERB[vi].kreise.filter(k => k !== myK && !out.some(t => LIGEN[TEAMS[t].lg].kreis === k)); if (!ks.length) continue;
-    const K = KREISE[pick(ks)], ids = LIGEN[pick(K.ligen)].ids.slice().sort((a, b) => TEAMS[b].r - TEAMS[a].r).slice(0, 3);
-    out.push(Math.random() < 0.6 ? ids[0] : pick(ids));
+    const K = KREISE[pick(ks)];
+    out.push(pick(LIGEN[pick(K.ligen)].ids));
   }
   return out;
 }
@@ -3912,6 +3951,7 @@ function startPlayoffs() {
   const others = farChampions(16 - champs.length);
   const teams = shuffle(champs.concat(others));
   for (const tid of teams) ensureSquad(tid);
+  for (const tid of others) lift(ensureSquad(tid), 3);   // Kreismeister von weit her: eine Saison lang die Besten ihrer Liga
   S.po = { teams, rounds: [[], [], [], []], champ: null };
   for (let i = 0; i < 16; i += 2) S.po.rounds[0].push({ a: teams[i], b: teams[i + 1], w: null });
   for (let r = 0; r < 4; r++) S.cal.push({ t: 'po', r });
@@ -4003,6 +4043,21 @@ function endSeason() {
   const keep = new Set(klTeams());
   for (const tid of Object.keys(C.squads)) if (!keep.has(+tid)) delete C.squads[tid];
   C.money += 1500;   // Sponsor (Metzgerei, Autohaus) für die neue Saison
+  // Vereine entwickeln sich: oben stehen lockt Spieler an, unten laufen sie weg
+  C.lvl = C.lvl || {}; const moves = [];
+  for (const li of C.kl) {
+    const st = standings(li), n = st.length;
+    st.forEach((tid, i) => {
+      const d = (i === 0 ? 2.5 : i < 3 ? 1.2 : i >= n - 2 ? -1.8 : i >= n - 4 ? -0.8 : 0) + rnd(-1.5, 1.5);
+      C.lvl[tid] = clamp(clubLvl(tid) + d, 56, 74);
+      if (tid === C.team) return;
+      const sq = C.squads[tid]; if (!sq) return;
+      if (d > 0.8) { for (let k = 0; k < (d > 2 ? 2 : 1); k++) sq.push(genPlayer(needGrp(sq), C.lvl[tid] + rnd(0, 5), 21 + ((Math.random() * 8) | 0), tid)); if (i < 3) moves.push(`${TEAMS[tid].short} rüstet auf`); }
+      if (d < -0.8) { const best = sq.filter(p => p.grp !== 'TW').sort((a, b) => b.ovr - a.ovr)[0]; if (best && Math.random() < 0.6) { sq.splice(sq.indexOf(best), 1); if (i >= n - 2) moves.push(`${TEAMS[tid].short} verliert ${best.name}`); } }
+      while (sq.length > 20) sq.splice(sq.indexOf(sq.slice().sort((a, b) => a.ovr - b.ovr)[0]), 1);
+    });
+  }
+  if (moves.length) news('Sommerpause', 'Bewegung in der Liga', moves.slice(0, 6).join('. ') + '.');
   const out = [];
   for (const [tid, sq] of Object.entries(C.squads)) {
     const mine = +tid === C.team, keep = [];
@@ -4021,7 +4076,7 @@ function endSeason() {
     }
     C.squads[tid] = keep;
     // Nachwuchs aus der A-Jugend auffüllen
-    const base = TEAMS[tid].r;
+    const base = clubLvl(+tid);
     while (C.squads[tid].length < 18) { const grpNeed = needGrp(C.squads[tid]); C.squads[tid].push(genPlayer(grpNeed, base - 8 + rnd(-3, 4), 17 + ((Math.random() * 3) | 0), +tid)); }
   }
   if (out.length) news('Abgänge', `${out.length} Abgang${out.length > 1 ? 'e' : ''} im Kader`, out.map(o => `${o.p.name} ${o.why}`).join('. ') + '.');
@@ -4052,7 +4107,7 @@ function buyPlayer(i) {
   const used = new Set(C.squads[C.team].map(q => q.num)); if (used.has(p.num)) { let n = 2; while (used.has(n)) n++; p.num = n; }
   p.tid = C.team; C.squads[C.team].push(p); C.market.splice(i, 1);
   // der abgebende Verein holt Ersatz aus der Jugend
-  C.squads[m.from].push(genPlayer(p.grp, TEAMS[m.from].r - 6, 18, m.from));
+  C.squads[m.from].push(genPlayer(p.grp, clubLvl(m.from) - 6, 18, m.from));
   news('Wechsel', `${p.name} kommt!`, `${p.name} (${GRP_N[p.grp]}, ${p.age}) wechselt von ${TEAMS[m.from].short} zu uns. Handgeld: ${fmtMoney(m.fee)}.`, 'money');
   saveCareer(); return '';
 }
@@ -4459,7 +4514,7 @@ function mapCenter(v) {
 }
 // Auswahl auf einen Verein stellen (zeigt dessen Liga)
 function pkFocus(tid) { const L = ligaOf(tid); PK.v = L.v; PK.k = L.kreis; PK.l = TEAMS[tid].lg; PK.q = ''; }
-const teamTile = (T, extra = '') => `<button class="tbtn ${PK.sel[0] === T.id ? 'sel-a' : ''} ${PK.sel[1] === T.id ? 'sel-b' : ''}" data-act="${PK.act}" data-arg="${T.id}" ${extra}><img src="${iconURL(T.home)}" alt=""><b>${esc(T.k)}</b><small>${esc(T.short)}</small>${starHTML(stars(teamOvr(T.id)))}</button>`;
+const teamTile = (T, extra = '') => `<button class="tbtn ${PK.sel[0] === T.id ? 'sel-a' : ''} ${PK.sel[1] === T.id ? 'sel-b' : ''}" data-act="${PK.act}" data-arg="${T.id}" ${extra}><img src="${iconURL(T.home)}" alt=""><b>${esc(T.k)}</b><small>${esc(T.short)}</small></button>`;
 function pickerHTML() {
   const crumbs = [`<button class="small crumb ${PK.v == null ? 'on' : ''}" data-act="pkTop">DEUTSCHLAND</button>`];
   if (PK.v != null) crumbs.push(`<button class="small crumb ${PK.k == null ? 'on' : ''}" data-act="pkV" data-arg="${PK.v}">${esc(VERB[PK.v].n.toUpperCase())}</button>`);

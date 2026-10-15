@@ -3,15 +3,41 @@
 function camTarget() {
   const b = G.ball;
   let x = b.x, y = b.y;
-  if (b.owner && G.phase === 'play') x += atkDir(b.owner.team) * 5 + b.owner.vx * 0.3;
-  else if (!b.owner) x += b.vx * 0.25;
+  if (b.owner && G.phase === 'play') {
+    let lead = atkDir(b.owner.team) * 5;
+    // Touch: nahe einem Tor zeigt der Vorlauf immer zu diesem Tor, sonst bliebe es unter den Knöpfen (wie bei Hallen-Legenden)
+    if (touchPad()) lead = lerp(lead, Math.sign(b.x - CW / 2) * 5, clamp((Math.abs(b.x - CW / 2) - 22) / 12, 0, 1));
+    x += lead + b.owner.vx * 0.3;
+  } else if (!b.owner) x += b.vx * 0.25;
   if (G.phase === 'goal' && G.scorer) { x = lerp(b.x, G.scorer.x, 0.5); y = G.scorer.y; }
-  const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
+  const [lo, hi] = camLimits();
   return [clamp(x, lo, hi), y];
+}
+// Kamera-Anschlag: am Desktop wie im Fernsehen kurz hinter der Torlinie. Auf dem Handy darf die Kamera so weit über das Spielfeld
+// hinaus schwenken, dass beide Tore samt Netz neben den Knöpfen (rechts) und dem Stick (links) liegen; gemessen an den echten Knöpfen.
+const touchPad = () => TOUCHDEV && document.body.classList.contains('touch') && document.body.classList.contains('ingame');
+let CAMLIM = { key: '' };
+for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { CAMLIM = { key: '' }; });
+function camLimits() {
+  const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
+  if (!touchPad()) return [lo, hi];
+  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}`;
+  if (CAMLIM.key === key && performance.now() - CAMLIM.t < 1000) return CAMLIM.v;
+  const pad = document.getElementById('pad'), cr = cv.getBoundingClientRect();
+  if (!pad || !pad.getBoundingClientRect().width || !cr.width) return [lo, hi];
+  const k = cr.width / W, kk = kOf(GY2), M = 6, back = NET_D + 0.6;
+  const top = cr.top + sy(GY1, GH + 0.6) * k, bot = cr.top + sy(GY2) * k;              // Tor auf dem Bildschirm, Latte bis Boden
+  const onGoal = q => q.width && q.bottom > top && q.top < bot;
+  const btn = [...pad.querySelectorAll('.tb[data-k]')].map(e => e.getBoundingClientRect()).filter(onGoal), st = document.getElementById('stick').getBoundingClientRect();
+  let l = lo, h = hi;
+  if (btn.length) { const T = (Math.min(...btn.map(q => q.left)) - cr.left) / k - M; h = Math.max(hi, CW + back - (T - W / 2) / (PX * kk)); }
+  if (onGoal(st)) { const T = (st.right - cr.left) / k + M; l = Math.min(lo, -back - (T - W / 2) / (PX * kk)); }
+  CAMLIM = { key, t: performance.now(), v: [l, h] };
+  return CAMLIM.v;
 }
 function render() {
   const now = performance.now(), dt = Math.min(0.05, (now - (G.lastR || now)) / 1000); G.lastR = now;
-  const [tx, ty] = G.phase === 'replay' && G.replay ? [clamp(G.ball.x, VIEW_HALF - 6, CW - VIEW_HALF + 6), G.ball.y] : camTarget();
+  const [tx, ty] = G.phase === 'replay' && G.replay ? [clamp(G.ball.x, ...camLimits()), G.ball.y] : camTarget();
   const k = Math.min(1, dt * (G.phase === 'replay' ? 5 : 2.6));
   if (G.camSnap) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; }
   G.cam.x = lerp(G.cam.x, tx, k); G.cam.y = lerp(G.cam.y, ty, Math.min(1, dt * 1.8));

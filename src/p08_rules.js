@@ -339,7 +339,7 @@ function checkBlocks() {
 }
 // freier Ball: wer bekommt ihn?
 // läuft gerade ein Pass genau zu diesem Spieler?
-const passIncoming = p => { const b = G.ball; return !b.owner && b.passTo === p && p.recv && p.recv.fid === b.fid && ['pass', 'through', 'throw', 'lob'].includes(b.kind); };
+const passIncoming = p => { const b = G.ball; return !b.owner && b.passTo === p && p.recv && p.recv.fid === b.fid && ['pass', 'through', 'throw', 'lob', 'cross'].includes(b.kind); };
 // Pass-Hilfe: flache Pässe ziehen auf den letzten Metern leicht zum Empfänger (gleicht kleine Ungenauigkeiten aus)
 function passAssist(dt) {
   const b = G.ball, q = b.passTo; if (!q || !passIncoming(q) || b.z > 0.6 || q.off) return;
@@ -371,7 +371,7 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? 1.1 : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
     if (d < r && !mine && missesPass(p)) continue;

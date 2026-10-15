@@ -29,6 +29,9 @@ function ensureSquad(tid) {
   if (!CAREER.squads[tid]) CAREER.squads[tid] = roster(tid).map(p => careerize(p, tid));
   return CAREER.squads[tid];
 }
+// Vereinsniveau: alle starten gleich, danach zieht Erfolg bessere Spieler an (Platzierung, Zugänge, Abgänge, A-Jugend)
+const clubLvl = tid => (CAREER.lvl && CAREER.lvl[tid]) ?? TEAMS[tid].r;
+function lift(sq, d) { for (const p of sq) { for (const a of ATTRS) if (a !== 'tw' || p.grp === 'TW') p[a] = clamp(Math.round(p[a] + d), 20, 97); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr); } }
 const playerById = pid => { for (const k in CAREER.squads) { const p = CAREER.squads[k].find(q => q.pid === pid); if (p) return p; } return null; };
 function genPlayer(grp, lvl, age, tid) {
   const used = new Set((CAREER.squads[tid] || []).map(q => q.name)), nums = new Set((CAREER.squads[tid] || []).map(q => q.num));
@@ -106,10 +109,11 @@ function newSeason() {
     S.cal.push({ t: 'lg', md: md + 1, games });
   }
   drawCup();
-  // Ziel des Vorstands nach Kaderstärke im Liga-Vergleich
+  // Ziel des Vorstands nach Kaderstärke im Liga-Vergleich (erste Saison: alle gleich stark, also obere Tabellenhälfte)
   const ids = LIGEN[C.lg].ids, n = ids.length, rank = ids.slice().sort((a, b) => squadStr(b) - squadStr(a)).indexOf(C.team);
   const top = Math.ceil(n / 3), mid = Math.ceil(n * 2 / 3);
-  S.goal = rank < 2 ? { k: 'champ', txt: 'Meisterschaft' } : rank < top + 1 ? { k: 'top', v: top, txt: `Platz 1 bis ${top}` } : rank < mid + 1 ? { k: 'mid', v: mid, txt: `Platz 1 bis ${mid}` } : { k: 'stay', v: n - 2, txt: `Klassenerhalt (Platz ${n - 2} oder besser)` };
+  if (!C.seasonsPlayed) S.goal = { k: 'top', v: Math.ceil(n / 2), txt: `Obere Tabellenhälfte (Platz 1 bis ${Math.ceil(n / 2)})` };
+  else S.goal = rank < 2 ? { k: 'champ', txt: 'Meisterschaft' } : rank < top + 1 ? { k: 'top', v: top, txt: `Platz 1 bis ${top}` } : rank < mid + 1 ? { k: 'mid', v: mid, txt: `Platz 1 bis ${mid}` } : { k: 'stay', v: n - 2, txt: `Klassenerhalt (Platz ${n - 2} oder besser)` };
   for (const sq of Object.values(C.squads)) for (const p of sq) { p.ss = newSS(); p.ycs = 0; }
 }
 // Kreispokal: alle Vereine der mitlaufenden Ligen (höchstens 32), Freilose in Runde 1, Runden zwischen den Spieltagen
@@ -283,8 +287,8 @@ function farChampions(n) {
   for (let pass = 0; out.length < n && pass < 4; pass++) for (const vi of vs) {
     if (out.length >= n) break;
     const ks = VERB[vi].kreise.filter(k => k !== myK && !out.some(t => LIGEN[TEAMS[t].lg].kreis === k)); if (!ks.length) continue;
-    const K = KREISE[pick(ks)], ids = LIGEN[pick(K.ligen)].ids.slice().sort((a, b) => TEAMS[b].r - TEAMS[a].r).slice(0, 3);
-    out.push(Math.random() < 0.6 ? ids[0] : pick(ids));
+    const K = KREISE[pick(ks)];
+    out.push(pick(LIGEN[pick(K.ligen)].ids));
   }
   return out;
 }
@@ -295,6 +299,7 @@ function startPlayoffs() {
   const others = farChampions(16 - champs.length);
   const teams = shuffle(champs.concat(others));
   for (const tid of teams) ensureSquad(tid);
+  for (const tid of others) lift(ensureSquad(tid), 3);   // Kreismeister von weit her: eine Saison lang die Besten ihrer Liga
   S.po = { teams, rounds: [[], [], [], []], champ: null };
   for (let i = 0; i < 16; i += 2) S.po.rounds[0].push({ a: teams[i], b: teams[i + 1], w: null });
   for (let r = 0; r < 4; r++) S.cal.push({ t: 'po', r });
@@ -386,6 +391,21 @@ function endSeason() {
   const keep = new Set(klTeams());
   for (const tid of Object.keys(C.squads)) if (!keep.has(+tid)) delete C.squads[tid];
   C.money += 1500;   // Sponsor (Metzgerei, Autohaus) für die neue Saison
+  // Vereine entwickeln sich: oben stehen lockt Spieler an, unten laufen sie weg
+  C.lvl = C.lvl || {}; const moves = [];
+  for (const li of C.kl) {
+    const st = standings(li), n = st.length;
+    st.forEach((tid, i) => {
+      const d = (i === 0 ? 2.5 : i < 3 ? 1.2 : i >= n - 2 ? -1.8 : i >= n - 4 ? -0.8 : 0) + rnd(-1.5, 1.5);
+      C.lvl[tid] = clamp(clubLvl(tid) + d, 56, 74);
+      if (tid === C.team) return;
+      const sq = C.squads[tid]; if (!sq) return;
+      if (d > 0.8) { for (let k = 0; k < (d > 2 ? 2 : 1); k++) sq.push(genPlayer(needGrp(sq), C.lvl[tid] + rnd(0, 5), 21 + ((Math.random() * 8) | 0), tid)); if (i < 3) moves.push(`${TEAMS[tid].short} rüstet auf`); }
+      if (d < -0.8) { const best = sq.filter(p => p.grp !== 'TW').sort((a, b) => b.ovr - a.ovr)[0]; if (best && Math.random() < 0.6) { sq.splice(sq.indexOf(best), 1); if (i >= n - 2) moves.push(`${TEAMS[tid].short} verliert ${best.name}`); } }
+      while (sq.length > 20) sq.splice(sq.indexOf(sq.slice().sort((a, b) => a.ovr - b.ovr)[0]), 1);
+    });
+  }
+  if (moves.length) news('Sommerpause', 'Bewegung in der Liga', moves.slice(0, 6).join('. ') + '.');
   const out = [];
   for (const [tid, sq] of Object.entries(C.squads)) {
     const mine = +tid === C.team, keep = [];
@@ -404,7 +424,7 @@ function endSeason() {
     }
     C.squads[tid] = keep;
     // Nachwuchs aus der A-Jugend auffüllen
-    const base = TEAMS[tid].r;
+    const base = clubLvl(+tid);
     while (C.squads[tid].length < 18) { const grpNeed = needGrp(C.squads[tid]); C.squads[tid].push(genPlayer(grpNeed, base - 8 + rnd(-3, 4), 17 + ((Math.random() * 3) | 0), +tid)); }
   }
   if (out.length) news('Abgänge', `${out.length} Abgang${out.length > 1 ? 'e' : ''} im Kader`, out.map(o => `${o.p.name} ${o.why}`).join('. ') + '.');
@@ -435,7 +455,7 @@ function buyPlayer(i) {
   const used = new Set(C.squads[C.team].map(q => q.num)); if (used.has(p.num)) { let n = 2; while (used.has(n)) n++; p.num = n; }
   p.tid = C.team; C.squads[C.team].push(p); C.market.splice(i, 1);
   // der abgebende Verein holt Ersatz aus der Jugend
-  C.squads[m.from].push(genPlayer(p.grp, TEAMS[m.from].r - 6, 18, m.from));
+  C.squads[m.from].push(genPlayer(p.grp, clubLvl(m.from) - 6, 18, m.from));
   news('Wechsel', `${p.name} kommt!`, `${p.name} (${GRP_N[p.grp]}, ${p.age}) wechselt von ${TEAMS[m.from].short} zu uns. Handgeld: ${fmtMoney(m.fee)}.`, 'money');
   saveCareer(); return '';
 }

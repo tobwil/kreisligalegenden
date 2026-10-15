@@ -71,6 +71,7 @@ function track(name, data) {
 // Muster: 0 einfarbig, 1 Längsstreifen, 2 Ringel, 3 Brustring. Platzart: 0 Rasen, 1 Kunstrasen, 2 Hartplatz (Asche)
 const GROUNDS = ['RASEN', 'KUNSTRASEN', 'HARTPLATZ'];
 // Kreis Coburg/Kronach/Lichtenfels: von Hand gestaltet [Ortsteil im Namen, Kürzel, Name, Kurzname, Farbe 1, Farbe 2, Stärke, Platz, Muster]
+const KL_BASE = 64;   // Startstärke jedes Vereins: die echten Tabellen sagen zu wenig, in der Saison entwickeln sich die Vereine auseinander
 const HANDMADE = { 'Coburg': [
   ['Staffelstein', 'STA', 'TSV 1860 Staffelstein', 'Staffelstein', '#c8102e', '#ffffff', 74, 0, 0], ['Krecktal', 'KRE', 'FC Krecktal', 'Krecktal', '#0b3d91', '#ffffff', 69, 1, 1],
   ['Einberg', 'EIN', 'VfB Einberg', 'Einberg', '#ffffff', '#c8102e', 69, 2, 3], ['Lichtenfels II', 'LIC', '1. FC Lichtenfels II', 'Lichtenfels II', '#d71920', '#1a1a1a', 68, 1, 0],
@@ -151,16 +152,17 @@ for (const [vid, vn, kl, kreise] of VDB) {
         const c = tx.lastIndexOf(':'), n = tx.slice(0, c), ppg = tx.slice(c + 1), r = seeded(hashStr(n + vid));
         const hm = hand && HANDMADE[hand].find(h => n.includes(h[0]) && !used.has(h[1]));
         let t;
-        if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: hm[6], ground: hm[7], pat: hm[8] }; }
+        if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: KL_BASE, ground: hm[7], pat: hm[8] }; }
         else {
           let s = shortName(n); if (shorts.has(s)) s = n.length > 16 ? n.slice(0, 15) + '.' : n;
           const [c1, c2] = kitFromName(n, r), q = r();
-          const rating = ppg === '' ? 60 + ((r() * 8) | 0) : clamp(Math.round(56 + +ppg * 0.6 + (r() - 0.5) * 3), 55, 76);
+          void ppg;   // Punkte pro Spiel aus der echten Tabelle: bewusst ungenutzt, alle Vereine starten gleich stark
+          const rating = KL_BASE;
           const g = r(), ash = ASCHE[vid] || 0.1, kr = CITY[vid] ? 0.6 : 0.28;
           t = { k: uniqueK(s, used), n, short: s, c1, c2, r: rating, ground: g < ash ? 2 : g < ash + kr ? 1 : 0, pat: q < 0.6 ? 0 : q < 0.75 ? 1 : q < 0.9 ? 2 : 3 };
         }
         shorts.add(t.short);
-        t.lg = li; t.att = Math.round(t.r + (r() - 0.5) * 8); t.def = Math.round(t.r + (r() - 0.5) * 8);
+        t.lg = li; t.att = t.def = t.r;
         L.ids.push(addTeam(t).id);
       }
     }
@@ -226,12 +228,18 @@ function makePlayer18(r, grp, lvl, used, nums, tid) {
   p.ovr = ovr(p);
   return p;
 }
+// Kader eines Vereins: einzelne Spieler unterschiedlich, die Startelf im Schnitt genau so stark wie der Verein (alle gleich zu Beginn)
 function roster(tid) {
   const t = TEAMS[tid], r = seeded(hashStr(t.n + '#kader')), used = new Set(), nums = new Set();
-  return SQUAD_GRPS.map((grp, i) => {
+  const ro = SQUAD_GRPS.map((grp, i) => {
     const lvl = (grp === 'TW' ? t.def : grp === 'AB' ? t.def : grp === 'ST' ? t.att : (t.att + t.def) / 2) - (i >= 11 ? 6 : 0) + (i === 9 ? 3 : 0);
     return makePlayer18(r, grp, lvl, used, nums, tid);
   });
+  for (let k = 0; k < 3; k++) {
+    const d = t.r + 0.4 - ro.slice(0, 11).reduce((s, p) => s + p.ovr, 0) / 11; if (Math.abs(d) < 0.5) break;
+    for (const p of ro) { for (const a of ATTRS) p[a] = clamp(Math.round(p[a] + d), 20, 97); p.ovr = ovr(p); }
+  }
+  return ro;
 }
 const teamOvr = tid => { const ro = roster(tid).slice(0, 11); return Math.round(ro.reduce((s, p) => s + p.ovr, 0) / 11); };
 const stars = v => clamp(Math.round((v - 50) / 6), 1, 5);   // Stärke als 1 bis 5 Sterne

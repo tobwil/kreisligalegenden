@@ -190,7 +190,7 @@ function shoot(p, power, aimY, o = {}) {
   if (o.chip) { const side = Math.abs(ty - MY) > 1 ? Math.sign(ty - MY) : 0; ty = MY + side * 1.6; tz = 1.75; }                       // Heber: unter die Latte
   if (power > 0.93 && !o.pen && !o.target && !o.finesse && !o.chip) tz += (power - 0.93) * 12;   // überzogen: drüber
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
-  let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.5 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
+  let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.3 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
   if (p.team === G.human && !G.watch) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
   if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
@@ -227,7 +227,9 @@ function header(p, wantShot) {
   const b = G.ball, gx = goalX(p.team), d = dist(p.x, p.y, gx, MY), s = atkDir(p.team);
   p.vz = Math.max(p.vz, 2.6); p.z = Math.max(p.z, 0.05);
   const front = (gx - p.x) * s > 0, angOk = Math.abs(p.y - MY) < d * 0.9;
-  if ((wantShot || (p.team !== G.human || G.ctrl !== p)) && d < 17 && front && angOk && (wantShot || Math.random() < 0.85)) {
+  // dein Spieler köpft im Strafraum von selbst aufs Tor (wie bei ISS), mit Pass vorgemerkt legt er stattdessen ab
+  const mine = isHumanCtrl(p), layOff = mine && p.queue && p.queue.k === 'pass' && G.t - p.queue.t < 1.5;
+  if (!layOff && (wantShot || mine || p.team !== G.human || G.ctrl !== p) && d < 17 && front && angOk && (wantShot || mine || Math.random() < 0.85)) {
     shoot(p, 0.5, p.team === G.human && G.ctrl === p && Math.abs(IN.y) > 0.25 ? IN.y : null, { header: true }); return;
   }
   AU.header();

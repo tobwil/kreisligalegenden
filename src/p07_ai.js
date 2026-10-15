@@ -291,7 +291,6 @@ function planSave(g) {
   let ok = false, catchIt = false;
   if (lat <= reach && hz < 2.65 && (onT || lat < 1.2)) {
     let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
-    if (sh && sh.header) pr += 0.05;
     if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
     if (sh && sh.finesse && lat > 1.6) pr -= 0.18;           // Schlenzer an den Innenpfosten
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel

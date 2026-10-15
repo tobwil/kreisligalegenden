@@ -30,7 +30,7 @@ Echte Aufnahmen aus dem Browserspiel. Für die volle Ansicht auf ein Bild klicke
 
 Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/` daneben). Läuft am Desktop mit Tastatur oder Gamepad und auf dem Handy mit Touch-Steuerung (quer). Kostenlos, ohne Werbung, ohne Anmeldung. Die Startseite `index.html` erzählt die Geschichte als Pixel-Film beim Scrollen (`assets/story.js`), dazu Impressum und Datenschutz.
 
-> Die Ligen tragen die echten Vereinsnamen der **höchsten Kreisspielklasse (Herren) aller Kreise in Deutschland, Saison 2026/27, Stand Herbst 2026** – je nach Landesverband heißt sie Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Quelle sind die öffentlichen Tabellen auf fussball.de (siehe `tools/`). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden; die Kreisligen 1 und 2 im Kreis Coburg/Kronach/Lichtenfels sind von Hand gestaltet. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Bitte ein Issue öffnen oder über das Impressum melden.
+> Die Ligen tragen die echten Vereinsnamen der **höchsten Kreisspielklasse (Herren) aller Kreise in Deutschland, Saison 2026/27, Stand Herbst 2026** – je nach Landesverband heißt sie Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Quelle sind die öffentlichen Tabellen auf fussball.de (siehe `tools/`). Spieler, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. **Alle Vereine starten gleich stark** (die echten Tabellen sagen über die Stärke zu wenig), erst in der Saison entwickeln sie sich auseinander; die Kreisligen 1 und 2 im Kreis Coburg/Kronach/Lichtenfels sind von Hand gestaltet. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Bitte ein Issue öffnen oder über das Impressum melden.
 
 ### Was drin ist
 
@@ -53,7 +53,7 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 - **Kreisblatt** (Zeitung) mit Schlagzeile, Ergebnis-Ticker, nächstem Gegner, Tabelle, Torjägerliste und Meldungen
 - **Kader** mit 18 Spielern (Werte, Alter, Potenzial, Form, Fitness, Verletzungen, Sperren), Spielerkarten mit Spitznamen und Beruf, Noten wie im Kicker (1 bis 6)
 - **Aufstellung** (Formation, Startelf, Elfmeterschütze), Training mit Schwerpunkt, Vereinskasse (Eintritt, Bratwurst, Sponsoren, Prämien), Wechselbörse mit Handgeld
-- **Mehrere Saisons:** Spieler entwickeln sich, Ältere hängen die Schuhe an den Nagel, Junge kommen aus der A-Jugend
+- **Mehrere Saisons:** Spieler entwickeln sich, Ältere hängen die Schuhe an den Nagel, Junge kommen aus der A-Jugend. Vereine oben in der Tabelle locken bessere Spieler an, Absteiger verlieren ihre Besten – so entstehen mit jeder Saison echte Favoriten und Außenseiter
 - Jedes Spiel **selbst spielen, zuschauen oder simulieren**
 - **Derbys** gegen den Erzrivalen aus der eigenen Liga: mehr Stimmung, Prämie, eigene Schlagzeilen
 
@@ -85,7 +85,7 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 Gamepad wie EA FC: Stick laufen · A Pass/Wechsel · B Schuss/Tackling · X Flanke/Grätsche · Y Steilpass/Druck · LB Haken · RT Sprint · Select Taktik · Start Pause.
 Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten (auf PASS ziehen = Schlenzer, auf HOCH ziehen = Heber) · HOCH = Flanke. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm.
 
-**Arcade-Hilfen** (wie bei ISS und EA FC, je nach Schwierigkeit stärker oder schwächer): Der Pass sucht in Stickrichtung den Mitspieler, der den Ball sicher bekommt. Steht ein Gegner zufällig in der Passlinie, greift er nicht immer zu. Läuft dein Verteidiger dem Ballführer in den Ball, spitzelt er ihn weg. Dein Tackling sitzt etwas öfter. Ein kurzer Treffer-Stopp beim Hammer und beim Ballgewinn.
+**Arcade-Hilfen** (wie bei ISS und EA FC, je nach Schwierigkeit stärker oder schwächer): Der Pass sucht in Stickrichtung den Mitspieler, der den Ball sicher bekommt. Steht ein Gegner zufällig in der Passlinie, greift er nicht immer zu. Läuft dein Verteidiger dem Ballführer in den Ball, spitzelt er ihn weg. Dein Tackling sitzt etwas öfter. Ein kurzer Treffer-Stopp beim Hammer und beim Ballgewinn. Flanken: Dein Stürmer läuft zum Ball und köpft im Strafraum von selbst aufs Tor (Pass vorgemerkt = ablegen). Auf dem Handy schwenkt die Kamera am Tor so weit, dass Knöpfe und Stick das Tor nicht verdecken.
 
 ### Entwicklung
 
