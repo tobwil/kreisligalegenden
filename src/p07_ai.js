@@ -283,7 +283,7 @@ function planSave(g) {
   const c = cross || onGoal, v = Math.hypot(b.vx, b.vy, b.vz);
   const sh = b.shot; if (sh && onT && !sh.counted) { sh.counted = true; G.stats.onT[sh.team]++; sh.by.d.ms.sot++; }
   const cpuKeeper = G.human >= 0 && t !== G.human;
-  const react = (0.1 + (1 - A_(g, 'tw') / 100) * 0.16) * (cpuKeeper ? G.diff.react : 1);
+  const react = (0.1 + (1 - A_(g, 'tw') / 100) * 0.16) * (cpuKeeper ? G.diff.react : 1) + (b.shot && b.shot.fk ? 0.45 : 0);
   const tw = A_(g, 'tw') + (cpuKeeper ? G.diff.gk : 0) + (g.d.trait === 'Katze' ? 4 : 0);
   const reach = 3.2 * Math.max(0, c.t - react - 0.08) + 1.1 + tw / 100 * 1.4;
   const lat = Math.abs(c.y - g.y), hz = c.z;
@@ -291,6 +291,7 @@ function planSave(g) {
   if (lat <= reach && hz < 2.65 && (onT || lat < 1.2)) {
     let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
     if (sh && sh.header) pr += 0.05;
+    if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
     ok = Math.random() < clamp(pr, 0.03, 0.97);
     catchIt = ok && v < 17 && lat < 1 && hz < 2;

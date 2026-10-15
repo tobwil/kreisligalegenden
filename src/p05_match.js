@@ -240,10 +240,13 @@ function setPieceSpots(type, team, x, y, taker) {
     if (type === 'corner') { const rest = markers.slice(runners.length); if (rest[0]) out.set(rest[0], [gx - s * 0.6, MY + near * (GW / 2 - 0.3)]); if (rest[1]) out.set(rest[1], [gx - s * 6, MY + near * 8]); }
   }
   if (type === 'free' && Math.abs(x - gx) < 34 && Math.abs(y - MY) < 22) {
-    // Mauer: 2–4 Spieler auf der Linie Ball–Tor, 9,15 m entfernt
+    // Mauer: 2–4 Spieler, 9,15 m entfernt, wie im echten Spiel: der äußere steht auf der Linie Ball–kurzer Pfosten,
+    // die anderen nach innen. Das kurze Eck ist zu, das lange Eck hält der Torwart
     const d = dist(x, y, gx, MY), ux = (gx - x) / d, uy = (MY - y) / d, n = d < 22 ? 4 : d < 28 ? 3 : 2;
+    const npY = MY + (y < MY ? -1 : 1) * GW / 2, nd = dist(x, y, gx, npY), px = x + (gx - x) / nd * 9.15, py = y + (npY - y) / nd * 9.15;
+    const offNP = (px - x) * -uy + (py - y) * ux, sg = Math.abs(offNP) < 0.05 ? 1 : Math.sign(offNP);
     const wall = def.slice().sort((a, c) => dist(a.x, a.y, x, y) - dist(c.x, c.y, x, y)).slice(0, n);
-    wall.forEach((q, i) => { const off = (i - (n - 1) / 2) * 0.7 + 0.35; out.set(q, [x + ux * 9.15 - uy * off, y + uy * 9.15 + ux * off]); q.wall = true; });
+    wall.forEach((q, i) => { const off = offNP + sg * (0.3 - i * 0.7); out.set(q, [x + ux * 9.15 - uy * off, y + uy * 9.15 + ux * off]); q.wall = true; });
   }
   // Abstand: Gegner mindestens 9,15 m vom Ball (beim Einwurf 2 m)
   const minD = type === 'throw' ? 2.2 : 9.3;
@@ -280,17 +283,17 @@ const K = (...c) => c.some(k => KEY[k] || KEYP[k]);
 // Tastatur-Belegungen. Bedeutung der Aktionen: a Pass (Abwehr: wechseln), b Schuss (Tackling), c Flanke/hoher Ball (Grätsche),
 // k Steilpass (Druck), f Haken (wechseln), s Sprint
 const LAYOUTS = {
+  // wie Hallen- und Korb-Legenden (Standard): Pfeile laufen, Leertaste schießt; Abwehr D Tackling, Leertaste Grätsche
+  legenden: { n: 'LEGENDEN', swapDef: true, move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
+    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
   // linke Hand läuft, rechte Hand wie die Knöpfe am Gamepad: K unten = Pass, L rechts = Schuss, J links = Flanke, I oben = Steilpass
   wasd: { n: 'WASD + IJKL', move: ['KeyW', 'KeyS', 'KeyA', 'KeyD'], moveN: 'WASD', a: ['KeyK'], b: ['KeyL'], c: ['KeyJ'], k: ['KeyI'], f: ['KeyU', 'KeyO'], s: ['ShiftLeft', 'ShiftRight', 'Space'],
     keyN: { a: 'K', b: 'L', c: 'J', k: 'I', f: 'U', s: 'SHIFT' } },
   // EA FC am PC (klassisch): Pfeile laufen, linke Hand für die Aktionen
   fc: { n: 'EA FC KLASSISCH', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['KeyD', 'Space'], c: ['KeyA'], k: ['KeyW'], f: ['KeyQ', 'KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyE'],
     keyN: { a: 'S', b: 'D', c: 'A', k: 'W', f: 'Q', s: 'SHIFT' } },
-  // wie Hallen- und Korb-Legenden: Pfeile laufen, Leertaste schießt
-  legenden: { n: 'LEGENDEN', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
-    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
 };
-const LAY = () => LAYOUTS[SETTINGS.keys] || LAYOUTS.wasd;
+const LAY = () => LAYOUTS[SETTINGS.keys] || LAYOUTS.legenden;
 function readInput(dt) {
   let x = 0, y = 0, a, b, c, s, k, f, st = false;
   // Tastatur nach gewählter Belegung (Optionen); bei WASD laufen die Pfeiltasten zusätzlich

@@ -5,7 +5,7 @@ const tutKeys = () => LASTIN === 'touch'
   ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS lang drücken', cross: 'HOCH', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING', slide: 'GRÄTSCHE', sw: 'WECHSEL' }
   : LASTIN === 'pad'
     ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'X', shot: 'B halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
-    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: N.b === 'LEER' ? 'Leertaste' : N.b, slide: N.c, sw: N.a }))(LAY().keyN);
+    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: LAY().swapDef ? N.c : N.b, slide: LAY().swapDef ? (N.b === 'LEER' ? 'Leertaste' : N.b) : N.c, sw: N.a }))(LAY().keyN);
 const LESSONS = [
   { t: 'LAUFEN', need: 3, txt: k => `Lauf mit ${k.move} zu den gelben Markierungen. ${k.sprint} = Sprint (kostet Kraft).`,
     setup(T) { const p = tutUse(0, 'ST', CW / 2, MY); T.marks = [[CW / 2 + 12, MY - 10], [CW / 2 - 8, MY + 14], [CW / 2 + 22, MY + 6]]; G.ctrl = p; } },
@@ -24,7 +24,7 @@ const LESSONS = [
   { t: 'ABWEHR', need: 3, txt: k => `Hol dir den Ball: ${k.tackle} = Tackling (von vorn!), ${k.slide} = Grätsche (Ball zuerst treffen). ${k.sw} wechselt den Spieler.`,
     setup(T) { const s = atkDir(0), ox = ownX(0), a = tutUse(1, 'ST', ox + s * 38, MY + rnd(-8, 8)); giveBall(a, true); a.think = 1.2; const d = tutUse(0, 'AB', ox + s * 26, MY); tutUse(0, 'AB', ox + s * 20, MY + 9, 1); G.ctrl = d; },
     on(T, e) { if (e.k === 'win') { T.n++; T.reset = 1; } if (e.k === 'goal' && e.team === 1) T.reset = 0.1; } },
-  { t: 'STANDARDS', need: 2, txt: k => `Freistoß und Elfmeter: ${k.shot}, Richtung = Ecke. Triff zweimal.`,
+  { t: 'STANDARDS', need: 2, txt: k => `Freistoß und Elfmeter: Die Kamera steht hinter dem Ball. Mit ${k.move} das Fadenkreuz verschieben, ${k.shot}. Wenig Kraft = Bogen über die Mauer. Triff zweimal.`,
     setup(T) { const s = atkDir(0), gx = goalX(0); tutUse(0, 'ST', gx - s * 23, MY); for (let i = 0; i < 2; i++) tutUse(1, 'AB', gx - s * 14, MY + i); G.phase = 'play';
       G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 50); if (T.n % 2 === 0) setupSetPiece('free', 0, gx - s * 20, MY + 7); else setupSetPiece('pen', 0, 0, 0); },
     on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },

@@ -17,6 +17,10 @@ function render() {
   G.cam.x = lerp(G.cam.x, tx, k); G.cam.y = lerp(G.cam.y, ty, Math.min(1, dt * 1.8));
   CAMX = G.cam.x + (G.shake > 0 ? rnd(-1, 1) * G.shake * 0.4 : 0);
   CAMY = CAMY_MAX * clamp((G.cam.y - 12) / (CH - 22), 0, 1);
+  // Zielansicht hinter dem Ball bei Freistoß und Elfmeter (p17), danach zurück zur TV-Kamera
+  if (G.aimFly) { G.aimFly.t += dt; if (G.aimFly.t > 1.6 || (G.ball.owner && G.aimFly.t > 0.4)) { G.aimFly = null; G.camSnap = true; } }
+  if (!G.aimFly && !aimWanted()) G.aimCam = null;
+  if (G.phase !== 'replay' && aimViewOn()) { drawAimView(); if (!G.demo) drawHUD(true); return; }
   const t = G.t, excite = G.excite > 1.2 ? 2 : G.excite > 0.4 ? 1 : 0;
   drawBack(t, excite);
   drawPitch();
@@ -48,7 +52,7 @@ function text(s, x, y, col = '#f3ead6', size = 8, align = 'left', shadow = true)
   ctx.fillStyle = col; ctx.fillText(s, x, y); ctx.textAlign = 'left';
 }
 const minuteTxt = () => G.so ? 'n.E.' : G.phase === 'intro' ? "0'" : `${minuteOf()}'${G.clock > halfLen() && G.added ? '+' : ''}`;
-function drawHUD() {
+function drawHUD(lite) {
   // Anzeigetafel oben links
   const x0 = 6, y0 = 6;
   ctx.fillStyle = 'rgba(3,5,16,0.88)'; ctx.fillRect(x0, y0, 176, 18);
@@ -61,6 +65,7 @@ function drawHUD() {
   }
   text(minuteTxt(), x0 + 156, y0 + 5, G.clock > halfLen() ? '#3ddc84' : '#f3ead6', 8, 'center');
   if (G.so) drawShootoutTally(x0, y0 + 26);
+  if (lite) { if (G.banner) drawBanner(G.banner); if (G.cut) drawCard(G.cut); return; }
   if (SETTINGS.radar && G.phase !== 'intro') drawRadar();
   const c = G.ctrl;
   // Passziel des eigenen Ballführers
@@ -136,8 +141,8 @@ const helpsOn = () => (SETTINGS.helps === true || (SETTINGS.helps === 'auto' && 
 function keyBarItems() {
   const att = G.ball.owner && G.ball.owner.team === G.human, pad = LASTIN === 'pad';
   if (pad) return att ? [['A', 'PASS'], ['Y', 'STEIL'], ['X', 'FLANKE'], ['B', 'SCHUSS'], ['LB', 'HAKEN'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
-  const N = LAY().keyN;
-  return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [N.b, 'TACKLING'], [N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
+  const N = LAY().keyN, sw = LAY().swapDef;
+  return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [sw ? N.c : N.b, 'TACKLING'], [sw ? N.b : N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
 }
 function drawKeyBar() {
   if (!helpsOn() || G.phase !== 'play') return;

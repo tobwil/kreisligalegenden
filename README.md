@@ -58,18 +58,21 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 
 ### Steuerung
 
-Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe, der angespielte Mitspieler läuft dem Ball entgegen und nimmt ihn sicher an. Drei Tastatur-Belegungen (Optionen oder Steuerung), Standard ist **WASD + IJKL** – die rechte Hand liegt wie auf den Gamepad-Knöpfen.
+Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe, der angespielte Mitspieler läuft dem Ball entgegen und nimmt ihn sicher an. Drei Tastatur-Belegungen (Optionen oder Steuerung), Standard ist **Legenden** – wie bei Hallen- und Korb-Legenden.
 
-| Aktion | WASD + IJKL (Standard) | EA FC klassisch | Legenden |
+| Aktion | Legenden (Standard) | WASD + IJKL | EA FC klassisch |
 |---|---|---|---|
-| Laufen | W A S D (oder Pfeile) | Pfeile | Pfeile |
-| Pass · Abwehr: Spieler wechseln | K | S | S |
-| Schuss (halten = fester) · Abwehr: Tackling | L | D / Leertaste | Leertaste |
-| Flanke / hoher Ball · Abwehr: Grätsche | J | A | D |
-| Steilpass · Abwehr: Druck | I | W | A |
-| Haken | U / O | Q | F |
-| Sprint | Shift / Leertaste | Shift / E | Shift / W |
+| Laufen | Pfeile | W A S D (oder Pfeile) | Pfeile |
+| Pass · Abwehr: Spieler wechseln | S | K | S |
+| Schuss (halten = fester) | Leertaste | L | D / Leertaste |
+| Flanke / hoher Ball | D | J | A |
+| Abwehr: Tackling · Grätsche | D · Leertaste | L · J | D · A |
+| Steilpass · Abwehr: Druck | A | I | W |
+| Haken | F | U / O | Q |
+| Sprint | Shift / W | Shift / Leertaste | Shift / E |
 | Taktik · Pause | T · Esc | T · Esc | T · Esc |
+
+**Freistoß und Elfmeter:** Die Kamera wechselt hinter den Ball, man sieht Tor, Torwart und Mauer. Richtung verschiebt das Fadenkreuz (links/rechts, hoch/runter), Schuss halten = Kraft: wenig Kraft gibt einen Bogen über die Mauer, viel Kraft einen harten, flachen Schuss. Die Mauer springt.
 
 Gamepad wie EA FC: Stick laufen · A Pass/Wechsel · B Schuss/Tackling · X Flanke/Grätsche · Y Steilpass/Druck · LB Haken · RT Sprint · Select Taktik · Start Pause.
 Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm.
@@ -92,4 +95,4 @@ Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und
 
 Club names are the real names of the 2026/27 top district league clubs (source: public tables on fussball.de); all players, ratings, kits, pitches and ads are fictional. Not an official product of the DFB, the regional FAs or the clubs. A club wants to be removed? Please open an issue.
 
-Play: open `game/index.html`. Keyboard (default WASD to run, K pass, L shoot, J cross, I through ball, Shift sprint; alternative layouts: EA FC classic and Legenden), gamepad (FC layout) or touch. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.
+Play: open `game/index.html`. Keyboard (default: arrows to run, S pass, Space shoot, D cross/tackle, A through ball, Shift sprint; alternative layouts WASD + IJKL and EA FC classic), gamepad (FC layout) or touch. Free kicks and penalties switch to a camera behind the ball with an aiming reticle. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.

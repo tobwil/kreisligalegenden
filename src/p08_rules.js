@@ -110,10 +110,11 @@ function humanControl(dt) {
       // Pass zu dir noch unterwegs: nichts auslösen, der Spieler läuft dem Ball entgegen
     } else if (!ours) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
-      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
+      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (LAY().swapDef && LASTIN === 'key' ? IN.pb : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
       if (IN.pa || IN.pf) switchPlayer();
-      if (IN.pb) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
-      if (IN.pc) slide(c, IN.x, IN.y);
+      const swap = LAY().swapDef && LASTIN === 'key', tk = swap ? IN.pc : IN.pb, sl = swap ? IN.pb : IN.pc;   // Legenden-Tastatur: D Tackling, Leertaste Grätsche
+      if (tk) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
+      if (sl) slide(c, IN.x, IN.y);
     } else if (IN.pa && ours && b.owner !== c && !isGK(b.owner)) {
       // Ball fordern: der Ballführer (KI) spielt sofort zu dir
       const o = b.owner; if (o.think > 0.1) { o.think = 0; pass(o, c); }
@@ -146,6 +147,7 @@ function movePlayer(p, dt) {
   if (a) { a.t += dt; if (a.t >= a.dur) { p.act = null; if (a.type === 'slide' || a.type === 'dive') p.stun = Math.max(p.stun, a.type === 'dive' ? 0.25 : 0.35); } }
   p.stun = Math.max(0, p.stun - dt); p.cd = Math.max(0, p.cd - dt);
   if (p.z > 0 || p.vz > 0) { p.vz -= GRAV * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; p.vz = 0; } }
+  if (p.wall && G.wallHold && G.t < G.wallHold) { p.vx = 0; p.vy = 0; return integ(p, dt); }   // Mauer bleibt stehen und springt nur
   const live = ['play', 'whistle', 'dead', 'goal', 'halfend', 'end'].includes(G.phase);
   let dvx = 0, dvy = 0, sprint = false, acc = 26;
   const act = p.act && p.act.type;
@@ -307,8 +309,10 @@ function checkBlocks() {
   if (b.triedFid !== b.fid) { b.triedFid = b.fid; b.tried = new Set(); }
   for (const o of G.players) {
     if (o.off || o.team === b.shot.team || isGK(o) || b.tried.has(o)) continue;
-    if (dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < (o.wall ? 2.3 : 1.8)) {
-      b.tried.add(o); if (Math.random() > (o.wall ? 0.4 : 0.45)) continue;
+    // Mauer: blockt, was sie wirklich trifft (Körperbreite, Kopfhöhe plus Sprung); sonst Verteidiger mit Glück
+    const hit = o.wall ? dist(o.x, o.y, b.x, b.y) < 0.5 && b.z < 1.95 + (o.z || 0) : dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < 1.8;
+    if (hit) {
+      b.tried.add(o); if (Math.random() > (o.wall ? 0.9 : 0.45)) continue;
       b.blockChecked = b.fid; b.shot = null; b.plan = null; b.fid++; b.last = o; b.lastTeam = o.team; b.kind = 'block'; G.offs = null;
       const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(0.05, 0.55); b.vy = sg * rnd(sp * 0.5, sp * 1.1); b.vz = rnd(0.5, 3.5);
       AU.tackle(); if (!G.demo) { banner('GEBLOCKT', '#9cff57', o.d.name.toUpperCase(), 0.8); AU.ooh(0.6); }
@@ -440,8 +444,11 @@ function stepSetPiece(dt) {
     const c = tk; G.ctrl = c;
     if (sp.type === 'throw' || sp.type === 'corner' || sp.type === 'goal') { if (Math.abs(IN.x) > 0.2 || Math.abs(IN.y) > 0.2) { c.hx = IN.x; c.hy = IN.y; } }
     if (sp.type === 'pen' || sp.type === 'free') {
-      if (IN.b) c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85);
-      if (IN.rb && c.charge > 0) { const pw = clamp(c.charge, 0.15, 1.05); c.charge = 0; return spShot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); }
+      if (aimWanted()) { if (aimStep(dt, sp, c)) return; }   // Zielansicht hinter dem Ball (p17)
+      else {
+        if (IN.b) c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85);
+        if (IN.rb && c.charge > 0) { const pw = clamp(c.charge, 0.15, 1.05); c.charge = 0; return spShot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); }
+      }
     }
     if (sp.type === 'kick') {
       if (IN.pa || IN.pc || IN.pk || IN.pb) { const q = choosePass(c, IN.x || -atkDir(c.team), IN.y, 'pass', 0.2) || mates(c).filter(m => !isGK(m)).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y))[0]; return IN.pc ? lob(c, choosePass(c, IN.x, IN.y, 'lob')) : pass(c, q); }
@@ -456,7 +463,7 @@ function stepSetPiece(dt) {
       if (IN.pk) return through(c, choosePass(c, IN.x, IN.y, 'through'));
       if (IN.pc) { const gx = goalX(c.team); return Math.abs(c.x - gx) < 35 && sp.type !== 'throw' ? cross(c, 0) : lob(c, choosePass(c, IN.x, IN.y, 'lob')); }
     }
-    if (sp.t > (sp.type === 'pen' ? 9 : 7)) return cpuSetPiece(sp);
+    if (sp.t > (sp.aim ? 20 : sp.type === 'pen' ? 9 : 7)) return cpuSetPiece(sp);
     return;
   }
   const delay = sp.type === 'kick' ? 0.9 : sp.type === 'pen' ? 1.6 : sp.type === 'corner' ? 1.3 : 0.9;
@@ -478,9 +485,10 @@ function cpuSetPiece(sp) {
   }
 }
 // Freistoß- oder Elfmeterschuss; beim Elfmeter rät der Torwart eine Ecke
-function spShot(tk, pw, aim) {
-  const pen = G.sp && G.sp.type === 'pen';
-  shoot(tk, pw, aim, { pen });
+function spShot(tk, pw, aim, target) {
+  const pen = G.sp && G.sp.type === 'pen', fk = G.sp && G.sp.type === 'free';
+  shoot(tk, pw, aim, { pen, target });
+  if (fk && G.ball.shot && G.players.some(p => p.wall)) { G.ball.shot.fk = true; G.wallHold = G.t + 0.6; }   // Torwart sieht den Ball hinter der Mauer spät, die Mauer bleibt stehen
   if (pen) {
     const b = G.ball, g = G.pen.gk, guess = penGuess(g), gy = MY + guess * 2.4;
     const path = ballPath(); let at = 0.5, py = MY, pz = 1;
@@ -490,6 +498,7 @@ function spShot(tk, pw, aim) {
     let ok = false;
     const onT = py > GY1 && py < GY2 && pz < GH;
     if (onT && guess === side) ok = Math.random() < (side === 0 ? 0.85 : 0.55 + (tw - 60) / 120 - (Math.abs(py - MY) > 2.9 ? 0.25 : 0) - (pz > 1.8 ? 0.2 : 0) + (1 - pw) * 0.2);
+    else if (onT && side === 0 && pz < 0.9) ok = Math.random() < 0.25;   // flach in die Mitte: manchmal noch mit dem Fuß
     b.plan = { g, fid: b.fid, at: G.t + at, y: guess ? gy : MY, z: pz, ok, catchIt: false, onT };
     if (b.shot && onT) { b.shot.counted = true; G.stats.onT[tk.team]++; tk.d.ms.sot++; }
     if (G.so) G.so.kickT = 0;

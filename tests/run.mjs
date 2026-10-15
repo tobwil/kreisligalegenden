@@ -117,7 +117,7 @@ test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüs
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Tastatur (Standard WASD + IJKL): Enter, Intro, Anstoß mit K, D läuft, L lädt und schießt, Esc pausiert', async () => {
+test('Tastatur (Standard Legenden): Enter, Intro, Anstoß mit S, Pfeile laufen, Leertaste lädt und schießt, Esc pausiert', async () => {
   const { page, ctx, errors } = await open();
   await page.keyboard.press('Enter'); await page.waitForTimeout(150);
   await page.evaluate(() => ACT.qstart()); await page.waitForTimeout(200);
@@ -126,19 +126,19 @@ test('Tastatur (Standard WASD + IJKL): Enter, Intro, Anstoß mit K, D läuft, L 
   ok(await page.evaluate(() => G.phase === 'kickoff'), 'kein Anstoß nach Taste');
   // Anstoß: Team 0 hat den Ball? Sonst Ballbesitz setzen
   await page.evaluate(() => { if (G.sp.team !== 0) setupKickoff(0, true); G.sp.t = 1; });
-  await page.keyboard.press('k');
+  await page.keyboard.press('s');
   const passed = await page.waitForFunction(() => G.phase === 'play' && G.ball.owner === null, null, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'Anstoß-Pass kommt nicht');
   const setup = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); giveBall(p, true); p.charge = 0; for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, o.y); G.ctrl = p; return p.d.name; });
   await setup(); await page.waitForTimeout(100);
   const x0 = await page.evaluate(() => G.ctrl.x);
   const dir = await page.evaluate(() => atkDir(0));
-  await page.keyboard.down(dir > 0 ? 'd' : 'a'); await page.waitForTimeout(400); await page.keyboard.up(dir > 0 ? 'd' : 'a');
-  ok(await page.evaluate(([x0, dir]) => (G.ctrl.x - x0) * dir > 0.8, [x0, dir]), 'WASD bewegt den Spieler nicht');
+  await page.keyboard.down(dir > 0 ? 'ArrowRight' : 'ArrowLeft'); await page.waitForTimeout(400); await page.keyboard.up(dir > 0 ? 'ArrowRight' : 'ArrowLeft');
+  ok(await page.evaluate(([x0, dir]) => (G.ctrl.x - x0) * dir > 0.8, [x0, dir]), 'Pfeile bewegen den Spieler nicht');
   await setup(); await page.waitForTimeout(100);
   const sh0 = await page.evaluate(() => G.stats.shots[0]);
-  await page.keyboard.down('l'); await page.waitForTimeout(350); await page.keyboard.up('l'); await page.waitForTimeout(150);
-  ok(await page.evaluate(s => G.stats.shots[0] === s + 1, sh0), 'L schießt nicht');
+  await page.keyboard.down('Space'); await page.waitForTimeout(350); await page.keyboard.up('Space'); await page.waitForTimeout(150);
+  ok(await page.evaluate(s => G.stats.shots[0] === s + 1, sh0), 'Leertaste schießt nicht');
   await page.keyboard.press('Escape'); await page.waitForTimeout(100);
   ok(await page.evaluate(() => G.paused && !menu.hidden), 'Esc pausiert nicht');
   await page.keyboard.press('Escape'); await page.waitForTimeout(100);
@@ -146,10 +146,10 @@ test('Tastatur (Standard WASD + IJKL): Enter, Intro, Anstoß mit K, D läuft, L 
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Aktionen in den Belegungen EA FC und WASD: Pass, Steilpass, Flanke, Haken, Tackling, Grätsche', async () => {
+test('Aktionen in den Belegungen Legenden, EA FC und WASD: Pass, Steilpass, Flanke, Haken, Tackling, Grätsche', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; });
-  for (const [lay, K] of [['fc', { a: 'KeyS', k: 'KeyW', c: 'KeyA', f: 'KeyQ', b: 'KeyD' }], ['wasd', { a: 'KeyK', k: 'KeyI', c: 'KeyJ', f: 'KeyU', b: 'KeyL' }]]) {
+  for (const [lay, K] of [['legenden', { a: 'KeyS', k: 'KeyA', c: 'KeyD', f: 'KeyF', b: 'Space', tk: 'KeyD', sl: 'Space' }], ['fc', { a: 'KeyS', k: 'KeyW', c: 'KeyA', f: 'KeyQ', b: 'KeyD' }], ['wasd', { a: 'KeyK', k: 'KeyI', c: 'KeyJ', f: 'KeyU', b: 'KeyL' }]]) {
   const r = await page.evaluate(([lay, K]) => {
     SETTINGS.keys = lay;
     const setup = (wing) => { G.phase = 'play'; G.sp = null; G.ball.passTo = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); p.cd = 0; p.act = null; p.stun = 0; place(p, wing ? goalX(0) - atkDir(0) * 20 : CW / 2, wing ? 6 : MY); giveBall(p, true); G.ctrl = p; return p; };
@@ -162,9 +162,9 @@ test('Aktionen in den Belegungen EA FC und WASD: Pass, Steilpass, Flanke, Haken,
     // Abwehr: Gegner am Ball
     G.phase = 'play'; const o = teamP(1).find(q => grpOf(q) === 'MF'), d = teamP(0).find(q => grpOf(q) === 'AB');
     place(o, CW / 2, MY); giveBall(o, true); place(d, CW / 2 + 0.9, MY); d.cd = 0; G.ctrl = d; d.hx = -1; d.hy = 0;
-    press(K.b); out.tackle = d.act && d.act.type;
+    press(K.tk || K.b); out.tackle = d.act && d.act.type;
     d.cd = 0; d.act = null; d.stun = 0; place(d, CW / 2 + 2, MY); if (G.ball.owner !== o) { place(o, CW / 2, MY); giveBall(o, true); } G.ctrl = d;
-    press(K.c); out.slide = d.act && d.act.type;
+    press(K.sl || K.c); out.slide = d.act && d.act.type;
     return out;
   }, [lay, K]);
   ok(r.pass === 'pass' && r.through === 'through' && r.cross === 'cross' && r.trick === 'trick' && ['tackle', 'stumble'].includes(r.tackle) && r.slide === 'slide', lay + ' ' + JSON.stringify(r));
@@ -211,6 +211,39 @@ test('Keine ungewollte Aktion bei der Annahme: gehaltene Tackling-Taste schießt
   });
   ok(!r.shot && r.owner, 'gehaltene Tackling-Taste löst nach dem Ballgewinn einen Schuss aus');
   ok(!r.queue, 'Pass-Taste vor losem Ball merkt einen Direktpass vor');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Zielansicht: Freistoß und Elfmeter mit Kamera hinter dem Ball, Fadenkreuz, Kraft, Mauer springt, Ansicht folgt dem Ball', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const out = {};
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.phase = 'play';
+    const s = atkDir(0), gx = goalX(0); setupSetPiece('free', 0, gx - s * 21, MY + 4);
+    for (let i = 0; i < 120 && !(G.sp && G.sp.aim); i++) { readInput(1 / 60); step(1 / 60); }
+    out.on = aimViewOn(); out.wall = G.players.filter(p => p.wall).length;
+    render(); out.drawn = true;
+    const u0 = G.sp && G.sp.aim ? G.sp.aim.u : null;
+    // Fadenkreuz nach rechts schieben und hoch, dann mit wenig Kraft schießen
+    KEY.ArrowRight = true; KEY.ArrowUp = true; for (let i = 0; i < 20; i++) { readInput(1 / 60); step(1 / 60); } KEY.ArrowRight = false; KEY.ArrowUp = false;
+    out.moved = G.sp && G.sp.aim && G.sp.aim.u > u0 && G.sp.aim.z > 1.1;
+    const sh0 = G.stats.shots[0];
+    KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 25; i++) { readInput(1 / 60); step(1 / 60); } KEY.Space = false; readInput(1 / 60); step(1 / 60);
+    out.shot = G.stats.shots[0] === sh0 + 1; out.fly = !!G.aimFly; out.jump = G.players.some(p => p.wall && p.z > 0.05);
+    for (let i = 0; i < 10; i++) { step(1 / 60); render(); }
+    out.stillOn = aimViewOn();
+    for (let i = 0; i < 160; i++) { step(1 / 60); render(); }
+    out.back = !aimViewOn();
+    // Elfmeter
+    G.phase = 'play'; setupSetPiece('pen', 0, 0, 0); for (let i = 0; i < 90 && !G.sp.aim; i++) { readInput(1 / 60); step(1 / 60); }
+    out.pen = aimViewOn(); render();
+    return out;
+  });
+  ok(r.on && r.wall >= 2, 'keine Zielansicht beim Freistoß: ' + JSON.stringify(r));
+  ok(r.moved, 'Fadenkreuz bewegt sich nicht');
+  ok(r.shot && r.fly && r.jump, 'Schuss/Mauer: ' + JSON.stringify(r));
+  ok(r.stillOn && r.back, 'Ansicht folgt dem Ball nicht oder kehrt nicht zurück: ' + JSON.stringify(r));
+  ok(r.pen, 'keine Zielansicht beim Elfmeter');
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 

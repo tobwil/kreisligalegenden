@@ -156,26 +156,27 @@ function shoot(p, power, aimY, o = {}) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), gk = G.gk[1 - p.team];
   const d = dist(b.x, b.y, gx, MY);
   let ty;
-  if (aimY == null || Math.abs(aimY) < 0.25) {
+  if (o.target) ty = o.target.y;   // Zielansicht: Ziel und Streuung kommen fertig
+  else if (aimY == null || Math.abs(aimY) < 0.25) {
     const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1);
     ty = aimY == null ? MY + away * rnd(2.3, 3.4) : MY + away * 1.5;
   } else ty = MY + clamp(aimY, -1, 1) * (GW / 2 - 0.45);
-  let tz = o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + (aimY == null ? rnd(-0.1, 0.4) : 0);
-  if (power > 0.93 && !o.pen) tz += (power - 0.93) * 12;   // überzogen: drüber
+  let tz = o.target ? o.target.z : o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + (aimY == null ? rnd(-0.1, 0.4) : 0);
+  if (power > 0.93 && !o.pen && !o.target) tz += (power - 0.93) * 12;   // überzogen: drüber
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
   let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.5 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
   if (p.team === G.human && TOUCHDEV) err *= 0.85;
   if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
-  ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5);
-  const v = (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
+  if (!o.target) { ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5); }
+  const v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
   const tx = gx + s * 0.4, dd = dist(b.x, b.y, tx, ty), T = dd / v;
   kickBall(p, 'shot', 0.6 + power * 0.4);
   if (o.header) b.z = 1.8; else if (o.volley) b.z = Math.max(b.z, 0.5);
   launchAir(tx, ty, tz, T);
   b.shot = { by: p, team: p.team, t0: G.t, d, pen: !!o.pen, header: !!o.header };
   p.shotCD = G.t + 2.5;
-  b.spin = (aimY || 0) * 0.6;
+  b.spin = o.target ? 0 : (aimY || 0) * 0.6;
   G.stats.shots[p.team]++; p.d.ms.sh++;
   if (!G.so) G.excite = Math.max(G.excite, 0.8);
   AU.crowd(0.5); if (o.header) AU.header();

@@ -422,7 +422,7 @@ const store = {
   del(k) { try { (PLATFORM.storage || localStorage).removeItem(k); } catch (e) { } },
 };
 // Einstellungen: Halbzeitlänge in Minuten (echte Zeit), Schwierigkeit, Spieltempo, Abseits, automatischer Spielerwechsel in der Abwehr, Steuerhilfen
-const SETTINGS = Object.assign({ hlen: 3, diff: 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, keys: 'wasd' }, store.get('krl_settings', {}));
+const SETTINGS = Object.assign({ hlen: 3, diff: 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, keys: 'legenden' }, store.get('krl_settings', {}));
 const saveSettings = () => store.set('krl_settings', SETTINGS);
 function track(name, data) {
   try { if (window.umami && name) window.umami.track(name, data); } catch (e) { }
@@ -1466,10 +1466,13 @@ function setPieceSpots(type, team, x, y, taker) {
     if (type === 'corner') { const rest = markers.slice(runners.length); if (rest[0]) out.set(rest[0], [gx - s * 0.6, MY + near * (GW / 2 - 0.3)]); if (rest[1]) out.set(rest[1], [gx - s * 6, MY + near * 8]); }
   }
   if (type === 'free' && Math.abs(x - gx) < 34 && Math.abs(y - MY) < 22) {
-    // Mauer: 2–4 Spieler auf der Linie Ball–Tor, 9,15 m entfernt
+    // Mauer: 2–4 Spieler, 9,15 m entfernt, wie im echten Spiel: der äußere steht auf der Linie Ball–kurzer Pfosten,
+    // die anderen nach innen. Das kurze Eck ist zu, das lange Eck hält der Torwart
     const d = dist(x, y, gx, MY), ux = (gx - x) / d, uy = (MY - y) / d, n = d < 22 ? 4 : d < 28 ? 3 : 2;
+    const npY = MY + (y < MY ? -1 : 1) * GW / 2, nd = dist(x, y, gx, npY), px = x + (gx - x) / nd * 9.15, py = y + (npY - y) / nd * 9.15;
+    const offNP = (px - x) * -uy + (py - y) * ux, sg = Math.abs(offNP) < 0.05 ? 1 : Math.sign(offNP);
     const wall = def.slice().sort((a, c) => dist(a.x, a.y, x, y) - dist(c.x, c.y, x, y)).slice(0, n);
-    wall.forEach((q, i) => { const off = (i - (n - 1) / 2) * 0.7 + 0.35; out.set(q, [x + ux * 9.15 - uy * off, y + uy * 9.15 + ux * off]); q.wall = true; });
+    wall.forEach((q, i) => { const off = offNP + sg * (0.3 - i * 0.7); out.set(q, [x + ux * 9.15 - uy * off, y + uy * 9.15 + ux * off]); q.wall = true; });
   }
   // Abstand: Gegner mindestens 9,15 m vom Ball (beim Einwurf 2 m)
   const minD = type === 'throw' ? 2.2 : 9.3;
@@ -1506,17 +1509,17 @@ const K = (...c) => c.some(k => KEY[k] || KEYP[k]);
 // Tastatur-Belegungen. Bedeutung der Aktionen: a Pass (Abwehr: wechseln), b Schuss (Tackling), c Flanke/hoher Ball (Grätsche),
 // k Steilpass (Druck), f Haken (wechseln), s Sprint
 const LAYOUTS = {
+  // wie Hallen- und Korb-Legenden (Standard): Pfeile laufen, Leertaste schießt; Abwehr D Tackling, Leertaste Grätsche
+  legenden: { n: 'LEGENDEN', swapDef: true, move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
+    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
   // linke Hand läuft, rechte Hand wie die Knöpfe am Gamepad: K unten = Pass, L rechts = Schuss, J links = Flanke, I oben = Steilpass
   wasd: { n: 'WASD + IJKL', move: ['KeyW', 'KeyS', 'KeyA', 'KeyD'], moveN: 'WASD', a: ['KeyK'], b: ['KeyL'], c: ['KeyJ'], k: ['KeyI'], f: ['KeyU', 'KeyO'], s: ['ShiftLeft', 'ShiftRight', 'Space'],
     keyN: { a: 'K', b: 'L', c: 'J', k: 'I', f: 'U', s: 'SHIFT' } },
   // EA FC am PC (klassisch): Pfeile laufen, linke Hand für die Aktionen
   fc: { n: 'EA FC KLASSISCH', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['KeyD', 'Space'], c: ['KeyA'], k: ['KeyW'], f: ['KeyQ', 'KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyE'],
     keyN: { a: 'S', b: 'D', c: 'A', k: 'W', f: 'Q', s: 'SHIFT' } },
-  // wie Hallen- und Korb-Legenden: Pfeile laufen, Leertaste schießt
-  legenden: { n: 'LEGENDEN', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
-    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
 };
-const LAY = () => LAYOUTS[SETTINGS.keys] || LAYOUTS.wasd;
+const LAY = () => LAYOUTS[SETTINGS.keys] || LAYOUTS.legenden;
 function readInput(dt) {
   let x = 0, y = 0, a, b, c, s, k, f, st = false;
   // Tastatur nach gewählter Belegung (Optionen); bei WASD laufen die Pfeiltasten zusätzlich
@@ -1730,26 +1733,27 @@ function shoot(p, power, aimY, o = {}) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), gk = G.gk[1 - p.team];
   const d = dist(b.x, b.y, gx, MY);
   let ty;
-  if (aimY == null || Math.abs(aimY) < 0.25) {
+  if (o.target) ty = o.target.y;   // Zielansicht: Ziel und Streuung kommen fertig
+  else if (aimY == null || Math.abs(aimY) < 0.25) {
     const gy = gk && !gk.off ? gk.y : MY, away = gy > MY + 0.2 ? -1 : gy < MY - 0.2 ? 1 : (b.y > MY ? -1 : 1);
     ty = aimY == null ? MY + away * rnd(2.3, 3.4) : MY + away * 1.5;
   } else ty = MY + clamp(aimY, -1, 1) * (GW / 2 - 0.45);
-  let tz = o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + (aimY == null ? rnd(-0.1, 0.4) : 0);
-  if (power > 0.93 && !o.pen) tz += (power - 0.93) * 12;   // überzogen: drüber
+  let tz = o.target ? o.target.z : o.header ? rnd(0.2, 1.4) : 0.15 + power * 1.75 + (aimY == null ? rnd(-0.1, 0.4) : 0);
+  if (power > 0.93 && !o.pen && !o.target) tz += (power - 0.93) * 12;   // überzogen: drüber
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
   let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.5 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
   if (p.team === G.human && TOUCHDEV) err *= 0.85;
   if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
-  ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5);
-  const v = (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
+  if (!o.target) { ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5); }
+  const v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
   const tx = gx + s * 0.4, dd = dist(b.x, b.y, tx, ty), T = dd / v;
   kickBall(p, 'shot', 0.6 + power * 0.4);
   if (o.header) b.z = 1.8; else if (o.volley) b.z = Math.max(b.z, 0.5);
   launchAir(tx, ty, tz, T);
   b.shot = { by: p, team: p.team, t0: G.t, d, pen: !!o.pen, header: !!o.header };
   p.shotCD = G.t + 2.5;
-  b.spin = (aimY || 0) * 0.6;
+  b.spin = o.target ? 0 : (aimY || 0) * 0.6;
   G.stats.shots[p.team]++; p.d.ms.sh++;
   if (!G.so) G.excite = Math.max(G.excite, 0.8);
   AU.crowd(0.5); if (o.header) AU.header();
@@ -2183,7 +2187,7 @@ function planSave(g) {
   const c = cross || onGoal, v = Math.hypot(b.vx, b.vy, b.vz);
   const sh = b.shot; if (sh && onT && !sh.counted) { sh.counted = true; G.stats.onT[sh.team]++; sh.by.d.ms.sot++; }
   const cpuKeeper = G.human >= 0 && t !== G.human;
-  const react = (0.1 + (1 - A_(g, 'tw') / 100) * 0.16) * (cpuKeeper ? G.diff.react : 1);
+  const react = (0.1 + (1 - A_(g, 'tw') / 100) * 0.16) * (cpuKeeper ? G.diff.react : 1) + (b.shot && b.shot.fk ? 0.45 : 0);
   const tw = A_(g, 'tw') + (cpuKeeper ? G.diff.gk : 0) + (g.d.trait === 'Katze' ? 4 : 0);
   const reach = 3.2 * Math.max(0, c.t - react - 0.08) + 1.1 + tw / 100 * 1.4;
   const lat = Math.abs(c.y - g.y), hz = c.z;
@@ -2191,6 +2195,7 @@ function planSave(g) {
   if (lat <= reach && hz < 2.65 && (onT || lat < 1.2)) {
     let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
     if (sh && sh.header) pr += 0.05;
+    if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
     ok = Math.random() < clamp(pr, 0.03, 0.97);
     catchIt = ok && v < 17 && lat < 1 && hz < 2;
@@ -2320,10 +2325,11 @@ function humanControl(dt) {
       // Pass zu dir noch unterwegs: nichts auslösen, der Spieler läuft dem Ball entgegen
     } else if (!ours) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
-      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
+      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (LAY().swapDef && LASTIN === 'key' ? IN.pb : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
       if (IN.pa || IN.pf) switchPlayer();
-      if (IN.pb) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
-      if (IN.pc) slide(c, IN.x, IN.y);
+      const swap = LAY().swapDef && LASTIN === 'key', tk = swap ? IN.pc : IN.pb, sl = swap ? IN.pb : IN.pc;   // Legenden-Tastatur: D Tackling, Leertaste Grätsche
+      if (tk) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
+      if (sl) slide(c, IN.x, IN.y);
     } else if (IN.pa && ours && b.owner !== c && !isGK(b.owner)) {
       // Ball fordern: der Ballführer (KI) spielt sofort zu dir
       const o = b.owner; if (o.think > 0.1) { o.think = 0; pass(o, c); }
@@ -2356,6 +2362,7 @@ function movePlayer(p, dt) {
   if (a) { a.t += dt; if (a.t >= a.dur) { p.act = null; if (a.type === 'slide' || a.type === 'dive') p.stun = Math.max(p.stun, a.type === 'dive' ? 0.25 : 0.35); } }
   p.stun = Math.max(0, p.stun - dt); p.cd = Math.max(0, p.cd - dt);
   if (p.z > 0 || p.vz > 0) { p.vz -= GRAV * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; p.vz = 0; } }
+  if (p.wall && G.wallHold && G.t < G.wallHold) { p.vx = 0; p.vy = 0; return integ(p, dt); }   // Mauer bleibt stehen und springt nur
   const live = ['play', 'whistle', 'dead', 'goal', 'halfend', 'end'].includes(G.phase);
   let dvx = 0, dvy = 0, sprint = false, acc = 26;
   const act = p.act && p.act.type;
@@ -2517,8 +2524,10 @@ function checkBlocks() {
   if (b.triedFid !== b.fid) { b.triedFid = b.fid; b.tried = new Set(); }
   for (const o of G.players) {
     if (o.off || o.team === b.shot.team || isGK(o) || b.tried.has(o)) continue;
-    if (dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < (o.wall ? 2.3 : 1.8)) {
-      b.tried.add(o); if (Math.random() > (o.wall ? 0.4 : 0.45)) continue;
+    // Mauer: blockt, was sie wirklich trifft (Körperbreite, Kopfhöhe plus Sprung); sonst Verteidiger mit Glück
+    const hit = o.wall ? dist(o.x, o.y, b.x, b.y) < 0.5 && b.z < 1.95 + (o.z || 0) : dist(o.x, o.y, b.x, b.y) < 0.65 && b.z < 1.8;
+    if (hit) {
+      b.tried.add(o); if (Math.random() > (o.wall ? 0.9 : 0.45)) continue;
       b.blockChecked = b.fid; b.shot = null; b.plan = null; b.fid++; b.last = o; b.lastTeam = o.team; b.kind = 'block'; G.offs = null;
       const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(0.05, 0.55); b.vy = sg * rnd(sp * 0.5, sp * 1.1); b.vz = rnd(0.5, 3.5);
       AU.tackle(); if (!G.demo) { banner('GEBLOCKT', '#9cff57', o.d.name.toUpperCase(), 0.8); AU.ooh(0.6); }
@@ -2650,8 +2659,11 @@ function stepSetPiece(dt) {
     const c = tk; G.ctrl = c;
     if (sp.type === 'throw' || sp.type === 'corner' || sp.type === 'goal') { if (Math.abs(IN.x) > 0.2 || Math.abs(IN.y) > 0.2) { c.hx = IN.x; c.hy = IN.y; } }
     if (sp.type === 'pen' || sp.type === 'free') {
-      if (IN.b) c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85);
-      if (IN.rb && c.charge > 0) { const pw = clamp(c.charge, 0.15, 1.05); c.charge = 0; return spShot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); }
+      if (aimWanted()) { if (aimStep(dt, sp, c)) return; }   // Zielansicht hinter dem Ball (p17)
+      else {
+        if (IN.b) c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85);
+        if (IN.rb && c.charge > 0) { const pw = clamp(c.charge, 0.15, 1.05); c.charge = 0; return spShot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); }
+      }
     }
     if (sp.type === 'kick') {
       if (IN.pa || IN.pc || IN.pk || IN.pb) { const q = choosePass(c, IN.x || -atkDir(c.team), IN.y, 'pass', 0.2) || mates(c).filter(m => !isGK(m)).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y))[0]; return IN.pc ? lob(c, choosePass(c, IN.x, IN.y, 'lob')) : pass(c, q); }
@@ -2666,7 +2678,7 @@ function stepSetPiece(dt) {
       if (IN.pk) return through(c, choosePass(c, IN.x, IN.y, 'through'));
       if (IN.pc) { const gx = goalX(c.team); return Math.abs(c.x - gx) < 35 && sp.type !== 'throw' ? cross(c, 0) : lob(c, choosePass(c, IN.x, IN.y, 'lob')); }
     }
-    if (sp.t > (sp.type === 'pen' ? 9 : 7)) return cpuSetPiece(sp);
+    if (sp.t > (sp.aim ? 20 : sp.type === 'pen' ? 9 : 7)) return cpuSetPiece(sp);
     return;
   }
   const delay = sp.type === 'kick' ? 0.9 : sp.type === 'pen' ? 1.6 : sp.type === 'corner' ? 1.3 : 0.9;
@@ -2688,9 +2700,10 @@ function cpuSetPiece(sp) {
   }
 }
 // Freistoß- oder Elfmeterschuss; beim Elfmeter rät der Torwart eine Ecke
-function spShot(tk, pw, aim) {
-  const pen = G.sp && G.sp.type === 'pen';
-  shoot(tk, pw, aim, { pen });
+function spShot(tk, pw, aim, target) {
+  const pen = G.sp && G.sp.type === 'pen', fk = G.sp && G.sp.type === 'free';
+  shoot(tk, pw, aim, { pen, target });
+  if (fk && G.ball.shot && G.players.some(p => p.wall)) { G.ball.shot.fk = true; G.wallHold = G.t + 0.6; }   // Torwart sieht den Ball hinter der Mauer spät, die Mauer bleibt stehen
   if (pen) {
     const b = G.ball, g = G.pen.gk, guess = penGuess(g), gy = MY + guess * 2.4;
     const path = ballPath(); let at = 0.5, py = MY, pz = 1;
@@ -2700,6 +2713,7 @@ function spShot(tk, pw, aim) {
     let ok = false;
     const onT = py > GY1 && py < GY2 && pz < GH;
     if (onT && guess === side) ok = Math.random() < (side === 0 ? 0.85 : 0.55 + (tw - 60) / 120 - (Math.abs(py - MY) > 2.9 ? 0.25 : 0) - (pz > 1.8 ? 0.2 : 0) + (1 - pw) * 0.2);
+    else if (onT && side === 0 && pz < 0.9) ok = Math.random() < 0.25;   // flach in die Mitte: manchmal noch mit dem Fuß
     b.plan = { g, fid: b.fid, at: G.t + at, y: guess ? gy : MY, z: pz, ok, catchIt: false, onT };
     if (b.shot && onT) { b.shot.counted = true; G.stats.onT[tk.team]++; tk.d.ms.sot++; }
     if (G.so) G.so.kickT = 0;
@@ -3010,6 +3024,10 @@ function render() {
   G.cam.x = lerp(G.cam.x, tx, k); G.cam.y = lerp(G.cam.y, ty, Math.min(1, dt * 1.8));
   CAMX = G.cam.x + (G.shake > 0 ? rnd(-1, 1) * G.shake * 0.4 : 0);
   CAMY = CAMY_MAX * clamp((G.cam.y - 12) / (CH - 22), 0, 1);
+  // Zielansicht hinter dem Ball bei Freistoß und Elfmeter (p17), danach zurück zur TV-Kamera
+  if (G.aimFly) { G.aimFly.t += dt; if (G.aimFly.t > 1.6 || (G.ball.owner && G.aimFly.t > 0.4)) { G.aimFly = null; G.camSnap = true; } }
+  if (!G.aimFly && !aimWanted()) G.aimCam = null;
+  if (G.phase !== 'replay' && aimViewOn()) { drawAimView(); if (!G.demo) drawHUD(true); return; }
   const t = G.t, excite = G.excite > 1.2 ? 2 : G.excite > 0.4 ? 1 : 0;
   drawBack(t, excite);
   drawPitch();
@@ -3041,7 +3059,7 @@ function text(s, x, y, col = '#f3ead6', size = 8, align = 'left', shadow = true)
   ctx.fillStyle = col; ctx.fillText(s, x, y); ctx.textAlign = 'left';
 }
 const minuteTxt = () => G.so ? 'n.E.' : G.phase === 'intro' ? "0'" : `${minuteOf()}'${G.clock > halfLen() && G.added ? '+' : ''}`;
-function drawHUD() {
+function drawHUD(lite) {
   // Anzeigetafel oben links
   const x0 = 6, y0 = 6;
   ctx.fillStyle = 'rgba(3,5,16,0.88)'; ctx.fillRect(x0, y0, 176, 18);
@@ -3054,6 +3072,7 @@ function drawHUD() {
   }
   text(minuteTxt(), x0 + 156, y0 + 5, G.clock > halfLen() ? '#3ddc84' : '#f3ead6', 8, 'center');
   if (G.so) drawShootoutTally(x0, y0 + 26);
+  if (lite) { if (G.banner) drawBanner(G.banner); if (G.cut) drawCard(G.cut); return; }
   if (SETTINGS.radar && G.phase !== 'intro') drawRadar();
   const c = G.ctrl;
   // Passziel des eigenen Ballführers
@@ -3129,8 +3148,8 @@ const helpsOn = () => (SETTINGS.helps === true || (SETTINGS.helps === 'auto' && 
 function keyBarItems() {
   const att = G.ball.owner && G.ball.owner.team === G.human, pad = LASTIN === 'pad';
   if (pad) return att ? [['A', 'PASS'], ['Y', 'STEIL'], ['X', 'FLANKE'], ['B', 'SCHUSS'], ['LB', 'HAKEN'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
-  const N = LAY().keyN;
-  return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [N.b, 'TACKLING'], [N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
+  const N = LAY().keyN, sw = LAY().swapDef;
+  return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [sw ? N.c : N.b, 'TACKLING'], [sw ? N.b : N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
 }
 function drawKeyBar() {
   if (!helpsOn() || G.phase !== 'play') return;
@@ -3271,14 +3290,14 @@ const ACT = {
         <b>${L.moveN.toUpperCase()}</b><span>Laufen${L.move[0] === 'KeyW' ? ' (die Pfeiltasten gehen auch)' : ''}</span>
         <b>${ks('a')}</b><span>Angriff: Pass in Laufrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Kurz bevor ein Pass bei dir ankommt drücken = Direktpass. Abwehr: Spieler wechseln</span>
         <b>${ks('k')}</b><span>Angriff: Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
-        <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: Grätsche (Ball zuerst treffen!)</span>
-        <b>${ks('b')}</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Abwehr: Tackling (nur von vorn, von hinten gibt es Fouls)</span>
+        <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: ${L.swapDef ? 'Tackling (nur von vorn, von hinten gibt es Fouls)' : 'Grätsche (Ball zuerst treffen!)'}</span>
+        <b>${ks('b')}</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Freistoß und Elfmeter: Zielansicht hinter dem Ball, Richtung = Fadenkreuz. Abwehr: ${L.swapDef ? 'Grätsche (Ball zuerst treffen!)' : 'Tackling (nur von vorn, von hinten gibt es Fouls)'}</span>
         <b>${ks('f')}</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
         <b>${ks('s')}</b><span>Sprint (kostet Kraft)</span>
         <b>T / TAB</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
         <b>ESC / P</b><span>Pause · M: Ton an/aus</span>
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
-        <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß: ${k(N.b)} halten = Schuss, ${k(N.a)} Pass, ${k(N.c)} Flanke · Elfmeter: ${k(N.b)} halten, Richtung = Ecke</span>
+        <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
         <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm</span>
       </div>
@@ -4168,7 +4187,7 @@ const tutKeys = () => LASTIN === 'touch'
   ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS lang drücken', cross: 'HOCH', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING', slide: 'GRÄTSCHE', sw: 'WECHSEL' }
   : LASTIN === 'pad'
     ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'X', shot: 'B halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
-    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: N.b === 'LEER' ? 'Leertaste' : N.b, slide: N.c, sw: N.a }))(LAY().keyN);
+    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: LAY().swapDef ? N.c : N.b, slide: LAY().swapDef ? (N.b === 'LEER' ? 'Leertaste' : N.b) : N.c, sw: N.a }))(LAY().keyN);
 const LESSONS = [
   { t: 'LAUFEN', need: 3, txt: k => `Lauf mit ${k.move} zu den gelben Markierungen. ${k.sprint} = Sprint (kostet Kraft).`,
     setup(T) { const p = tutUse(0, 'ST', CW / 2, MY); T.marks = [[CW / 2 + 12, MY - 10], [CW / 2 - 8, MY + 14], [CW / 2 + 22, MY + 6]]; G.ctrl = p; } },
@@ -4187,7 +4206,7 @@ const LESSONS = [
   { t: 'ABWEHR', need: 3, txt: k => `Hol dir den Ball: ${k.tackle} = Tackling (von vorn!), ${k.slide} = Grätsche (Ball zuerst treffen). ${k.sw} wechselt den Spieler.`,
     setup(T) { const s = atkDir(0), ox = ownX(0), a = tutUse(1, 'ST', ox + s * 38, MY + rnd(-8, 8)); giveBall(a, true); a.think = 1.2; const d = tutUse(0, 'AB', ox + s * 26, MY); tutUse(0, 'AB', ox + s * 20, MY + 9, 1); G.ctrl = d; },
     on(T, e) { if (e.k === 'win') { T.n++; T.reset = 1; } if (e.k === 'goal' && e.team === 1) T.reset = 0.1; } },
-  { t: 'STANDARDS', need: 2, txt: k => `Freistoß und Elfmeter: ${k.shot}, Richtung = Ecke. Triff zweimal.`,
+  { t: 'STANDARDS', need: 2, txt: k => `Freistoß und Elfmeter: Die Kamera steht hinter dem Ball. Mit ${k.move} das Fadenkreuz verschieben, ${k.shot}. Wenig Kraft = Bogen über die Mauer. Triff zweimal.`,
     setup(T) { const s = atkDir(0), gx = goalX(0); tutUse(0, 'ST', gx - s * 23, MY); for (let i = 0; i < 2; i++) tutUse(1, 'AB', gx - s * 14, MY + i); G.phase = 'play';
       G.gk[1].d.tw = Math.min(G.gk[1].d.tw, 50); if (T.n % 2 === 0) setupSetPiece('free', 0, gx - s * 20, MY + 7); else setupSetPiece('pen', 0, 0, 0); },
     on(T, e) { if (e.k === 'goal' && e.team === 0) T.n++; } },
@@ -4371,6 +4390,191 @@ Object.assign(ACT, {
   pkK(a) { PK.k = +a; PK.l = KREISE[PK.k].ligen[0]; PK.q = ''; PK_RENDER('.picker .tbtn'); },
   pkL(a) { PK.l = +a; PK_RENDER(`[data-act="pkL"][data-arg="${a}"]`); },
 });
+// ================= Zielansicht bei Freistoß und Elfmeter (wie bei FIFA/PES: Kamera hinter dem Ball) =================
+// Bei eigenem Elfmeter und Freistoß in Schussweite schaut die Kamera vom Ball aufs Tor: Torwart, Mauer, Tor, ein Fadenkreuz.
+// Richtung verschiebt das Fadenkreuz (links/rechts und hoch/runter), Schusstaste halten = Kraft, loslassen = Schuss.
+// Wenig Kraft gibt einen Bogen (über die Mauer), viel Kraft einen harten, flachen Schuss. Nach dem Schuss bleibt die Ansicht,
+// bis der Ball am Tor ist. Die Figuren sind eigene Pixelfiguren von vorn bzw. hinten.
+const AIM_RANGE = 34;   // Freistöße bis 34 m vor dem Tor
+// Kamera 7,5 m hinter und 3,3 m über dem Ball (leicht erhöht, damit das Tor über der Mauer zu sehen ist)
+const AIM_F = 1.9, AIM_Y0 = 0.2;
+function aimWanted() {
+  const sp = G.sp;
+  if (!sp || G.demo || G.watch || !isHumanTeam(sp.team) || !(sp.type === 'pen' || sp.type === 'free')) return false;
+  if (!['setpiece', 'penalty'].includes(G.phase)) return false;
+  if (sp.type === 'pen') return true;
+  const gx = goalX(sp.team), b = G.ball;
+  return dist(b.x, b.y, gx, MY) < AIM_RANGE && Math.abs(b.x - gx) > 9;
+}
+const aimViewOn = () => !!(G && (aimWanted() || (G.aimFly && G.aimFly.t < 1.6)));
+// Kamera-Rahmen aus Ballposition und Tor: d = Blickrichtung, r = rechts
+function aimFrame() {
+  const A = G.aimCam;
+  if (A && (G.aimFly || A.fid === G.ball.fid)) return A;
+  const sp = G.sp, team = sp ? sp.team : G.human, gx = goalX(team), b = G.ball, s = atkDir(team);
+  let dx = gx - b.x, dy = MY - b.y; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+  G.aimCam = { team, s, gx, dx, dy, rx: -dy, ry: dx, cx: b.x - dx * 7.5, cy: b.y - dy * 7.5, cz: 3.3, fid: G.ball.fid };
+  return G.aimCam;
+}
+function aimProj(A, x, y, z) {
+  const ex = x - A.cx, ey = y - A.cy, f = ex * A.dx + ey * A.dy; if (f < 0.25) return null;
+  const r = ex * A.rx + ey * A.ry, F = H * AIM_F, Y0 = H * AIM_Y0;
+  return { x: W / 2 + r / f * F, y: Y0 - (z - A.cz) / f * F, k: F / f, f };
+}
+// ---------- Steuerung ----------
+function aimStep(dt, sp, c) {
+  const s = atkDir(sp.team), gk = G.gk[1 - sp.team];
+  if (!sp.aim) {
+    // Start: Fadenkreuz in die Ecke, in der der Torwart nicht steht, halbhoch
+    const side = gk && gk.y > MY + 0.3 ? -1 : gk && gk.y < MY - 0.3 ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    sp.aim = { u: side * 1.8 * s, z: 1.1 };
+  }
+  sp.aim.u = clamp(sp.aim.u + IN.x * dt * 4.2, -5.5, 5.5);
+  sp.aim.z = clamp(sp.aim.z - IN.y * dt * 2.2, 0.15, 3.4);
+  if (IN.pb) c.chargeArm = true;
+  if (IN.b && c.chargeArm) c.charge = Math.min(1.05, (c.charge || 0) + dt / 1.1);
+  if (IN.rb && c.chargeArm && c.charge > 0) { const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; c.chargeArm = false; aimShot(c, pw, sp); return true; }
+  return false;
+}
+function aimShot(c, pw, sp) {
+  const s = atkDir(sp.team), gx = goalX(sp.team), b = G.ball, pen = sp.type === 'pen';
+  const ty0 = MY + sp.aim.u * s, tz0 = sp.aim.z, d = dist(b.x, b.y, gx, ty0);
+  const sch = A_(c, 'sch') + (c.d.trait === 'Freistoßkönig' ? 6 : 0);
+  // Kraft: 0 = 14 m/s (Bogen), 1 = 31 m/s (Strich); überzogen streut stark
+  let v = 14 + pw * 17 + sch * 0.02;
+  // Bogen (wenig Kraft): Flugbahn so, dass der Ball gerade über die Mauer (2,6 m) geht und sich zum Ziel senkt
+  const wall = G.players.filter(p => p.wall && !p.off);
+  if (pw < 0.6 && wall.length) {
+    const D = Math.hypot(gx - b.x, ty0 - b.y), dw = Math.min(...wall.map(p => Math.hypot(p.x - b.x, p.y - b.y))), r = clamp(dw / D, 0.15, 0.85);
+    const T2 = 2 * (2.6 - tz0 * r) / (GRAV * r * (1 - r));
+    if (T2 > 0) v = Math.min(v, Math.max(11, D / Math.sqrt(T2)));
+  }
+  const err = (0.01 + d * 0.0008) * (1.5 - sch / 100) * (pen ? 0.8 : 1) * (1 + Math.max(0, pw - 0.88) * 4);
+  const target = { y: ty0 + gauss() * err * d, z: Math.max(0.05, tz0 + gauss() * err * d * 0.6 + Math.max(0, pw - 0.95) * 6), v };
+  // die Mauer springt
+  for (const p of G.players) if (p.wall && !p.off) { p.vz = 3.3; p.z = 0.01; }
+  G.aimFly = { t: 0, fid: b.fid + 1 };
+  spShot(c, pw, 0, target);
+}
+// ---------- Pixelfiguren von vorn und von hinten ----------
+const FRONT = new Map();
+function frontFig(L, pose, back) {
+  const key = L.key + '|' + pose + '|' + +back;
+  let cv0 = FRONT.get(key); if (cv0) return cv0;
+  const w = 22, h = 28, ox = 5, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(ox + x, y, ww, hh); };
+  const jer = (x, y, ww, hh) => {
+    R(x, y, ww, hh, L.c1);
+    if (L.pat === 1) for (let i = x + 1; i < x + ww; i += 2) R(i, y, 1, hh, L.c2);
+    if (L.pat === 2) for (let j = y + 1; j < y + hh; j += 3) R(x, j, ww, 1, L.c2);
+    if (L.pat === 3) R(x, y + 3, ww, 2, L.c2);
+  };
+  // Beine, Stutzen, Schuhe
+  R(3, 18, 2, 2, L.skin); R(7, 18, 2, 2, L.skin); R(3, 20, 2, 5, L.so || L.c1); R(7, 20, 2, 5, L.so || L.c1); R(2, 25, 3, 2, L.shoe || '#1a1a1e'); R(7, 25, 3, 2, L.shoe || '#1a1a1e');
+  R(2, 14, 8, 4, L.sh); R(5, 16, 2, 2, shade(L.sh, 0.7));
+  jer(2, 6, 8, 8); R(2, 6, 1, 8, L.jerS);
+  // Arme je nach Haltung
+  if (pose === 'gk') { jer(-3, 7, 5, 2); jer(10, 7, 5, 2); R(-5, 6, 2, 3, L.gk ? '#ececec' : L.skin); R(15, 6, 2, 3, L.gk ? '#ececec' : L.skin); }
+  else if (pose === 'wall') { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(1, 9, 2, 4, L.skin); R(9, 9, 2, 4, L.skin); R(3, 13, 6, 2, L.skin); }
+  else if (pose === 'up') { jer(0, 4, 2, 3); jer(10, 4, 2, 3); R(0, 0, 2, 4, L.skin); R(10, 0, 2, 4, L.skin); }
+  else { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(0, 9, 2, 5, L.skin); R(10, 9, 2, 5, L.skin); }
+  // Kopf
+  R(4, 5, 4, 1, L.skinS); R(3, 0, 6, 5, L.skin);
+  if (back) { R(3, 0, 6, 4, L.hair); R(4, 4, 4, 1, L.hair); if (L.num) { g.fillStyle = lum(L.c1) > 0.6 ? '#1a1a1e' : '#ffffff'; g.fillRect(ox + 5, 8, 2, 4); } }
+  else { R(3, 0, 6, 1, L.hair); R(3, 1, 1, 2, L.hair); R(8, 1, 1, 2, L.hair); R(4, 2, 1, 1, '#1a1010'); R(7, 2, 1, 1, '#1a1010'); if (L.beard) R(4, 4, 4, 1, shade(L.hair, 0.9)); }
+  // Umriss
+  const src = g.getImageData(0, 0, w, h), out = g.createImageData(w, h), sd = src.data, od = out.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4; if (sd[i + 3]) { od[i] = sd[i]; od[i + 1] = sd[i + 1]; od[i + 2] = sd[i + 2]; od[i + 3] = 255; continue; }
+    const n = (xx, yy) => xx >= 0 && yy >= 0 && xx < w && yy < h && sd[(yy * w + xx) * 4 + 3];
+    if (n(x - 1, y) || n(x + 1, y) || n(x, y - 1) || n(x, y + 1)) { od[i] = 11; od[i + 1] = 9; od[i + 2] = 16; od[i + 3] = 255; }
+  }
+  g.putImageData(out, 0, 0); FRONT.set(key, c); return c;
+}
+// ---------- Zeichnen ----------
+function drawAimView() {
+  const A = aimFrame(), F = H * AIM_F, Y0 = H * AIM_Y0, night = PITCH.night;
+  // Himmel
+  const sky = ctx.createLinearGradient(0, 0, 0, Y0);
+  if (night) { sky.addColorStop(0, '#05070f'); sky.addColorStop(1, '#1a2244'); } else if (PITCH.wet) { sky.addColorStop(0, '#6d7684'); sky.addColorStop(1, '#a9b0ba'); } else { sky.addColorStop(0, '#5b9bd8'); sky.addColorStop(1, '#bfe0f2'); }
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, Y0 + 2);
+  // Rasen in 2-px-Blöcken: Mähstreifen (Asche ohne)
+  const G0 = PITCH.ground, dim = night ? 0.72 : PITCH.wet ? 0.9 : 1;
+  const colA = shade(G0 === 2 ? '#b5764a' : G0 === 1 ? '#2f9a45' : '#549a3b', dim), colB = shade(G0 === 2 ? '#a96c43' : G0 === 1 ? '#2b9140' : '#47852f', dim);
+  for (let y = Math.ceil(Y0) + 1; y < H; y += 2) {
+    const f = A.cz * F / (y - Y0);
+    for (let x = 0; x < W; x += 4) {
+      const r = (x + 2 - W / 2) / F * f, wx = A.cx + A.dx * f + A.rx * r;
+      ctx.fillStyle = Math.floor(wx / 6) % 2 ? colA : colB; ctx.fillRect(x, y, 4, 2);
+    }
+  }
+  // Hintergrund hinter dem Tor: Bande, Zuschauer, Bäume
+  const back = aimProj(A, A.gx + A.s * 5, MY, 0);
+  if (back) {
+    const yb = back.y, k = back.k, top = yb - 3.8 * k;
+    ctx.fillStyle = night ? '#0d1220' : '#2f5a32'; ctx.fillRect(0, Math.max(0, top - 1.5 * k), W, 1.5 * k + 2);
+    ctx.fillStyle = night ? '#1a1a28' : '#5c6a74'; ctx.fillRect(0, top, W, yb - top);
+    for (let i = 0; i < W / 5; i++) for (let j = 0; j < 3; j++) { const hh = (i * 7 + j * 13) % 11; if (hh > 7) continue; ctx.fillStyle = ['#c8102e', '#f3ead6', '#2f56b0', '#3a2f4d', '#ffc83a'][(i + j * 2) % 5]; ctx.fillRect(i * 5 + (j % 2) * 2, top + 2 + j * (k * 0.9), 3, Math.max(2, k * 0.5)); }
+    const ad = yb - 1.0 * k; ctx.fillStyle = '#f4f4f0'; ctx.fillRect(0, ad, W, yb - ad);
+    const ads = (PITCH.ads && PITCH.ads.length ? PITCH.ads : ['KREISLIGA-LEGENDEN']);
+    for (let i = 0, x = -((A.cy * 7) % 160); x < W; i++) { const t = ads[i % ads.length], w0 = t.length * 7 + 20; ctx.fillStyle = ['#c8102e', '#14306b', '#0a8a3e', '#ffd200'][i % 4]; ctx.fillRect(x, ad + 1, w0 - 4, yb - ad - 2); text(t, x + w0 / 2 - 2, ad + (yb - ad) / 2 - 4, i % 4 === 3 ? '#14306b' : '#ffffff', 8, 'center', false); x += w0; }
+  }
+  // Linien
+  const wh = night ? 'rgba(235,235,235,0.75)' : 'rgba(255,255,255,0.85)';
+  const seg = pts => { ctx.strokeStyle = wh; ctx.lineWidth = 2; ctx.beginPath(); let on = false; for (const [x, y] of pts) { const p = aimProj(A, x, y, 0); if (!p) { on = false; continue; } if (on) ctx.lineTo(p.x, p.y); else { ctx.moveTo(p.x, p.y); on = true; } } ctx.stroke(); };
+  const L = (x1, y1, x2, y2) => { const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 0.8)), pts = []; for (let i = 0; i <= n; i++) pts.push([lerp(x1, x2, i / n), lerp(y1, y2, i / n)]); seg(pts); };
+  const gx = A.gx, s = A.s, bx = gx - s * BOX_D, sx6 = gx - s * SIX_D;
+  L(gx, -2, gx, CH + 2); L(bx, MY - BOX_W / 2, bx, MY + BOX_W / 2); L(gx, MY - BOX_W / 2, bx, MY - BOX_W / 2); L(gx, MY + BOX_W / 2, bx, MY + BOX_W / 2);
+  L(sx6, MY - SIX_W / 2, sx6, MY + SIX_W / 2); L(gx, MY - SIX_W / 2, sx6, MY - SIX_W / 2); L(gx, MY + SIX_W / 2, sx6, MY + SIX_W / 2);
+  { const px = gx - s * PEN_D, pts = []; for (let a = -0.93; a <= 0.93; a += 0.05) pts.push([px - s * Math.cos(a) * CIRCLE_R, MY + Math.sin(a) * CIRCLE_R]); seg(pts.filter(([x]) => (x - bx) * s < 0)); const p = aimProj(A, px, MY, 0); if (p) { ctx.fillStyle = wh; ctx.fillRect(p.x - 2, p.y - 1, 4, 2); } }
+  // Tor: Netz (hinten), dann Pfosten und Latte
+  const P = (y, z, dx = 0) => aimProj(A, gx + s * dx, y, z);
+  ctx.strokeStyle = night ? 'rgba(220,220,230,0.4)' : 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 14; i++) { const y = GY1 + GW * i / 14, a = P(y, 0, 1.8), b2 = P(y, 2.0, 1.8), c2 = P(y, GH, 0); if (a && b2 && c2) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(c2.x, c2.y); ctx.stroke(); } }
+  for (let j = 0; j <= 6; j++) { const z = 2.0 * j / 6, a = P(GY1, z, 1.8), b2 = P(GY2, z, 1.8); if (a && b2) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke(); } }
+  for (const y of [GY1, GY2]) { const a = P(y, 0, 1.8), b2 = P(y, 2.0, 1.8), c2 = P(y, GH, 0), d2 = P(y, 0, 0); if (a && b2 && c2 && d2) { ctx.beginPath(); ctx.moveTo(d2.x, d2.y); ctx.lineTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(c2.x, c2.y); ctx.stroke(); } }
+  // Figuren und Ball nach Tiefe sortiert (hinten zuerst)
+  const items = [];
+  for (const p of G.players) {
+    if (p.off) continue; const q = aimProj(A, p.x, p.y, p.z || 0); if (!q || q.f > 60 || q.x < -60 || q.x > W + 60) continue;
+    if ((G.sp && p === G.sp.taker && !G.aimFly) || q.f < (G.aimFly ? 9 : 5)) continue;   // Schütze steht unter der Kamera
+    items.push({ f: q.f, draw: () => {
+      const keeper = isGK(p), mine = p.team === A.team, pose = keeper ? 'gk' : p.wall ? (p.z > 0.2 ? 'up' : 'wall') : 'idle';
+      const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+      const sh = aimProj(A, p.x, p.y, 0); if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.35 * sh.k, 0.08 * sh.k, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.save(); ctx.translate(q.x, q.y - h / 2);
+      if (keeper && p.act && p.act.type === 'dive') { const side = Math.sign((p.vx * A.rx + p.vy * A.ry) || 1); ctx.rotate(side * Math.min(1.35, p.act.t * 5)); }
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+    } });
+  }
+  const B = G.ball, bq = aimProj(A, B.x, B.y, B.z + 0.11);
+  if (bq) items.push({ f: bq.f, draw: () => {
+    const sh = aimProj(A, B.x, B.y, 0), r = Math.max(2, 0.12 * bq.k);
+    if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, r, r * 0.3, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#0b0910'; ctx.beginPath(); ctx.arc(bq.x, bq.y, r + 1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.arc(bq.x, bq.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1e'; ctx.fillRect(bq.x - r * 0.3, bq.y - r * 0.3, Math.max(1, r * 0.55), Math.max(1, r * 0.55));
+  } });
+  items.sort((a, b) => b.f - a.f).forEach(i => i.draw());
+  // Pfosten und Latte vor dem Netz
+  const pw = Math.max(2, 0.12 * (P(MY, 0) || { k: 20 }).k);
+  for (const y of [GY1, GY2]) { const a = P(y, 0), b2 = P(y, GH); if (a && b2) { ctx.fillStyle = '#f4f4f0'; ctx.fillRect(a.x - pw / 2, b2.y, pw, a.y - b2.y); } }
+  { const a = P(GY1, GH), b2 = P(GY2, GH); if (a && b2) { ctx.fillStyle = '#f4f4f0'; ctx.fillRect(Math.min(a.x, b2.x), a.y - pw / 2, Math.abs(b2.x - a.x), pw); } }
+  // Fadenkreuz und Kraft (nur vor dem Schuss)
+  const sp = G.sp;
+  if (sp && sp.aim && !G.aimFly) {
+    const t = aimProj(A, gx, MY + sp.aim.u * s, sp.aim.z);
+    if (t) { const blink = Math.floor(G.t * 4) % 2, cl = blink ? '#ffc83a' : '#fff1b0'; ctx.fillStyle = '#000'; ctx.fillRect(t.x - 9, t.y - 2, 19, 5); ctx.fillRect(t.x - 2, t.y - 9, 5, 19); ctx.fillStyle = cl; ctx.fillRect(t.x - 8, t.y - 1, 6, 3); ctx.fillRect(t.x + 3, t.y - 1, 6, 3); ctx.fillRect(t.x - 1, t.y - 8, 3, 6); ctx.fillRect(t.x - 1, t.y + 3, 3, 6); }
+    const c = sp.taker, v = c.charge || 0, bw = 140, bx0 = W / 2 - bw / 2, by0 = H - 58;
+    ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(bx0 - 4, by0 - 14, bw + 8, 24);
+    text('KRAFT', bx0, by0 - 11, '#cfd6f2', 8, 'left', false); text(v < 0.01 ? '' : v < 0.45 ? 'BOGEN' : v < 0.85 ? 'MITTEL' : v > 0.97 ? 'ZU FEST!' : 'STRAMM', bx0 + bw, by0 - 11, '#ffc83a', 8, 'right', false);
+    ctx.fillStyle = '#1a2040'; ctx.fillRect(bx0, by0, bw, 6);
+    ctx.fillStyle = v > 0.97 ? '#ff4f3a' : v > 0.85 ? '#ffc83a' : '#3ddc84'; ctx.fillRect(bx0, by0, Math.round(bw * Math.min(1, v)), 6);
+    const K = KEYN(), m = `${sp.type === 'pen' ? 'ELFMETER' : 'FREISTOSS'} · RICHTUNG: ZIELEN · ${K.b} HALTEN: KRAFT${sp.type === 'free' ? ` · ${K.a}: PASS · ${K.c}: FLANKE` : ''}`;
+    hint(m);
+    if (sp.type === 'free') text('WENIG KRAFT = BOGEN ÜBER DIE MAUER · VIEL KRAFT = HART UND FLACH', W / 2, H - 20, '#cfd6f2', 8, 'center', false);
+  }
+}
 // ================= Touch, Hauptschleife, Start =================
 if (TOUCHDEV) document.body.classList.add('touch');
 fitView(); addEventListener('resize', fitView); addEventListener('orientationchange', () => setTimeout(fitView, 250));
