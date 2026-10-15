@@ -72,7 +72,7 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
   } else if (g) {
     const opp = TEAMS[g.h === C.team ? g.a : g.h], home = g.h === C.team, M = matchSquad(C.team), miss = ensureSquad(C.team).filter(p => p.inj > 0 || p.ban > 0);
-    foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3>
+    foot = `<div class="cfoot"><h3>${isDerby(g.h, g.a) ? '<span class="badge hot">DERBY</span> ' : ''}${esc(eventLabel(ev))}</h3>
       <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div>
       <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
       <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
@@ -99,7 +99,8 @@ function blattHTML() {
   const mini = st.slice(from, from + 5).map((tid, i) => { const r = S.tables[li][tid]; return `<tr class="${tid === C.team ? 'me' : ''} ${from + i === 0 ? 'zone-a' : from + i >= st.length - 2 ? 'zone-d' : ''}"><td>${from + i + 1}</td><td class="l">${esc(TEAMS[tid].short)}</td><td>${r.sp}</td><td>${r.pkt}</td></tr>`; }).join('');
   const top = topScorers(li, 5).map(x => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].k)}</span></td><td>${x.n}</td></tr>`).join('');
   const g = myGame(ev), opp = g ? TEAMS[g.h === C.team ? g.a : g.h] : null;
-  const fav = g ? (squadStr(C.team) - squadStr(opp.id) > 2 ? 'Wir sind Favorit.' : squadStr(opp.id) - squadStr(C.team) > 2 ? `${opp.short} ist Favorit.` : 'Ein Spiel auf Augenhöhe.') : '';
+  const derbyTxt = g && isDerby(g.h, g.a) ? 'DERBY gegen den Erzrivalen – das ganze Dorf schaut zu! ' : '';
+  const fav = g ? derbyTxt + (squadStr(C.team) - squadStr(opp.id) > 2 ? 'Wir sind Favorit.' : squadStr(opp.id) - squadStr(C.team) > 2 ? `${opp.short} ist Favorit.` : 'Ein Spiel auf Augenhöhe.') : '';
   const danger = opp ? ensureSquad(opp.id).filter(p => p.grp === 'ST' || p.grp === 'MF').sort((a, b) => (b.ss.g - a.ss.g) || (b.ovr - a.ovr))[0] : null;
   return `<div class="paper"><div class="np-mast">KREISBLATT</div>
     <div class="np-date"><span>${seasonLabel(C.year)} · ${esc(lgName(li))}</span><span>${ev ? esc(eventLabel(ev)) : 'Saisonende'}</span></div>
@@ -172,7 +173,7 @@ function planHTML() {
     if (ev.t === 'lg' && g) {
       const r = res && res.games.find(x => x.li === C.lg && x.h === g[0] && x.a === g[1]);
       const me = g[0] === C.team, out = r ? (me ? r.gh - r.ga : r.ga - r.gh) : null;
-      return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l">${me ? 'H' : 'A'} · ${esc(TEAMS[me ? g[1] : g[0]].n)}</td><td>${r ? `${r.gh}:${r.ga}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : out < 0 ? 'l' : 'd'}">${out > 0 ? 'S' : out < 0 ? 'N' : 'U'}</i></div>`}</td></tr>`;
+      return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l">${me ? 'H' : 'A'} · ${esc(TEAMS[me ? g[1] : g[0]].n)}${isDerby(g[0], g[1]) ? ' <span class="badge hot">DERBY</span>' : ''}</td><td>${r ? `${r.gh}:${r.ga}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : out < 0 ? 'l' : 'd'}">${out > 0 ? 'S' : out < 0 ? 'N' : 'U'}</i></div>`}</td></tr>`;
     }
     if (ev.t === 'lg') return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l muted">spielfrei</td><td></td><td></td></tr>`;
     if (ev.t === 'po') return `<tr class="${i === S.ci ? 'me' : ''}"><td>PO</td><td class="l">${PO_NAMES[ev.r]}</td><td></td><td></td></tr>`;
@@ -230,7 +231,8 @@ function clubHTML() {
   const C = CAREER, S = C.S;
   const tro = C.titles.length ? C.titles.map(t => `<div class="tshelf won"><b>${t.kind === 'dkm' ? '🏆' : t.kind === 'pokal' ? '🥈' : '🥇'}</b><span>${t.kind === 'dkm' ? 'DEUTSCHER KREISLIGA-MEISTER' : t.kind === 'pokal' ? 'KREISPOKALSIEGER' : 'MEISTER ' + esc(LIGEN[C.lg].n.toUpperCase())}</span><i>${seasonLabel(t.year)}</i></div>`).join('') : '<p class="muted">Noch keine Titel. Der Pokalschrank im Sportheim wartet.</p>';
   const mk = (C.market || []).map((m, i) => { const p = (C.squads[m.from] || []).find(q => q.pid === m.pid); if (!p) return ''; return `<tr><td class="l"><button class="link" data-act="cplayer" data-arg="${p.pid}">${esc(p.name)}</button> <span class="tag">${esc(TEAMS[m.from].short)}</span></td><td>${p.grp}</td><td class="hs">${p.age}</td><td>${p.ovr}</td><td>${fmtMoney(m.fee)}</td><td><button class="small" data-act="cbuy" data-arg="${i}" ${C.money < m.fee ? 'disabled' : ''}>HOLEN</button></td></tr>`; }).join('');
-  return `<div class="kpis"><div class="kpi"><span>VEREINSKASSE</span><b>${fmtMoney(C.money)}</b><i>Eintritt, Bratwurst, Sponsoren, Prämien</i></div>
+  const rv = rivalOf();
+  return `<div class="kpis">${rv != null ? `<div class="kpi"><span>ERZRIVALE</span><b>${esc(TEAMS[rv].short.toUpperCase())}</b><i>Derbysieg: +500 € und Ruhm</i></div>` : ''}<div class="kpi"><span>VEREINSKASSE</span><b>${fmtMoney(C.money)}</b><i>Eintritt, Bratwurst, Sponsoren, Prämien</i></div>
     <div class="kpi"><span>ZUSCHAUER</span><b>${S.fans || '–'}</b><i>letztes Heimspiel${S.gate ? ' · ' + fmtMoney(S.gate) : ''}</i></div>
     <div class="kpi"><span>PLATZ</span><b>${GROUNDS[TEAMS[C.team].ground]}</b><i>${esc(TEAMS[C.team].short)}</i></div></div>
   <h3>TRAINING (SCHWERPUNKT)</h3><div class="row">${Object.entries(TRAIN).map(([k, [n]]) => `<button class="small ${C.train === k ? 'on' : ''}" data-act="ctrain" data-arg="${k}">${n.toUpperCase()}</button>`).join('')}</div>

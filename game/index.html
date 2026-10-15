@@ -322,6 +322,7 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 .chal div{display:flex;gap:8px;align-items:baseline}.chal div b{width:12px;color:var(--mute)}
 .chal div.ok{color:var(--green)}.chal div.ok b{color:var(--green)}.chal div.no{color:var(--mute)}.chal div.no b{color:var(--hot)}
 .gold{color:var(--gold)}
+.badge.hot{background:var(--hot);color:#fff}
 .achs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
 .ach{border:2px solid var(--line);padding:6px 8px;display:grid;grid-template-columns:auto 1fr;gap:0 8px;opacity:.55;background:#0d0b14}
 .ach b{grid-row:span 2;font-size:22px;color:var(--mute)}.ach span{font-family:var(--pix);font-size:9px}.ach i{font-style:normal;color:var(--dim);font-size:16px}
@@ -1302,7 +1303,7 @@ function newMatch(ta, tb, o = {}) {
   const kits = o.kits || makeKits(ta, tb);
   G = {
     mode: 'match', demo: !!o.demo, T: [A, B], tid: [ta, tb], kits, human: o.demo ? -1 : (o.human ?? 0), diff: DIFF[o.diff ?? SETTINGS.diff], diffI: o.diff ?? SETTINGS.diff,
-    hlen: Math.round((o.hlen ?? SETTINGS.hlen) * 60), event: o.event || null, career: o.career || null, opts: o, ko: !!o.ko, et: !!o.et,
+    hlen: Math.round((o.hlen ?? SETTINGS.hlen) * 60), event: o.event || null, career: o.career || null, derby: !!o.derby, opts: o, ko: !!o.ko, et: !!o.et,
     players: [], bench: [[], []], subs: [5, 5], score: [0, 0], half: 1, clock: 0, added: 0, swap: false,
     phase: 'intro', phaseT: 0, t: 0, parts: [], banner: null, ticker: null, shake: 0, excite: 0, ctrl: null, poss: -1, possT: 0, kickoffTeam: 0,
     form: [o.form ? o.form[0] : 'X', o.form ? o.form[1] : 'X'], ment: [1, 1], sp: null, offs: null, log: [], rec: [], recT: 0, so: null, pen: null, netHit: null,
@@ -2245,7 +2246,7 @@ function step(dt) {
   if (G.spray) { G.spray.t += dt; if (G.spray.t > 2.2) G.spray = null; }
   if (G.netHit) G.netHit.t += dt;
   G.shake = Math.max(0, G.shake - dt); G.excite = Math.max(0, G.excite - dt * 0.35); G.flagT = Math.max(0, (G.flagT || 0) - dt);
-  if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
+  if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0) + (G.derby ? 0.2 : 0)));
   updateParts(dt);
   if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
   flairStep(dt);
@@ -3218,6 +3219,7 @@ function drawIntro() {
     teamP(t).forEach((p, i) => text(`${slotOf(p).padEnd(2)} ${p.d.name.toUpperCase().slice(0, 12)}`, cx, 168 + i * 13, '#cfd6f2', 8, 'center'));
   }
   text('VS', W / 2, 74, '#ffc83a', 16, 'center');
+  if (G.derby) text('DERBY GEGEN DEN ERZRIVALEN!', W / 2, 40 + (Math.floor(G.t * 3) % 2), '#ff4f3a', 8, 'center');
   if (G.chal) { text('AUFGABEN', W / 2, H - 66, '#ffc83a', 8, 'center'); G.chal.forEach((x, i) => text(x.t.toUpperCase(), W / 2, H - 54 + i * 10, '#cfd6f2', 8, 'center')); }
   if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 20, '#f3ead6', 8, 'center');
 }
@@ -3435,7 +3437,7 @@ const ACT = {
       ${statsHTML()}
       ${notesHTML()}
       ${res ? `<p class="muted">${res}</p>` : ''}
-      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : '<button class="main" data-act="rematch" autofocus>REVANCHE</button><button data-act="toMain">HAUPTMENÜ</button>'}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
+      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : '<button class="main" data-act="rematch" autofocus>REVANCHE</button><button data-act="toMain">HAUPTMENÜ</button>'}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
@@ -3599,7 +3601,7 @@ function newCareer(team, len, diff, hlen) {
   CAREER = { v: 2, team, tname: TEAMS[team].n, lg, kl, year: START_YEAR, len, diff, hlen, squads: {}, npid: 1, form: defaultForm(team), ment: 1, xi: null, pk: null,
     forms: {}, titles: [], news: [], money: 3000, hist: [], train: 'bal', market: [], records: {}, seasonsPlayed: 0 };
   for (const tid of klTeams()) { ensureSquad(tid); CAREER.forms[tid] = defaultForm(tid); }
-  newSeason(); refreshMarket();
+  newSeason(); refreshMarket(); rivalOf();
   news('Saisonstart', `${TEAMS[team].n}: Auf geht's!`, `Neuer Trainer an der Seitenlinie. Der Vorstand hofft auf eine gute Saison in der ${lgName()} – und auf volle Bratwurstbuden.`, 'start');
   saveCareer();
   track('saison-start', { verein: TEAMS[team].n, verband: verbOf(team).n });
@@ -3832,6 +3834,7 @@ function noteOwnResult(r, played, tie, kind) {
   const heads = won ? [`${TEAMS[me].short} siegt ${my}:${op}`, `Dreier gegen ${opp.short}!`, `${my}:${op} – Jubel im Sportheim`] : lost ? [`${my}:${op} gegen ${opp.short}`, `Bittere Pleite gegen ${opp.short}`, home ? `Heimpleite gegen ${opp.short}` : `Nichts zu holen in ${opp.short}`] : [`Remis gegen ${opp.short}`, `${my}:${op} – ein Punkt`];
   const body = tie ? (won ? `${tie.so ? `Nach Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}weiter im ${kind === 'cup' ? 'Kreispokal' : 'Turnier'}!` : `${tie.so ? `Im Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}ausgeschieden.${kind === 'cup' ? ' Jetzt zählt die Liga.' : ' Die Saison ist vorbei.'}`) : (sc.length ? `Tore: ${sc.join(', ')}.` : 'Kein eigenes Tor.') + (played ? '' : ' (simuliert)');
   news(kind === 'cup' ? 'Kreispokal' : tie ? 'Playoffs' : `${curEvent().md}. Spieltag`, pick(heads), body, won ? 'win' : lost ? 'loss' : 'draw');
+  derbyResult(r, played);
 }
 
 // ---------- Eigenes Spiel ----------
@@ -3847,7 +3850,7 @@ function careerMatchOpts(watch) {
   const event = ev.t === 'po' && ev.r === 3 ? FINAL_EVENT : ev.t === 'po' ? { title: PO_NAMES[ev.r], ground: TEAMS[g.h].ground } : cupLast ? CUP_FINAL() : ev.t === 'cup' ? { title: 'KREISPOKAL', ground: TEAMS[g.h].ground } : null;
   return {
     human: meHome ? 0 : 1, diff: CAREER.diff, hlen: CAREER.hlen, xi: [H.xi, A.xi], bench: [H.bench, A.bench], form: [H.form, A.form], ment: [meHome ? CAREER.ment : 1, meHome ? 1 : CAREER.ment],
-    career: { label: eventLabel(ev), rec, pk: CAREER.pk, ev: CAREER.S.ci }, ko: ev.t !== 'lg', et: ev.t === 'po' && ev.r === 3, event, watch,
+    career: { label: (isDerby(g.h, g.a) ? 'DERBY! · ' : '') + eventLabel(ev), rec, pk: CAREER.pk, ev: CAREER.S.ci }, derby: isDerby(g.h, g.a), ko: ev.t !== 'lg', et: ev.t === 'po' && ev.r === 3, event, watch,
   };
 }
 function playCareerMatch(watch) {
@@ -4034,7 +4037,7 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cseason" autofocus>NEUE SAISON</button><button data-act="main">HAUPTMENÜ</button></div></div>`;
   } else if (g) {
     const opp = TEAMS[g.h === C.team ? g.a : g.h], home = g.h === C.team, M = matchSquad(C.team), miss = ensureSquad(C.team).filter(p => p.inj > 0 || p.ban > 0);
-    foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3>
+    foot = `<div class="cfoot"><h3>${isDerby(g.h, g.a) ? '<span class="badge hot">DERBY</span> ' : ''}${esc(eventLabel(ev))}</h3>
       <div class="np-vs"><img src="${iconURL(TEAMS[g.h].home)}" alt=""><b>${esc(TEAMS[g.h].short.toUpperCase())}</b> – <img src="${iconURL(TEAMS[g.a].home)}" alt=""><b>${esc(TEAMS[g.a].short.toUpperCase())}</b></div>
       <p class="muted">${home ? 'Heimspiel' : g.neutral ? 'Neutraler Platz' : 'Auswärts'} · ${GROUNDS[g.neutral ? 0 : TEAMS[g.h].ground]} · Gegner: ${starHTML(stars(squadStr(opp.id)))} · ${esc(CAREER.kl.includes(opp.lg) ? ligaOf(opp.id).n : 'Kreismeister ' + homeTag(opp.id, true))} · Deine Elf: ${M.form}${miss.length ? ` · fehlen: ${miss.map(p => esc(p.name) + (p.inj > 0 ? ' (verletzt)' : ' (gesperrt)')).join(', ')}` : ''}</p>
       <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
@@ -4061,7 +4064,8 @@ function blattHTML() {
   const mini = st.slice(from, from + 5).map((tid, i) => { const r = S.tables[li][tid]; return `<tr class="${tid === C.team ? 'me' : ''} ${from + i === 0 ? 'zone-a' : from + i >= st.length - 2 ? 'zone-d' : ''}"><td>${from + i + 1}</td><td class="l">${esc(TEAMS[tid].short)}</td><td>${r.sp}</td><td>${r.pkt}</td></tr>`; }).join('');
   const top = topScorers(li, 5).map(x => `<tr class="${x.p.tid === C.team ? 'me' : ''}"><td class="l">${esc(x.p.name)} <span class="tag">${esc(TEAMS[x.p.tid].k)}</span></td><td>${x.n}</td></tr>`).join('');
   const g = myGame(ev), opp = g ? TEAMS[g.h === C.team ? g.a : g.h] : null;
-  const fav = g ? (squadStr(C.team) - squadStr(opp.id) > 2 ? 'Wir sind Favorit.' : squadStr(opp.id) - squadStr(C.team) > 2 ? `${opp.short} ist Favorit.` : 'Ein Spiel auf Augenhöhe.') : '';
+  const derbyTxt = g && isDerby(g.h, g.a) ? 'DERBY gegen den Erzrivalen – das ganze Dorf schaut zu! ' : '';
+  const fav = g ? derbyTxt + (squadStr(C.team) - squadStr(opp.id) > 2 ? 'Wir sind Favorit.' : squadStr(opp.id) - squadStr(C.team) > 2 ? `${opp.short} ist Favorit.` : 'Ein Spiel auf Augenhöhe.') : '';
   const danger = opp ? ensureSquad(opp.id).filter(p => p.grp === 'ST' || p.grp === 'MF').sort((a, b) => (b.ss.g - a.ss.g) || (b.ovr - a.ovr))[0] : null;
   return `<div class="paper"><div class="np-mast">KREISBLATT</div>
     <div class="np-date"><span>${seasonLabel(C.year)} · ${esc(lgName(li))}</span><span>${ev ? esc(eventLabel(ev)) : 'Saisonende'}</span></div>
@@ -4134,7 +4138,7 @@ function planHTML() {
     if (ev.t === 'lg' && g) {
       const r = res && res.games.find(x => x.li === C.lg && x.h === g[0] && x.a === g[1]);
       const me = g[0] === C.team, out = r ? (me ? r.gh - r.ga : r.ga - r.gh) : null;
-      return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l">${me ? 'H' : 'A'} · ${esc(TEAMS[me ? g[1] : g[0]].n)}</td><td>${r ? `${r.gh}:${r.ga}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : out < 0 ? 'l' : 'd'}">${out > 0 ? 'S' : out < 0 ? 'N' : 'U'}</i></div>`}</td></tr>`;
+      return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l">${me ? 'H' : 'A'} · ${esc(TEAMS[me ? g[1] : g[0]].n)}${isDerby(g[0], g[1]) ? ' <span class="badge hot">DERBY</span>' : ''}</td><td>${r ? `${r.gh}:${r.ga}` : '–'}</td><td class="c">${out == null ? '' : `<div class="cform"><i class="${out > 0 ? 'w' : out < 0 ? 'l' : 'd'}">${out > 0 ? 'S' : out < 0 ? 'N' : 'U'}</i></div>`}</td></tr>`;
     }
     if (ev.t === 'lg') return `<tr class="${i === S.ci ? 'me' : ''}"><td>${ev.md}.</td><td class="l muted">spielfrei</td><td></td><td></td></tr>`;
     if (ev.t === 'po') return `<tr class="${i === S.ci ? 'me' : ''}"><td>PO</td><td class="l">${PO_NAMES[ev.r]}</td><td></td><td></td></tr>`;
@@ -4192,7 +4196,8 @@ function clubHTML() {
   const C = CAREER, S = C.S;
   const tro = C.titles.length ? C.titles.map(t => `<div class="tshelf won"><b>${t.kind === 'dkm' ? '🏆' : t.kind === 'pokal' ? '🥈' : '🥇'}</b><span>${t.kind === 'dkm' ? 'DEUTSCHER KREISLIGA-MEISTER' : t.kind === 'pokal' ? 'KREISPOKALSIEGER' : 'MEISTER ' + esc(LIGEN[C.lg].n.toUpperCase())}</span><i>${seasonLabel(t.year)}</i></div>`).join('') : '<p class="muted">Noch keine Titel. Der Pokalschrank im Sportheim wartet.</p>';
   const mk = (C.market || []).map((m, i) => { const p = (C.squads[m.from] || []).find(q => q.pid === m.pid); if (!p) return ''; return `<tr><td class="l"><button class="link" data-act="cplayer" data-arg="${p.pid}">${esc(p.name)}</button> <span class="tag">${esc(TEAMS[m.from].short)}</span></td><td>${p.grp}</td><td class="hs">${p.age}</td><td>${p.ovr}</td><td>${fmtMoney(m.fee)}</td><td><button class="small" data-act="cbuy" data-arg="${i}" ${C.money < m.fee ? 'disabled' : ''}>HOLEN</button></td></tr>`; }).join('');
-  return `<div class="kpis"><div class="kpi"><span>VEREINSKASSE</span><b>${fmtMoney(C.money)}</b><i>Eintritt, Bratwurst, Sponsoren, Prämien</i></div>
+  const rv = rivalOf();
+  return `<div class="kpis">${rv != null ? `<div class="kpi"><span>ERZRIVALE</span><b>${esc(TEAMS[rv].short.toUpperCase())}</b><i>Derbysieg: +500 € und Ruhm</i></div>` : ''}<div class="kpi"><span>VEREINSKASSE</span><b>${fmtMoney(C.money)}</b><i>Eintritt, Bratwurst, Sponsoren, Prämien</i></div>
     <div class="kpi"><span>ZUSCHAUER</span><b>${S.fans || '–'}</b><i>letztes Heimspiel${S.gate ? ' · ' + fmtMoney(S.gate) : ''}</i></div>
     <div class="kpi"><span>PLATZ</span><b>${GROUNDS[TEAMS[C.team].ground]}</b><i>${esc(TEAMS[C.team].short)}</i></div></div>
   <h3>TRAINING (SCHWERPUNKT)</h3><div class="row">${Object.entries(TRAIN).map(([k, [n]]) => `<button class="small ${C.train === k ? 'on' : ''}" data-act="ctrain" data-arg="${k}">${n.toUpperCase()}</button>`).join('')}</div>
@@ -4762,6 +4767,102 @@ Object.assign(ACT, {
       <div class="achs">${ACHS.map(([id, name, d]) => `<div class="ach ${PROF.ach[id] ? 'on' : ''}"><b>${PROF.ach[id] ? '★' : '☆'}</b><span>${esc(name)}</span><i>${esc(d)}</i></div>`).join('')}</div>
       <p class="muted">Erfolge und Punkte bleiben nur in diesem Browser gespeichert.</p></div>`, { back: ACT.main });
   },
+});
+// ================= Derbys und Ergebnisbild zum Teilen =================
+// Jeder Verein hat in der Saison einen Erzrivalen in der eigenen Liga: einen Verein aus demselben Ort, sonst einen etwa
+// gleich starken Nachbarn. Derbys haben mehr Stimmung, eine Prämie und eigene Schlagzeilen. Nach jedem Spiel lässt sich das
+// Ergebnis als Zeitungsausschnitt aus dem Kreisblatt (1080 × 1080 Pixel) teilen, etwa in die WhatsApp-Gruppe der Mannschaft.
+function rivalOf(C = CAREER) {
+  if (!C || !LIGEN[C.lg]) return null;
+  if (C.rival != null && LIGEN[C.lg].ids.includes(C.rival) && C.rival !== C.team) return C.rival;
+  const words = t => norm(t.n).split(' ').filter(w => w.length > 3 && !/^\d+$/.test(w) && !TRAD.has(w));
+  const me = TEAMS[C.team], mine = new Set(words(me)), cands = LIGEN[C.lg].ids.filter(t => t !== C.team);
+  let best = cands.find(t => words(TEAMS[t]).some(w => mine.has(w)));   // gleicher Ort im Vereinsnamen
+  if (best == null) { const r = seeded(hashStr(me.n + 'rivale')); best = cands.slice().sort((a, b) => Math.abs(TEAMS[a].r - me.r) - Math.abs(TEAMS[b].r - me.r))[(r() * 3) | 0]; }
+  C.rival = best ?? null; return C.rival;
+}
+const isDerby = (h, a) => !!CAREER && rivalOf() != null && ((h === CAREER.team && a === CAREER.rival) || (a === CAREER.team && h === CAREER.rival));
+// Ergebnis eines Derbys: Prämie, Schlagzeile, Erfolg
+function derbyResult(r, played) {
+  if (!isDerby(r.h, r.a)) return;
+  const me = CT(), home = r.h === me, my = home ? r.gh : r.ga, op = home ? r.ga : r.gh, opp = TEAMS[home ? r.a : r.h];
+  if (my > op) { prize(500, `Derbysieg gegen ${opp.short}`); news('Derby', `DERBYSIEG! ${TEAMS[me].short.toUpperCase()} SCHLÄGT ${opp.short.toUpperCase()}`, `${my}:${op} gegen den Erzrivalen. Im Sportheim wird bis in die Nacht gefeiert, beim Bäcker gibt es Derby-Brezen.`, 'title'); if (played) unlock('derby'); }
+  else if (my < op) news('Derby', `Derbypleite gegen ${opp.short}`, `${my}:${op}. Eine Woche lang Spott auf dem Dorfplatz – das Rückspiel ist schon im Kalender markiert.`, 'loss');
+  else news('Derby', `Derby endet ${my}:${op}`, `Kein Sieger im Duell mit ${opp.short}. Beide Fanlager sind halb zufrieden.`, 'draw');
+}
+
+// ---------- Ergebnisbild ----------
+function wrapText(g, s, max) {
+  const out = []; let line = '';
+  for (const w of s.split(' ')) { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; }
+  if (line) out.push(line); return out;
+}
+function resultCanvas() {
+  const S = 360, c = document.createElement('canvas'); c.width = S; c.height = S;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const T = (s, x, y, col, size = 8, align = 'left') => { g.font = `${size}px ${FONT}`; g.textAlign = align; g.textBaseline = 'top'; g.fillStyle = col; g.fillText(s, Math.round(x), Math.round(y)); };
+  const ink = '#1d1a14', paper = '#efe6cf', me = G.human >= 0 && !G.watch ? G.human : 0, w = winnerOf();
+  // Papier mit gerissenem Rand
+  g.fillStyle = '#07060b'; g.fillRect(0, 0, S, S);
+  g.fillStyle = paper; g.fillRect(14, 14, S - 28, S - 28);
+  for (let x = 14; x < S - 14; x += 4) { const d = (x * 7) % 5; g.fillStyle = '#07060b'; g.fillRect(x, 14, 4, d % 3); g.fillRect(x, S - 14 - (d % 2), 4, 2); }
+  // Kopf
+  T('KREISBLATT', S / 2, 24, ink, 24, 'center');
+  g.fillStyle = ink; g.fillRect(24, 54, S - 48, 2); g.fillRect(24, 70, S - 48, 1);
+  const label = G.career && G.career.label ? G.career.label : G.event ? G.event.title : 'FREUNDSCHAFTSSPIEL';
+  T(label.slice(0, 40), 24, 59, '#5a5240', 8);
+  T(new Date().toLocaleDateString('de-DE'), S - 24, 59, '#5a5240', 8, 'right');
+  // Schlagzeile
+  const derby = G.career && isDerby(G.tid[0], G.tid[1]);
+  const head = derby && w === me ? 'DERBYSIEG!' : w < 0 ? `REMIS IN ${G.T[0].short.toUpperCase()}` : `${G.T[w].short.toUpperCase()} SIEGT ${G.score[w]}:${G.score[1 - w]}`;
+  g.font = `16px ${FONT}`; const lines = wrapText(g, head, S - 48).slice(0, 2);
+  lines.forEach((l, i) => T(l, S / 2, 80 + i * 20, ink, 16, 'center'));
+  // Ergebnis-Kasten mit Trikots
+  const y0 = 80 + lines.length * 20 + 8;
+  g.fillStyle = '#14111d'; g.fillRect(24, y0, S - 48, 74);
+  for (const t of [0, 1]) {
+    const cx = t ? S - 76 : 76;
+    g.drawImage(jerseyIcon(G.kits[t]), cx - 20, y0 + 6, 40, 40);
+    T(G.T[t].k, cx, y0 + 50, '#f3ead6', 8, 'center');
+    T(G.T[t].short.toUpperCase().slice(0, 15), cx, y0 + 62, '#9b90ad', 8, 'center');
+  }
+  T(`${G.score[0]}:${G.score[1]}`, S / 2, y0 + 20, '#ffc83a', 24, 'center');
+  if (G.so) T(`n.E. ${G.so.k[0].reduce((a, b) => a + b, 0)}:${G.so.k[1].reduce((a, b) => a + b, 0)}`, S / 2, y0 + 50, '#cfd6f2', 8, 'center');
+  // Torschützen
+  let y = y0 + 84;
+  T('TORE', 24, y, ink, 8); y += 12;
+  const rows = [0, 1].map(t => G.log.filter(l => l.team === t).slice(0, 6));
+  if (!G.log.length) T('keine', 24, y, '#5a5240', 8);
+  rows.forEach((L, t) => L.forEach((l, i) => T(`${l.min}' ${l.name.toUpperCase().slice(0, 13)}${l.og ? ' (ET)' : l.pen ? ' (11M)' : ''}`, t ? S / 2 + 6 : 24, y + i * 11, t ? '#5a2020' : '#1d3a5a', 8)));
+  y += Math.max(1, rows[0].length, rows[1].length) * 11 + 8;
+  // Statistik in einer Zeile
+  const st = G.stats, pos = st.poss[0] + st.poss[1] > 1 ? Math.round(st.poss[0] / (st.poss[0] + st.poss[1]) * 100) : null;
+  if (st.shots[0] + st.shots[1] > 0) { T(`SCHÜSSE ${st.shots[0]}:${st.shots[1]}${pos != null ? ` · BALLBESITZ ${pos}:${100 - pos}` : ''}`, 24, y, '#5a5240', 8); y += 16; }
+  // Spieler des Spiels
+  if (G.potm) { g.fillStyle = ink; g.fillRect(24, y, S - 48, 1); y += 6; T('SPIELER DES SPIELS', 24, y, '#5a5240', 8); y += 11; T(`${G.potm.d.name.toUpperCase()} · NOTE ${fmtNote(G.potm.d.note)}`, 24, y, ink, 8); }
+  // Fuß
+  g.fillStyle = ink; g.fillRect(24, S - 44, S - 48, 1);
+  T('GESPIELT IN KREISLIGA-LEGENDEN', S / 2, S - 38, '#5a5240', 8, 'center');
+  T('KREISLIGA-LEGENDEN.DE', S / 2, S - 26, ink, 8, 'center');
+  // auf 1080 × 1080 hochskalieren, Pixel bleiben scharf
+  const out = document.createElement('canvas'); out.width = 1080; out.height = 1080;
+  const o = out.getContext('2d'); o.imageSmoothingEnabled = false; o.drawImage(c, 0, 0, 1080, 1080);
+  return out;
+}
+async function shareResult() {
+  const cv = resultCanvas(), blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const txt = `${G.T[0].n} ${G.score[0]}:${G.score[1]} ${G.T[1].n} – gespielt in Kreisliga-Legenden: https://kreisliga-legenden.de`;
+  unlock('teilen'); track('teilen', { modus: G.career ? 'saison' : 'freundschaftsspiel' });
+  try {
+    const file = new File([blob], 'kreisliga-ergebnis.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: txt }); return 'geteilt'; }
+  } catch (e) { if (e && e.name === 'AbortError') return 'abgebrochen'; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'kreisliga-ergebnis.png'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return 'gespeichert';
+}
+Object.assign(ACT, {
+  async share(a, el) { if (el) { el.disabled = true; el.textContent = 'BILD WIRD ERSTELLT …'; } const r = await shareResult(); if (el) { el.textContent = r === 'gespeichert' ? 'BILD GESPEICHERT ✔' : r === 'geteilt' ? 'GETEILT ✔' : 'ERGEBNIS TEILEN'; el.disabled = false; } },
 });
 // ================= Touch, Hauptschleife, Start =================
 if (TOUCHDEV) document.body.classList.add('touch');

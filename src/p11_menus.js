@@ -212,7 +212,7 @@ const ACT = {
       ${statsHTML()}
       ${notesHTML()}
       ${res ? `<p class="muted">${res}</p>` : ''}
-      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : '<button class="main" data-act="rematch" autofocus>REVANCHE</button><button data-act="toMain">HAUPTMENÜ</button>'}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
+      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : '<button class="main" data-act="rematch" autofocus>REVANCHE</button><button data-act="toMain">HAUPTMENÜ</button>'}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },

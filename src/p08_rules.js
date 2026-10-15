@@ -19,7 +19,7 @@ function step(dt) {
   if (G.spray) { G.spray.t += dt; if (G.spray.t > 2.2) G.spray = null; }
   if (G.netHit) G.netHit.t += dt;
   G.shake = Math.max(0, G.shake - dt); G.excite = Math.max(0, G.excite - dt * 0.35); G.flagT = Math.max(0, (G.flagT || 0) - dt);
-  if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0)));
+  if (!G.demo) AU.setExcite(Math.min(1, G.excite * 0.6 + (G.ball.x < 22 || G.ball.x > CW - 22 ? 0.25 : 0) + (G.derby ? 0.2 : 0)));
   updateParts(dt);
   if (G.tut) { tutTick(dt); if (!G || !G.tut) return; }
   flairStep(dt);

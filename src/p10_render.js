@@ -198,6 +198,7 @@ function drawIntro() {
     teamP(t).forEach((p, i) => text(`${slotOf(p).padEnd(2)} ${p.d.name.toUpperCase().slice(0, 12)}`, cx, 168 + i * 13, '#cfd6f2', 8, 'center'));
   }
   text('VS', W / 2, 74, '#ffc83a', 16, 'center');
+  if (G.derby) text('DERBY GEGEN DEN ERZRIVALEN!', W / 2, 40 + (Math.floor(G.t * 3) % 2), '#ff4f3a', 8, 'center');
   if (G.chal) { text('AUFGABEN', W / 2, H - 66, '#ffc83a', 8, 'center'); G.chal.forEach((x, i) => text(x.t.toUpperCase(), W / 2, H - 54 + i * 10, '#cfd6f2', 8, 'center')); }
   if (Math.floor(G.t * 2) % 2) text(TOUCHDEV ? 'TIPPEN ZUM ANSTOSS' : 'TASTE ZUM ANSTOSS', W / 2, H - 20, '#f3ead6', 8, 'center');
 }

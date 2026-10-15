@@ -66,7 +66,7 @@ function newMatch(ta, tb, o = {}) {
   const kits = o.kits || makeKits(ta, tb);
   G = {
     mode: 'match', demo: !!o.demo, T: [A, B], tid: [ta, tb], kits, human: o.demo ? -1 : (o.human ?? 0), diff: DIFF[o.diff ?? SETTINGS.diff], diffI: o.diff ?? SETTINGS.diff,
-    hlen: Math.round((o.hlen ?? SETTINGS.hlen) * 60), event: o.event || null, career: o.career || null, opts: o, ko: !!o.ko, et: !!o.et,
+    hlen: Math.round((o.hlen ?? SETTINGS.hlen) * 60), event: o.event || null, career: o.career || null, derby: !!o.derby, opts: o, ko: !!o.ko, et: !!o.et,
     players: [], bench: [[], []], subs: [5, 5], score: [0, 0], half: 1, clock: 0, added: 0, swap: false,
     phase: 'intro', phaseT: 0, t: 0, parts: [], banner: null, ticker: null, shake: 0, excite: 0, ctrl: null, poss: -1, possT: 0, kickoffTeam: 0,
     form: [o.form ? o.form[0] : 'X', o.form ? o.form[1] : 'X'], ment: [1, 1], sp: null, offs: null, log: [], rec: [], recT: 0, so: null, pen: null, netHit: null,

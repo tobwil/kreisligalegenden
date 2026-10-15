@@ -85,7 +85,7 @@ function newCareer(team, len, diff, hlen) {
   CAREER = { v: 2, team, tname: TEAMS[team].n, lg, kl, year: START_YEAR, len, diff, hlen, squads: {}, npid: 1, form: defaultForm(team), ment: 1, xi: null, pk: null,
     forms: {}, titles: [], news: [], money: 3000, hist: [], train: 'bal', market: [], records: {}, seasonsPlayed: 0 };
   for (const tid of klTeams()) { ensureSquad(tid); CAREER.forms[tid] = defaultForm(tid); }
-  newSeason(); refreshMarket();
+  newSeason(); refreshMarket(); rivalOf();
   news('Saisonstart', `${TEAMS[team].n}: Auf geht's!`, `Neuer Trainer an der Seitenlinie. Der Vorstand hofft auf eine gute Saison in der ${lgName()} – und auf volle Bratwurstbuden.`, 'start');
   saveCareer();
   track('saison-start', { verein: TEAMS[team].n, verband: verbOf(team).n });
@@ -318,6 +318,7 @@ function noteOwnResult(r, played, tie, kind) {
   const heads = won ? [`${TEAMS[me].short} siegt ${my}:${op}`, `Dreier gegen ${opp.short}!`, `${my}:${op} – Jubel im Sportheim`] : lost ? [`${my}:${op} gegen ${opp.short}`, `Bittere Pleite gegen ${opp.short}`, home ? `Heimpleite gegen ${opp.short}` : `Nichts zu holen in ${opp.short}`] : [`Remis gegen ${opp.short}`, `${my}:${op} – ein Punkt`];
   const body = tie ? (won ? `${tie.so ? `Nach Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}weiter im ${kind === 'cup' ? 'Kreispokal' : 'Turnier'}!` : `${tie.so ? `Im Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}ausgeschieden.${kind === 'cup' ? ' Jetzt zählt die Liga.' : ' Die Saison ist vorbei.'}`) : (sc.length ? `Tore: ${sc.join(', ')}.` : 'Kein eigenes Tor.') + (played ? '' : ' (simuliert)');
   news(kind === 'cup' ? 'Kreispokal' : tie ? 'Playoffs' : `${curEvent().md}. Spieltag`, pick(heads), body, won ? 'win' : lost ? 'loss' : 'draw');
+  derbyResult(r, played);
 }
 
 // ---------- Eigenes Spiel ----------
@@ -333,7 +334,7 @@ function careerMatchOpts(watch) {
   const event = ev.t === 'po' && ev.r === 3 ? FINAL_EVENT : ev.t === 'po' ? { title: PO_NAMES[ev.r], ground: TEAMS[g.h].ground } : cupLast ? CUP_FINAL() : ev.t === 'cup' ? { title: 'KREISPOKAL', ground: TEAMS[g.h].ground } : null;
   return {
     human: meHome ? 0 : 1, diff: CAREER.diff, hlen: CAREER.hlen, xi: [H.xi, A.xi], bench: [H.bench, A.bench], form: [H.form, A.form], ment: [meHome ? CAREER.ment : 1, meHome ? 1 : CAREER.ment],
-    career: { label: eventLabel(ev), rec, pk: CAREER.pk, ev: CAREER.S.ci }, ko: ev.t !== 'lg', et: ev.t === 'po' && ev.r === 3, event, watch,
+    career: { label: (isDerby(g.h, g.a) ? 'DERBY! · ' : '') + eventLabel(ev), rec, pk: CAREER.pk, ev: CAREER.S.ci }, derby: isDerby(g.h, g.a), ko: ev.t !== 'lg', et: ev.t === 'po' && ev.r === 3, event, watch,
   };
 }
 function playCareerMatch(watch) {

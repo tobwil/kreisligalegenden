@@ -275,6 +275,35 @@ test('Flair: drei Aufgaben pro Spiel, Doppelpass erkannt, Kopfballtor mit eigene
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Derby und Teilen: Erzrivale in der eigenen Liga, Derby-Spiel markiert, Derbysieg mit Prämie, Ergebnisbild 1080 × 1080', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(async () => {
+    const out = {};
+    ACT.career(); ACT.ncGo();
+    const rv = rivalOf(); out.rival = rv != null && LIGEN[CAREER.lg].ids.includes(rv) && rv !== CAREER.team;
+    out.coburg = TEAMS[rv].n;
+    // bis zum Derby simulieren
+    let n = 0; while (!myGame() || !isDerby(myGame().h, myGame().a)) { runEvent(null); if (++n > 40) break; }
+    const g = myGame(); out.found = !!g && isDerby(g.h, g.a);
+    const o = careerMatchOpts(false); out.label = o.career.label; out.derbyOpt = o.derby;
+    const m0 = CAREER.money;
+    runEvent({ gh: g.h === CAREER.team ? 3 : 0, ga: g.h === CAREER.team ? 0 : 3, live: null, goals: [] });
+    out.prize = CAREER.money - m0 >= 500; out.news = CAREER.news.some(x => /DERBYSIEG/.test(x.h));
+    // Ergebnisbild nach einem Freundschaftsspiel
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.score = [2, 1];
+    G.log = [{ min: 12, team: 0, name: 'Müller', og: false }, { min: 40, team: 1, name: 'Schmidt', og: false }, { min: 77, team: 0, name: 'Bauer', pen: true }];
+    const cv = resultCanvas(); out.size = cv.width + 'x' + cv.height;
+    const px = cv.getContext('2d').getImageData(540, 300, 1, 1).data; out.paper = px[3] === 255;
+    G.phase = 'end'; ACT.fulltime(); out.btn = !!menu.querySelector('[data-act="share"]');
+    return out;
+  });
+  ok(r.rival, 'kein Erzrivale');
+  ok(r.found && r.derbyOpt && /DERBY/.test(r.label), 'Derby nicht markiert: ' + JSON.stringify(r));
+  ok(r.prize && r.news, 'Derbysieg ohne Prämie/Schlagzeile');
+  ok(r.size === '1080x1080' && r.paper && r.btn, 'Ergebnisbild: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Regeln: Seitenaus gibt Einwurf, Toraus Ecke oder Abstoß, Foul im Strafraum Elfmeter, Abseits wird gepfiffen', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: -1 }); G.paused = true; });
