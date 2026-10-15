@@ -149,11 +149,11 @@ test('Tastatur (Standard Legenden): Enter, Intro, Anstoß mit S, Pfeile laufen, 
 test('Aktionen in den Belegungen Legenden, EA FC und WASD: Pass, Steilpass, Flanke, Haken, Tackling, Grätsche', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; });
-  for (const [lay, K] of [['legenden', { a: 'KeyS', k: 'KeyA', c: 'KeyD', f: 'KeyF', b: 'Space', tk: 'KeyD', sl: 'Space' }], ['fc', { a: 'KeyS', k: 'KeyW', c: 'KeyA', f: 'KeyQ', b: 'KeyD' }], ['wasd', { a: 'KeyK', k: 'KeyI', c: 'KeyJ', f: 'KeyU', b: 'KeyL' }]]) {
+  for (const [lay, K] of [['legenden', { a: 'KeyS', k: 'KeyD', c: 'KeyA', f: 'KeyF', b: 'Space', tk: 'KeyD', sl: 'Space' }], ['fc', { a: 'KeyS', k: 'KeyW', c: 'KeyA', f: 'KeyQ', b: 'KeyD' }], ['wasd', { a: 'KeyK', k: 'KeyI', c: 'KeyJ', f: 'KeyU', b: 'KeyL' }]]) {
   const r = await page.evaluate(([lay, K]) => {
     SETTINGS.keys = lay;
     const setup = (wing) => { G.phase = 'play'; G.sp = null; G.ball.passTo = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); p.cd = 0; p.act = null; p.stun = 0; place(p, wing ? goalX(0) - atkDir(0) * 20 : CW / 2, wing ? 6 : MY); giveBall(p, true); G.ctrl = p; return p; };
-    const press = k => { KEY[k] = true; KEYP[k] = true; readInput(1 / 60); KEY[k] = false; humanControl(1 / 60); readInput(1 / 60); };
+    const press = k => { KEY[k] = true; KEYP[k] = true; readInput(1 / 60); KEY[k] = false; humanControl(1 / 60); readInput(1 / 60); humanControl(1 / 60); };   // Pass geht beim Loslassen
     const out = {};
     setup(); press(K.a); out.pass = G.ball.kind;
     setup(); press(K.k); out.through = G.ball.kind;
@@ -169,6 +169,26 @@ test('Aktionen in den Belegungen Legenden, EA FC und WASD: Pass, Steilpass, Flan
   }, [lay, K]);
   ok(r.pass === 'pass' && r.through === 'through' && r.cross === 'cross' && r.trick === 'trick' && ['tackle', 'stumble'].includes(r.tackle) && r.slide === 'slide', lay + ' ' + JSON.stringify(r));
   }
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Tastatur: Pass antippen = kurz zum nahen Mitspieler, halten = fester und weiter (Balken), Pass geht beim Loslassen', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const s = atkDir(0), mf = teamP(0).filter(q => grpOf(q) === 'MF'), [p, near, far] = mf;
+    const frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    const setup = () => { for (const o of opps(p)) if (!isGK(o)) place(o, CW / 2 - s * 30, 3); for (const m of mates(p)) if (!isGK(m)) place(m, CW / 2 - s * 25, CH - 3);
+      place(p, CW / 2, MY); place(near, CW / 2 + s * 9, MY); place(far, CW / 2 + s * 27, MY + 1); p.cd = 0; G.ctrl = p; giveBall(p, true); for (const k in KEY) KEY[k] = false; KEY[s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; frame(); };   // Richtung zum Tor
+    const out = {};
+    setup(); KEY.KeyS = KEYP.KeyS = true; frame(); out.notYet = G.ball.owner === p; KEY.KeyS = false; frame(); out.tap = G.ball.passTo === near;
+    setup(); KEY.KeyS = KEYP.KeyS = true; for (let i = 0; i < 50; i++) frame(); out.bar = p.passHold != null && passHoldPow(p) > 0.8; render();
+    KEY.KeyS = false; frame(); out.hold = G.ball.passTo === far;
+    return out;
+  });
+  ok(r.notYet && r.tap, 'Antippen spielt nicht kurz zum nahen Mitspieler: ' + JSON.stringify(r));
+  ok(r.bar && r.hold, 'Halten spielt nicht fest zum weiten Mitspieler: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -288,7 +308,7 @@ test('Abschluss: Zielkreuz beim Aufladen, Antippen schießt platziert, Schlenzer
     KEYP.KeyS = true; KEY.KeyS = true; frame(); KEY.KeyS = false; KEY.Space = false; frame();
     out.fin = !!(G.ball.shot && G.ball.shot.finesse);
     // beim Aufladen D = Heber
-    setup(); KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 12; i++) frame(); KEYP.KeyD = true; KEY.KeyD = true; frame(); KEY.KeyD = false; KEY.Space = false; frame();
+    setup(); KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 12; i++) frame(); KEYP.KeyA = true; KEY.KeyA = true; frame(); KEY.KeyA = false; KEY.Space = false; frame();
     out.chip = !!(G.ball.shot && G.ball.shot.chip) && G.ball.vz > 4;
     // Hammer: kurzer Treffer-Stopp
     setup(); G.hitStop = 0; KEY.Space = true; KEYP.Space = true; for (let i = 0; i < 40; i++) frame(); KEY.Space = false; frame();

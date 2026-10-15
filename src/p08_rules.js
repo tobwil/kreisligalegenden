@@ -73,6 +73,7 @@ function step(dt) {
 const isHumanCtrl = p => G.pl ? !G.demo && G.pl.some(s => s.ctrl === p) : G.human === p.team && !G.watch && G.ctrl === p && !G.demo;
 
 // ---------- Mensch ----------
+const passHoldPow = c => clamp((G.t - c.passHold - 0.12) / 0.65, 0, 1);
 function humanControl(dt) {
   if (G.human < 0 || G.watch || G.demo) return;
   const me = G.human, b = G.ball;
@@ -88,7 +89,8 @@ function humanControl(dt) {
     const still = Math.hypot(IN.x, IN.y) < 0.2;
     if (n && n !== c && (still || dist(c.x, c.y, b.x, b.y) - dist(n.x, n.y, b.x, b.y) > 8) && dist(c.x, c.y, b.x, b.y) - dist(n.x, n.y, b.x, b.y) > 2.5) { G.ctrl = c = n; G.autoT = G.t; }
   }
-  G.pressHelp = IN.k && !ours;
+  const DEF = LASTIN === 'key' && LAY().def;   // Tastenbelegung in der Abwehr (Legenden: D Tackling, Leertaste Grätsche, A Druck)
+  G.pressHelp = (DEF ? IN[DEF.pr] : IN.k) && !ours;
   if (hasBall) {
     if (isGK(c)) {
       if (IN.pa) { const q = choosePass(c, IN.x, IN.y); if (q) gkThrow(c, q); }
@@ -112,7 +114,15 @@ function humanControl(dt) {
       if (c.taim) { const y = c.taim.y; c.taim = null; shoot(c, pw, 0, { aimPt: { y }, auto: true }); } else shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0);
       return;
     }
-    if (IN.pa) { const pw = TOUCH.pow; TOUCH.pow = null; pass(c, choosePass(c, IN.x, IN.y, 'pass', 0.7, pw), pw); return; }
+    if (LASTIN === 'touch') { if (IN.pa) { const pw = TOUCH.pow; TOUCH.pow = null; pass(c, choosePass(c, IN.x, IN.y, 'pass', 0.7, pw), pw); return; } }
+    else {
+      // Tastatur und Gamepad wie am Handy: antippen = kurzer Pass, gedrückt halten = fester und weiter (türkiser Balken), beim Loslassen geht der Ball
+      if (IN.pa) c.passHold = G.t;
+      if (c.passHold != null && !IN.a) {
+        if (IN.ra) { const pw = passHoldPow(c); c.passHold = null; pass(c, choosePass(c, IN.x, IN.y, 'pass', 0.7, pw), pw); return; }
+        c.passHold = null;   // alter Stand (Taste woanders losgelassen)
+      }
+    }
     if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
     if (IN.pc) {
       const gx = goalX(me);
@@ -122,7 +132,7 @@ function humanControl(dt) {
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
-    c.charge = 0; c.chargeArm = false;
+    c.charge = 0; c.chargeArm = false; c.passHold = null;
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
     if (incoming && b.passer && b.passer.team === me && eta < 1.1) {
       // Direktabnahme vormerken (nur kurz bevor ein Pass bei dir ankommt): Schuss, Pass, Steilpass
@@ -132,17 +142,17 @@ function humanControl(dt) {
       // Pass zu dir noch unterwegs: nichts auslösen, der Spieler läuft dem Ball entgegen
     } else if (!ours && !b.owner && airNear(c)) {
       // hoher Ball kommt auf dich zu: Schuss/Tackling = wegköpfen (Stickrichtung), Pass = zum Mitspieler köpfen
-      if (IN.pb || IN.pc) c.queue = { k: 'clear', t: G.t, x: IN.x, y: IN.y }; else if (IN.pa) c.queue = { k: 'pass', t: G.t, x: IN.x, y: IN.y };
+      if (IN.pb || IN.pc || IN.pk) c.queue = { k: 'clear', t: G.t, x: IN.x, y: IN.y }; else if (IN.pa) c.queue = { k: 'pass', t: G.t, x: IN.x, y: IN.y };
     } else if (!ours) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
-      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (LAY().swapDef && LASTIN === 'key' ? IN.pb : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
+      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (DEF ? IN['p' + DEF.sl] : IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
       if (IN.pa || IN.pf) switchPlayer();
       const o = b.owner;
       if (o && o.team !== me && !isGK(o) && c.cd <= 0 && c.stun <= 0 && !c.act && G.t - (o.gotT || 0) > 0.25) {
         const front = (c.x - o.x) * o.hx + (c.y - o.y) * o.hy > 0;
         if (dist(c.x, c.y, b.x, b.y) < 0.8 && Math.random() < dt * (front ? 1.7 : 0.6) * clamp(0.75 + (A_(c, 'zwk') - A_(o, 'tec')) / 90, 0.35, 1.25)) { poke(c, o); return; }
       }
-      const swap = LAY().swapDef && LASTIN === 'key', tk = swap ? IN.pc : IN.pb, sl = swap ? IN.pb : IN.pc;   // Legenden-Tastatur: D Tackling, Leertaste Grätsche
+      const tk = DEF ? IN['p' + DEF.tk] : IN.pb, sl = DEF ? IN['p' + DEF.sl] : IN.pc;   // Legenden-Tastatur: D Tackling, Leertaste Grätsche
       if (tk) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
       if (sl) slide(c, IN.x, IN.y);
     } else if (IN.pa && ours && b.owner !== c && !isGK(b.owner)) {

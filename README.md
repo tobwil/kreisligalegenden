@@ -79,14 +79,14 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 | Aktion | Legenden (Standard) | WASD + IJKL | EA FC klassisch |
 |---|---|---|---|
 | Laufen | Pfeile | W A S D (oder Pfeile) | Pfeile |
-| Pass · Abwehr: Spieler wechseln | S | K | S |
-| Schuss (antippen = platziert, halten = fester) | Leertaste | L | D / Leertaste |
-| beim Aufladen: Schlenzer · Heber | S · D | K · J | S · A |
-| Flanke / hoher Ball | D | J | A |
-| Abwehr: Tackling · Grätsche | D · Leertaste | L · J | D · A |
-| Steilpass · Abwehr: Druck | A | I | W |
-| Haken | F | U / O | Q |
-| Sprint | Shift / W | Shift / Leertaste | Shift / E |
+| Sprint | W / Shift | Shift / Leertaste | Shift / E |
+| Pass (antippen = kurz, halten = fester und weiter) · Abwehr: Spieler wechseln | S | K | S |
+| Flanke / hoher Ball | A | J | A |
+| Steilpass | D | I | W |
+| Schuss und Kopfball (antippen = platziert, halten = fester) | Leertaste | L | D / Leertaste |
+| beim Aufladen: Schlenzer · Heber | S · A | K · J | S · A |
+| Abwehr: Tackling · Grätsche · Druck | D · Leertaste · A | L · J · I | D · A · W |
+| Trick | F | U / O | Q |
 | Taktik · Pause | T · Esc | T · Esc | T · Esc |
 
 **Freistoß und Elfmeter:** Die Kamera wechselt hinter den Ball, man sieht Tor, Torwart und Mauer. Richtung verschiebt das Fadenkreuz (links/rechts, hoch/runter), Schuss halten = Kraft: wenig Kraft gibt einen Bogen über die Mauer, viel Kraft einen harten, flachen Schuss. Die Mauer springt.

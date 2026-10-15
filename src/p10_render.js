@@ -122,7 +122,8 @@ function drawHUD(lite) {
 function drawCtrlHUD(c, col, num) {
   // Passziel des eigenen Ballführers
   if (c && G.ball.owner === c && isHumanTeam(c.team) && (G.phase === 'play' || G.phase === 'setpiece' || G.phase === 'kickoff') && !isGK(c) || (c && G.ball.owner === c && isGK(c) && G.phase === 'play')) {
-    const q = choosePass(c, IN.x, IN.y);
+    const hp = c.passHold != null ? passHoldPow(c) : TOUCH.passT ? clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1) : null;   // beim Halten zeigt das Dreieck den weiteren Mitspieler
+    const q = choosePass(c, IN.x, IN.y, 'pass', 0.7, hp);
     if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
   }
   // Steuermarke über dem eigenen Spieler
@@ -135,6 +136,7 @@ function drawCtrlHUD(c, col, num) {
       text(LASTIN === 'touch' ? 'STICK KREISEN: TRICK' : `${K.f || 'F'}: ${tk}`, sx(c.x, c.y), sy(c.y) + 13, '#7cf2ff', 8, 'center');
     }
     if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
+    if (c.passHold != null && G.ball.owner === c && G.t - c.passHold > 0.15) drawPower(c, passHoldPow(c), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
       if ((PROF.games < 15 || G.tut) && !G.pl) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
@@ -211,9 +213,9 @@ function hint(s) { ctx.font = `8px ${FONT}`; const w = ctx.measureText(s).width 
 const helpsOn = () => (SETTINGS.helps === true || (SETTINGS.helps === 'auto' && (G.helpN ?? 0) < 3)) && G && !G.demo && !G.watch && G.human >= 0 && menu.hidden && LASTIN !== 'touch';
 function keyBarItems() {
   const att = G.ball.owner && G.ball.owner.team === G.human, pad = LASTIN === 'pad';
-  if (pad) return att ? [['A', 'PASS'], ['Y', 'STEIL'], ['X', 'FLANKE'], ['B', 'SCHUSS'], ['LB', 'HAKEN'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
-  const N = LAY().keyN, sw = LAY().swapDef;
-  return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [sw ? N.c : N.b, 'TACKLING'], [sw ? N.b : N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
+  if (pad) return att ? [['A', 'PASS (HALTEN: WEIT)'], ['Y', 'STEIL'], ['X', 'FLANKE'], ['B', 'SCHUSS/KOPF'], ['LB', 'TRICK'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
+  const N = LAY().keyN, D = LAY().def || { tk: 'b', sl: 'c', pr: 'k' };
+  return att ? [[N.a, 'PASS (HALTEN: WEIT)'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS/KOPF'], [N.f, 'TRICK'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [N[D.tk], 'TACKLING'], [N[D.sl], 'GRÄTSCHE'], [N[D.pr], 'DRUCK'], [N.s, 'SPRINT']];
 }
 function drawKeyBar() {
   if (!helpsOn() || G.phase !== 'play' || G.pl) return;

@@ -288,9 +288,10 @@ const K = (...c) => c.some(k => KEY[k] || KEYP[k]);
 // Tastatur-Belegungen. Bedeutung der Aktionen: a Pass (Abwehr: wechseln), b Schuss (Tackling), c Flanke/hoher Ball (Grätsche),
 // k Steilpass (Druck), f Haken (wechseln), s Sprint
 const LAYOUTS = {
-  // wie Hallen- und Korb-Legenden (Standard): Pfeile laufen, Leertaste schießt; Abwehr D Tackling, Leertaste Grätsche
-  legenden: { n: 'LEGENDEN', swapDef: true, move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
-    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
+  // Standard (wie Hallen- und Korb-Legenden): Pfeile laufen, W Sprint, S Pass (halten = fester), A Flanke, D Steilpass, Leertaste Schuss und Kopfball.
+  // Abwehr: S wechselt, D Tackling, Leertaste Grätsche, A ein Mitspieler presst mit. def sagt, welche Taste in der Abwehr was macht.
+  legenden: { n: 'LEGENDEN', def: { tk: 'k', sl: 'b', pr: 'c' }, move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyA'], k: ['KeyD'], f: ['KeyF'], s: ['KeyW', 'ShiftLeft', 'ShiftRight'],
+    keyN: { a: 'S', b: 'LEER', c: 'A', k: 'D', f: 'F', s: 'W' } },
   // linke Hand läuft, rechte Hand wie die Knöpfe am Gamepad: K unten = Pass, L rechts = Schuss, J links = Flanke, I oben = Steilpass
   wasd: { n: 'WASD + IJKL', move: ['KeyW', 'KeyS', 'KeyA', 'KeyD'], moveN: 'WASD', a: ['KeyK'], b: ['KeyL'], c: ['KeyJ'], k: ['KeyI'], f: ['KeyU', 'KeyO'], s: ['ShiftLeft', 'ShiftRight', 'Space'],
     keyN: { a: 'K', b: 'L', c: 'J', k: 'I', f: 'U', s: 'SHIFT' } },

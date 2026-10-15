@@ -5,11 +5,11 @@ const tutKeys = () => LASTIN === 'touch'
   ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS wischen', cross: 'PASS nach oben wischen', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING tippen', slide: 'TACKLING drücken und ziehen', sw: 'WECHSEL' }
   : LASTIN === 'pad'
     ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'X', shot: 'B halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
-    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: LAY().swapDef ? N.c : N.b, slide: LAY().swapDef ? (N.b === 'LEER' ? 'Leertaste' : N.b) : N.c, sw: N.a }))(LAY().keyN);
+    : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: (N[(LAY().def || {}).tk || 'b']), slide: (s => s === 'LEER' ? 'Leertaste' : s)(N[(LAY().def || {}).sl || 'c']), sw: N.a }))(LAY().keyN);
 const LESSONS = [
   { t: 'LAUFEN', need: 3, txt: k => `Lauf mit ${k.move} zu den gelben Markierungen. ${k.sprint} = Sprint (kostet Kraft).`,
     setup(T) { const p = tutUse(0, 'ST', CW / 2, MY); T.marks = [[CW / 2 + 12, MY - 10], [CW / 2 - 8, MY + 14], [CW / 2 + 22, MY + 6]]; G.ctrl = p; } },
-  { t: 'PASSEN', need: 4, txt: k => `${k.pass} spielt einen Pass in Laufrichtung – das blaue Dreieck zeigt, wer ihn bekommt. Spiel ${4} Pässe.`,
+  { t: 'PASSEN', need: 4, txt: k => `${k.pass} spielt einen Pass in Laufrichtung – das blaue Dreieck zeigt, wer ihn bekommt. Antippen = kurz, halten = fester und weiter. Spiel ${4} Pässe.`,
     setup(T) { const p = tutUse(0, 'MF', CW / 2, MY); giveBall(p, true); tutHold(tutUse(0, 'MF', CW / 2 + 14, MY - 10, 1)); tutHold(tutUse(0, 'ST', CW / 2 + 14, MY + 10)); tutHold(tutUse(0, 'AB', CW / 2 - 10, MY + 2)); G.ctrl = p; },
     on(T, e) { if (e.k === 'recv' && e.p.team === 0 && e.kind === 'pass') T.n++; } },
   { t: 'STEILPASS', need: 2, txt: k => `${k.through} spielt den Ball in den Lauf deines Stürmers – hinter die Abwehr. Achte aufs Abseits!`,
