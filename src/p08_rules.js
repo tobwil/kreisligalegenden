@@ -32,8 +32,10 @@ function step(dt) {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
     for (const p of G.players) if (!p.off) p.d.ms.min += dt;
     if (G.clock >= halfLen() + G.added * halfLen() / 45 && !G.so) {
-      const b = G.ball, danger = Math.abs(b.x - CW / 2) > 30 && G.clock < halfLen() * 1.12;
-      if (!danger || !b.owner) return whistleHalf();
+      // laufenden Angriff, Schuss oder Elfmeter noch zu Ende spielen lassen (höchstens etwas über die Nachspielzeit hinaus)
+      const b = G.ball, cap = G.clock < (halfLen() + G.added * halfLen() / 45) * 1.08 + 3;
+      const hold = cap && (b.shot || (b.owner && Math.abs(b.x - CW / 2) > 30) || (!b.owner && b.passTo && Math.abs(b.x - CW / 2) > 30));
+      if (!hold) return whistleHalf();
     }
     if (G.clock > halfLen() * 0.97 && !G.addShown && !G.so) { G.addShown = true; G.added = 1 + ((Math.random() * 3) | 0) + (G.half === 2 && G.score[0] === G.score[1] ? 1 : 0); if (!G.demo) banner(`+${G.added}`, '#3ddc84', 'NACHSPIELZEIT', 1.4); }
   }
@@ -202,7 +204,7 @@ function resolveSave(g) {
   g.d.ms.sv++; if (b.shot && b.shot.pen && !G.so) g.d.penSaved = (g.d.penSaved || 0) + 1;
   if (pl.catchIt) { giveBall(g); AU.catch(); say(pick([`${g.d.name} hält sicher.`, `Gefangen! ${g.d.name} ist da.`, `Kein Problem für ${g.d.name}.`])); }
   else {
-    b.owner = null; b.last = g; b.lastTeam = g.team; b.shot = null; b.kind = 'parry'; b.fid++; b.passer = null; G.offs = null;
+    b.parryBy = b.shot ? b.shot.by : null; b.owner = null; b.last = g; b.lastTeam = g.team; b.shot = null; b.kind = 'parry'; b.fid++; b.passer = null; G.offs = null; b.plan = null;
     const side = b.y > MY ? 1 : -1, r = Math.random();
     if (b.z > 1.5 && r < 0.45) { b.vx = -s * rnd(1.5, 3); b.vy = rnd(-1, 1); b.vz = rnd(4, 6); }                 // über die Latte gelenkt
     else if (Math.abs(b.y - MY) > 1.6 && r < 0.5) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten
@@ -242,8 +244,8 @@ function updateBall(dt) {
       for (const g of G.gk) {
         if (!g || g.off) continue;
         const gx = ownX(g.team), toward = (gx - b.x) * b.vx > 0 && Math.abs(b.vx) > 3;
-        if (toward && Math.abs(b.x - gx) < 35 && (!b.plan || b.plan.fid !== b.fid) && b.lastTeam !== g.team && !(b.shot && b.shot.pen)) {
-          const pl = planSave(g); if (pl) b.plan = pl; else b.plan = { fid: b.fid, done: true, g };
+        if (toward && Math.abs(b.x - gx) < 35 && b.planFid !== b.fid && b.lastTeam !== g.team && !(b.shot && b.shot.pen)) {
+          b.planFid = b.fid; const pl = planSave(g); b.plan = pl || null;
         }
         if (b.plan && b.plan.g === g && !b.plan.done && (g.act && (g.act.type === 'dive' || g.act.type === 'block') || G.t >= b.plan.at - 0.03)) resolveSave(g);
       }
@@ -471,7 +473,9 @@ function spShot(tk, pw, aim) {
 // ---------- Tor ----------
 function scoreGoal(team, y, z) {
   const b = G.ball, sh = b.shot, last = b.last;
-  const scorer = last && last.team === team ? last : null, og = !scorer;
+  // abgefälschte Parade, die doch reingeht, zählt für den Schützen
+  const shooter = last && isGK(last) && b.kind === 'parry' && b.parryBy && b.parryBy.team === team ? b.parryBy : null;
+  const scorer = shooter || (last && last.team === team ? last : null), og = !scorer;
   G.netHit = { side: b.x > CW / 2 ? 1 : 0, y, z, t: 0 };
   AU.net(); b.plan = null;
   if (G.so) { G.so.res = 1; G.phase = 'goal'; G.phaseT = 0; return; }
@@ -599,7 +603,7 @@ function stepShootout(dt) {
     let win = -1;
     if (na <= 5 && nc <= 5) { if (a > c + left1) win = 0; else if (c > a + left0) win = 1; }
     if (na >= 5 && nc >= 5 && na === nc && a !== c) win = a > c ? 0 : 1;
-    if (win >= 0) { S.winner = win; G.phase = 'end'; AU.whistle(3, true); setTimeout(() => { if (G && G.so === S) ACT.fulltime(); }, 1600); banner(`${G.T[win].short.toUpperCase()} GEWINNT`, '#ffc83a', `IM ELFMETERSCHIESSEN ${a}:${c}`, 3, true); return; }
+    if (win >= 0) { S.winner = win; G.phase = 'end'; AU.whistle(3, true); setTimeout(() => { if (G && G.so === S) { G.paused = false; ACT.fulltime(); } }, 1600); banner(`${G.T[win].short.toUpperCase()} GEWINNT`, '#ffc83a', `IM ELFMETERSCHIESSEN ${a}:${c}`, 3, true); return; }
     S.turn = 1 - t; S.wait = 1.0; G.phase = 'sowait'; G.phaseT = 0;
   }
 }

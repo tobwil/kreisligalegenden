@@ -206,6 +206,7 @@ function penTaker(team) {
 }
 // Aufstellung bei Standards: Spielaufstellung um den Ball, dazu Strafraumbesetzung bei Ecken und Freistößen, Mauer, 9,15 m Abstand
 function setPieceSpots(type, team, x, y, taker) {
+  for (const p of G.players) p.wall = false;
   const out = new Map(), s = atkDir(team), gx = goalX(team);
   const saveBall = G.ball.x, saveBy = G.ball.y, saveP = G.poss;
   G.ball.x = x; G.ball.y = y; G.poss = team;

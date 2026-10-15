@@ -160,7 +160,7 @@ function applyGame(h, a, gh, ga, live) {
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
       p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (p.age > 30 ? 3 : 0), 40, 100);
-      if (!x.sub && Math.random() < 0.012 + (p.age > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
+      if (!x.sub && Math.random() < 0.012 + (p.age > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
     }
   }
@@ -170,7 +170,7 @@ function applyGame(h, a, gh, ga, live) {
 function betweenGames(tids) {
   for (const tid of tids) for (const p of ensureSquad(tid)) {
     p.fit = clamp(p.fit + 14 + A_fit(p), 40, 100);
-    if (p.inj > 0) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false;
+    if (p.inj > 0 && !p.injNew) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false; p.injNew = false;
     p.form *= 0.92;
   }
   trainStep();
@@ -186,7 +186,7 @@ function runEvent(mine) {
     ev.games.forEach((games, li) => {
       for (const [h, a] of games) {
         let r;
-        if (my && h === my.h && a === my.a && li === C.lg) r = mine ? applyGame(h, a, mine.gh, mine.ga, mine.live) : (() => { const [gh, ga] = simScore(h, a, false); return applyGame(h, a, gh, ga); })();
+        if (my && h === my.h && a === my.a && li === C.lg) r = mine ? Object.assign(applyGame(h, a, mine.gh, mine.ga, mine.live), mine.goals ? { goals: mine.goals } : {}) : (() => { const [gh, ga] = simScore(h, a, false); return applyGame(h, a, gh, ga); })();
         else { const [gh, ga] = simScore(h, a, false); r = applyGame(h, a, gh, ga); }
         record(S.tables[li], h, a, r.gh, r.ga); r.li = li; done.push(r);
         if (li === C.lg && (h === CT() || a === CT())) noteOwnResult(r, !!mine);
@@ -200,7 +200,7 @@ function runEvent(mine) {
       let gh, ga, so = null, live = null;
       if (my && ti === my.tie && mine) { gh = mine.gh; ga = mine.ga; so = mine.so; live = mine.live; }
       else { [gh, ga] = simScore(ti.a, ti.b, ev.r === 3); if (gh === ga) { const pa = 0.5 + (squadStr(ti.a) - squadStr(ti.b)) * 0.01; so = Math.random() < pa ? [5, 4] : [3, 4]; if (Math.random() < 0.3) so = so[0] > so[1] ? [4, 2] : [2, 4]; } }
-      const r = applyGame(ti.a, ti.b, gh, ga, live);
+      const r = applyGame(ti.a, ti.b, gh, ga, live); if (live && mine.goals) r.goals = mine.goals;
       ti.gh = gh; ti.ga = ga; ti.so = so; ti.w = gh > ga ? ti.a : ga > gh ? ti.b : so && so[0] > so[1] ? ti.a : ti.b;
       done.push(r);
       if (ti.a === CT() || ti.b === CT()) noteOwnResult(r, !!mine, ti);
@@ -246,7 +246,7 @@ function bookGate(h, a) {
 function noteOwnResult(r, played, tie) {
   const me = CT(), home = r.h === me, my = home ? r.gh : r.ga, op = home ? r.ga : r.gh, opp = TEAMS[home ? r.a : r.h];
   const won = my > op || (tie && tie.w === me), lost = my < op || (tie && tie.w != null && tie.w !== me && my === op);
-  const sc = r.goals.filter(g => g.tid === me).map(g => g.name);
+  const sc = r.goals.filter(g => g.tid === me).map(g => g.name + (g.og ? ' (Eigentor)' : ''));
   const heads = won ? [`${TEAMS[me].short} siegt ${my}:${op}`, `Dreier gegen ${opp.short}!`, `${my}:${op} – Jubel im Sportheim`] : lost ? [`${my}:${op} gegen ${opp.short}`, `Bittere Pleite gegen ${opp.short}`, home ? `Heimpleite gegen ${opp.short}` : `Nichts zu holen in ${opp.short}`] : [`Remis gegen ${opp.short}`, `${my}:${op} – ein Punkt`];
   const body = tie ? (won ? `${tie.so ? `Nach Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}weiter im Turnier!` : `${tie.so ? `Im Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}ausgeschieden. Die Saison ist vorbei.`) : (sc.length ? `Tore: ${sc.join(', ')}.` : 'Kein eigenes Tor.') + (played ? '' : ' (simuliert)');
   news(tie ? 'Playoffs' : `${curEvent().md}. Spieltag`, pick(heads), body, won ? 'win' : lost ? 'loss' : 'draw');
@@ -275,13 +275,11 @@ function careerAfterMatch() {
   for (const t of [0, 1]) {
     const tid = G.tid[t];
     const ds = G.players.filter(p => p.team === t).map(p => ({ d: p.d, sub: false })).concat(G.bench[t].filter(d => d.used || d.subbed).map(d => ({ d, sub: true })));
-    live[tid] = ds.filter(x => x.d.ref && x.d.ms.min > 0).map(x => ({ p: x.d.ref, g: x.d.ms.g, a: x.d.ms.a, note: x.d.note, yc: x.d.ms.yc && !x.d.ms.rc ? 1 : 0, rc: x.d.ms.rc, sv: x.d.ms.sv, sub: x.d.ms.min < G.hlen, potm: G.potm && G.potm.d === x.d }));
+    live[tid] = ds.filter(x => x.d.ref && x.d.ms.min > 0).map(x => ({ p: x.d.ref, g: x.d.ms.g, a: x.d.ms.a, note: x.d.note, yc: x.d.ms.yc && !x.d.ms.rc ? 1 : 0, rc: x.d.ms.rc, sv: x.d.ms.sv, sub: !!x.d.used, potm: G.potm && G.potm.d === x.d }));
   }
   const so = G.so ? [G.so.k[0].reduce((a, b) => a + b, 0), G.so.k[1].reduce((a, b) => a + b, 0)] : null;
   const ev = curEvent();
-  runEvent({ gh: G.score[0], ga: G.score[1], so, live });
-  const r = CAREER.S.last.find(x => x.h === G.tid[0] && x.a === G.tid[1]);
-  if (r) r.goals = G.log.map(l => ({ tid: G.tid[l.team], min: l.min, name: l.name, pid: l.pid, og: l.og }));
+  runEvent({ gh: G.score[0], ga: G.score[1], so, live, goals: G.log.map(l => ({ tid: G.tid[l.team], min: l.min, name: l.name, pid: l.pid, og: l.og })) });
   saveCareer();
   return ev.t === 'lg' ? `Tabelle: ${posOf(CT())}. Platz · ${CAREER.S.tables[CAREER.lg][CT()].pkt} Punkte` : '';
 }
@@ -294,7 +292,7 @@ function trainStep() {
     const room = p.pot - p.ovr, ageK = p.age < 22 ? 1.4 : p.age < 26 ? 1 : p.age < 30 ? 0.5 : 0.2;
     if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) {
       const ks = p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw');
-      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p);
+      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
     }
   }
 }

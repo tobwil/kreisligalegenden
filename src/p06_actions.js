@@ -183,6 +183,7 @@ function shoot(p, power, aimY, o = {}) {
 }
 // Kopfball: aufs Tor, Abwehr oder zum Mitspieler
 function header(p, wantShot) {
+  if (G.ball.passer && G.ball.passer.team === p.team && G.ball.passer !== p) p.assistFrom = G.ball.passer; else p.assistFrom = null;
   const b = G.ball, gx = goalX(p.team), d = dist(p.x, p.y, gx, MY), s = atkDir(p.team);
   p.vz = Math.max(p.vz, 2.6); p.z = Math.max(p.z, 0.05);
   const front = (gx - p.x) * s > 0, angOk = Math.abs(p.y - MY) < d * 0.9;

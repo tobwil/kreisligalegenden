@@ -1375,6 +1375,7 @@ function penTaker(team) {
 }
 // Aufstellung bei Standards: Spielaufstellung um den Ball, dazu Strafraumbesetzung bei Ecken und Freistößen, Mauer, 9,15 m Abstand
 function setPieceSpots(type, team, x, y, taker) {
+  for (const p of G.players) p.wall = false;
   const out = new Map(), s = atkDir(team), gx = goalX(team);
   const saveBall = G.ball.x, saveBy = G.ball.y, saveP = G.poss;
   G.ball.x = x; G.ball.y = y; G.poss = team;
@@ -1685,6 +1686,7 @@ function shoot(p, power, aimY, o = {}) {
 }
 // Kopfball: aufs Tor, Abwehr oder zum Mitspieler
 function header(p, wantShot) {
+  if (G.ball.passer && G.ball.passer.team === p.team && G.ball.passer !== p) p.assistFrom = G.ball.passer; else p.assistFrom = null;
   const b = G.ball, gx = goalX(p.team), d = dist(p.x, p.y, gx, MY), s = atkDir(p.team);
   p.vz = Math.max(p.vz, 2.6); p.z = Math.max(p.z, 0.05);
   const front = (gx - p.x) * s > 0, angOk = Math.abs(p.y - MY) < d * 0.9;
@@ -2067,7 +2069,7 @@ function gkAI(g, dt) {
   if (g.act && g.act.type === 'dive') return;
   if (b.owner === g) { if (G.human !== t || G.watch || G.ctrl !== g) gkHold(g, dt); return; }
   // geplante Parade
-  if (b.plan && b.plan.g === g && !b.owner) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
+  if (b.plan && b.plan.g === g && !b.owner && !b.plan.done && b.plan.fid === b.fid) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
   // freier Ball im Strafraum: rauslaufen, wenn er klar zuerst dran ist
   if (!b.owner && inBox(t, b.x, b.y)) {
     const q = interceptOf(g, { maxZ: 2.6, react: 0.1 });
@@ -2169,8 +2171,10 @@ function step(dt) {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
     for (const p of G.players) if (!p.off) p.d.ms.min += dt;
     if (G.clock >= halfLen() + G.added * halfLen() / 45 && !G.so) {
-      const b = G.ball, danger = Math.abs(b.x - CW / 2) > 30 && G.clock < halfLen() * 1.12;
-      if (!danger || !b.owner) return whistleHalf();
+      // laufenden Angriff, Schuss oder Elfmeter noch zu Ende spielen lassen (höchstens etwas über die Nachspielzeit hinaus)
+      const b = G.ball, cap = G.clock < (halfLen() + G.added * halfLen() / 45) * 1.08 + 3;
+      const hold = cap && (b.shot || (b.owner && Math.abs(b.x - CW / 2) > 30) || (!b.owner && b.passTo && Math.abs(b.x - CW / 2) > 30));
+      if (!hold) return whistleHalf();
     }
     if (G.clock > halfLen() * 0.97 && !G.addShown && !G.so) { G.addShown = true; G.added = 1 + ((Math.random() * 3) | 0) + (G.half === 2 && G.score[0] === G.score[1] ? 1 : 0); if (!G.demo) banner(`+${G.added}`, '#3ddc84', 'NACHSPIELZEIT', 1.4); }
   }
@@ -2339,7 +2343,7 @@ function resolveSave(g) {
   g.d.ms.sv++; if (b.shot && b.shot.pen && !G.so) g.d.penSaved = (g.d.penSaved || 0) + 1;
   if (pl.catchIt) { giveBall(g); AU.catch(); say(pick([`${g.d.name} hält sicher.`, `Gefangen! ${g.d.name} ist da.`, `Kein Problem für ${g.d.name}.`])); }
   else {
-    b.owner = null; b.last = g; b.lastTeam = g.team; b.shot = null; b.kind = 'parry'; b.fid++; b.passer = null; G.offs = null;
+    b.parryBy = b.shot ? b.shot.by : null; b.owner = null; b.last = g; b.lastTeam = g.team; b.shot = null; b.kind = 'parry'; b.fid++; b.passer = null; G.offs = null; b.plan = null;
     const side = b.y > MY ? 1 : -1, r = Math.random();
     if (b.z > 1.5 && r < 0.45) { b.vx = -s * rnd(1.5, 3); b.vy = rnd(-1, 1); b.vz = rnd(4, 6); }                 // über die Latte gelenkt
     else if (Math.abs(b.y - MY) > 1.6 && r < 0.5) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten
@@ -2379,8 +2383,8 @@ function updateBall(dt) {
       for (const g of G.gk) {
         if (!g || g.off) continue;
         const gx = ownX(g.team), toward = (gx - b.x) * b.vx > 0 && Math.abs(b.vx) > 3;
-        if (toward && Math.abs(b.x - gx) < 35 && (!b.plan || b.plan.fid !== b.fid) && b.lastTeam !== g.team && !(b.shot && b.shot.pen)) {
-          const pl = planSave(g); if (pl) b.plan = pl; else b.plan = { fid: b.fid, done: true, g };
+        if (toward && Math.abs(b.x - gx) < 35 && b.planFid !== b.fid && b.lastTeam !== g.team && !(b.shot && b.shot.pen)) {
+          b.planFid = b.fid; const pl = planSave(g); b.plan = pl || null;
         }
         if (b.plan && b.plan.g === g && !b.plan.done && (g.act && (g.act.type === 'dive' || g.act.type === 'block') || G.t >= b.plan.at - 0.03)) resolveSave(g);
       }
@@ -2608,7 +2612,9 @@ function spShot(tk, pw, aim) {
 // ---------- Tor ----------
 function scoreGoal(team, y, z) {
   const b = G.ball, sh = b.shot, last = b.last;
-  const scorer = last && last.team === team ? last : null, og = !scorer;
+  // abgefälschte Parade, die doch reingeht, zählt für den Schützen
+  const shooter = last && isGK(last) && b.kind === 'parry' && b.parryBy && b.parryBy.team === team ? b.parryBy : null;
+  const scorer = shooter || (last && last.team === team ? last : null), og = !scorer;
   G.netHit = { side: b.x > CW / 2 ? 1 : 0, y, z, t: 0 };
   AU.net(); b.plan = null;
   if (G.so) { G.so.res = 1; G.phase = 'goal'; G.phaseT = 0; return; }
@@ -2736,7 +2742,7 @@ function stepShootout(dt) {
     let win = -1;
     if (na <= 5 && nc <= 5) { if (a > c + left1) win = 0; else if (c > a + left0) win = 1; }
     if (na >= 5 && nc >= 5 && na === nc && a !== c) win = a > c ? 0 : 1;
-    if (win >= 0) { S.winner = win; G.phase = 'end'; AU.whistle(3, true); setTimeout(() => { if (G && G.so === S) ACT.fulltime(); }, 1600); banner(`${G.T[win].short.toUpperCase()} GEWINNT`, '#ffc83a', `IM ELFMETERSCHIESSEN ${a}:${c}`, 3, true); return; }
+    if (win >= 0) { S.winner = win; G.phase = 'end'; AU.whistle(3, true); setTimeout(() => { if (G && G.so === S) { G.paused = false; ACT.fulltime(); } }, 1600); banner(`${G.T[win].short.toUpperCase()} GEWINNT`, '#ffc83a', `IM ELFMETERSCHIESSEN ${a}:${c}`, 3, true); return; }
     S.turn = 1 - t; S.wait = 1.0; G.phase = 'sowait'; G.phaseT = 0;
   }
 }
@@ -2868,6 +2874,24 @@ function benchItems() {
 }
 const COACH_LOOK = [lookOf({ skin: 1, hair: '#7a4a20', style: 1, beard: true, belly: true, num: 0 }, { c1: '#2b3a52', c2: '#c9ced4', sh: '#1d1d24', so: '#1d1d24' }, false),
   lookOf({ skin: 0, hair: '#b8b0a0', style: 3, beard: false, belly: true, num: 0 }, { c1: '#4a3a2a', c2: '#c9ced4', sh: '#1d1d24', so: '#1d1d24' }, false)];
+
+// Kreisliga-Alltag: ab und zu flitzt ein Hund an der Bande entlang (ohne Einfluss aufs Spiel)
+const DOG = { on: false, x: 0, dir: 1, t: 0 };
+function dogItem(dt) {
+  if (!G || G.demo) return null;
+  if (!DOG.on && G.phase === 'play' && Math.random() < dt / 200) { DOG.on = true; DOG.dir = Math.random() < 0.5 ? 1 : -1; DOG.x = DOG.dir > 0 ? -6 : CW + 6; DOG.t = 0; if (Math.random() < 0.6) AU.bark(); }
+  if (!DOG.on) return null;
+  DOG.t += dt; DOG.x += DOG.dir * 7 * dt;
+  if (DOG.x < -8 || DOG.x > CW + 8) { DOG.on = false; return null; }
+  const y = -0.7, fr = Math.floor(DOG.t * 10) % 2;
+  return { y, draw: () => {
+    const x = sx(DOG.x, y), gy = sy(y), f = DOG.dir;
+    const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + (f > 0 ? dx : -dx - w), gy + dy, w, h); };
+    R(-5, -6, 10, 4, OUTLINE); R(-4, -5, 8, 2, '#8a5a2a'); R(3, -8, 4, 4, OUTLINE); R(4, -7, 3, 2, '#8a5a2a'); R(6, -6, 1, 1, '#1a1010');
+    R(-6, -7, 2, 2, '#8a5a2a');   // Schwanz
+    R(-4 + fr, -2, 1, 2, '#5a3a1a'); R(2 - fr, -2, 1, 2, '#5a3a1a');
+  } };
+}
 // ================= Darstellung: Kamera, Szene, TV-Grafik =================
 // Kamera wie im Fernsehen: schwenkt mit dem Ball (mit Vorlauf in Spielrichtung) und neigt sich etwas, wenn der Ball nach vorn kommt
 function camTarget() {
@@ -2896,6 +2920,7 @@ function render() {
   for (const side of [0, 1]) { items.push({ y: GY1 - 0.05, draw: () => drawGoalBack(side) }); items.push({ y: GY2 + 0.05, draw: () => drawGoalFront(side) }); }
   for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) items.push({ y, draw: () => drawCornerFlag(x, y, t) });
   items.push(...officialsItems(dt), ...benchItems());
+  const dog = dogItem(dt); if (dog) items.push(dog);
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
   items.push({ y: by, draw: () => drawBall(b) });
@@ -3503,7 +3528,7 @@ function applyGame(h, a, gh, ga, live) {
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
       p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (p.age > 30 ? 3 : 0), 40, 100);
-      if (!x.sub && Math.random() < 0.012 + (p.age > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
+      if (!x.sub && Math.random() < 0.012 + (p.age > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
     }
   }
@@ -3513,7 +3538,7 @@ function applyGame(h, a, gh, ga, live) {
 function betweenGames(tids) {
   for (const tid of tids) for (const p of ensureSquad(tid)) {
     p.fit = clamp(p.fit + 14 + A_fit(p), 40, 100);
-    if (p.inj > 0) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false;
+    if (p.inj > 0 && !p.injNew) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false; p.injNew = false;
     p.form *= 0.92;
   }
   trainStep();
@@ -3529,7 +3554,7 @@ function runEvent(mine) {
     ev.games.forEach((games, li) => {
       for (const [h, a] of games) {
         let r;
-        if (my && h === my.h && a === my.a && li === C.lg) r = mine ? applyGame(h, a, mine.gh, mine.ga, mine.live) : (() => { const [gh, ga] = simScore(h, a, false); return applyGame(h, a, gh, ga); })();
+        if (my && h === my.h && a === my.a && li === C.lg) r = mine ? Object.assign(applyGame(h, a, mine.gh, mine.ga, mine.live), mine.goals ? { goals: mine.goals } : {}) : (() => { const [gh, ga] = simScore(h, a, false); return applyGame(h, a, gh, ga); })();
         else { const [gh, ga] = simScore(h, a, false); r = applyGame(h, a, gh, ga); }
         record(S.tables[li], h, a, r.gh, r.ga); r.li = li; done.push(r);
         if (li === C.lg && (h === CT() || a === CT())) noteOwnResult(r, !!mine);
@@ -3543,7 +3568,7 @@ function runEvent(mine) {
       let gh, ga, so = null, live = null;
       if (my && ti === my.tie && mine) { gh = mine.gh; ga = mine.ga; so = mine.so; live = mine.live; }
       else { [gh, ga] = simScore(ti.a, ti.b, ev.r === 3); if (gh === ga) { const pa = 0.5 + (squadStr(ti.a) - squadStr(ti.b)) * 0.01; so = Math.random() < pa ? [5, 4] : [3, 4]; if (Math.random() < 0.3) so = so[0] > so[1] ? [4, 2] : [2, 4]; } }
-      const r = applyGame(ti.a, ti.b, gh, ga, live);
+      const r = applyGame(ti.a, ti.b, gh, ga, live); if (live && mine.goals) r.goals = mine.goals;
       ti.gh = gh; ti.ga = ga; ti.so = so; ti.w = gh > ga ? ti.a : ga > gh ? ti.b : so && so[0] > so[1] ? ti.a : ti.b;
       done.push(r);
       if (ti.a === CT() || ti.b === CT()) noteOwnResult(r, !!mine, ti);
@@ -3589,7 +3614,7 @@ function bookGate(h, a) {
 function noteOwnResult(r, played, tie) {
   const me = CT(), home = r.h === me, my = home ? r.gh : r.ga, op = home ? r.ga : r.gh, opp = TEAMS[home ? r.a : r.h];
   const won = my > op || (tie && tie.w === me), lost = my < op || (tie && tie.w != null && tie.w !== me && my === op);
-  const sc = r.goals.filter(g => g.tid === me).map(g => g.name);
+  const sc = r.goals.filter(g => g.tid === me).map(g => g.name + (g.og ? ' (Eigentor)' : ''));
   const heads = won ? [`${TEAMS[me].short} siegt ${my}:${op}`, `Dreier gegen ${opp.short}!`, `${my}:${op} – Jubel im Sportheim`] : lost ? [`${my}:${op} gegen ${opp.short}`, `Bittere Pleite gegen ${opp.short}`, home ? `Heimpleite gegen ${opp.short}` : `Nichts zu holen in ${opp.short}`] : [`Remis gegen ${opp.short}`, `${my}:${op} – ein Punkt`];
   const body = tie ? (won ? `${tie.so ? `Nach Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}weiter im Turnier!` : `${tie.so ? `Im Elfmeterschießen (${tie.so[0]}:${tie.so[1]}) ` : ''}ausgeschieden. Die Saison ist vorbei.`) : (sc.length ? `Tore: ${sc.join(', ')}.` : 'Kein eigenes Tor.') + (played ? '' : ' (simuliert)');
   news(tie ? 'Playoffs' : `${curEvent().md}. Spieltag`, pick(heads), body, won ? 'win' : lost ? 'loss' : 'draw');
@@ -3618,13 +3643,11 @@ function careerAfterMatch() {
   for (const t of [0, 1]) {
     const tid = G.tid[t];
     const ds = G.players.filter(p => p.team === t).map(p => ({ d: p.d, sub: false })).concat(G.bench[t].filter(d => d.used || d.subbed).map(d => ({ d, sub: true })));
-    live[tid] = ds.filter(x => x.d.ref && x.d.ms.min > 0).map(x => ({ p: x.d.ref, g: x.d.ms.g, a: x.d.ms.a, note: x.d.note, yc: x.d.ms.yc && !x.d.ms.rc ? 1 : 0, rc: x.d.ms.rc, sv: x.d.ms.sv, sub: x.d.ms.min < G.hlen, potm: G.potm && G.potm.d === x.d }));
+    live[tid] = ds.filter(x => x.d.ref && x.d.ms.min > 0).map(x => ({ p: x.d.ref, g: x.d.ms.g, a: x.d.ms.a, note: x.d.note, yc: x.d.ms.yc && !x.d.ms.rc ? 1 : 0, rc: x.d.ms.rc, sv: x.d.ms.sv, sub: !!x.d.used, potm: G.potm && G.potm.d === x.d }));
   }
   const so = G.so ? [G.so.k[0].reduce((a, b) => a + b, 0), G.so.k[1].reduce((a, b) => a + b, 0)] : null;
   const ev = curEvent();
-  runEvent({ gh: G.score[0], ga: G.score[1], so, live });
-  const r = CAREER.S.last.find(x => x.h === G.tid[0] && x.a === G.tid[1]);
-  if (r) r.goals = G.log.map(l => ({ tid: G.tid[l.team], min: l.min, name: l.name, pid: l.pid, og: l.og }));
+  runEvent({ gh: G.score[0], ga: G.score[1], so, live, goals: G.log.map(l => ({ tid: G.tid[l.team], min: l.min, name: l.name, pid: l.pid, og: l.og })) });
   saveCareer();
   return ev.t === 'lg' ? `Tabelle: ${posOf(CT())}. Platz · ${CAREER.S.tables[CAREER.lg][CT()].pkt} Punkte` : '';
 }
@@ -3637,7 +3660,7 @@ function trainStep() {
     const room = p.pot - p.ovr, ageK = p.age < 22 ? 1.4 : p.age < 26 ? 1 : p.age < 30 ? 0.5 : 0.2;
     if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) {
       const ks = p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw');
-      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p);
+      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
     }
   }
 }

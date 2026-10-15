@@ -26,6 +26,7 @@ function render() {
   for (const side of [0, 1]) { items.push({ y: GY1 - 0.05, draw: () => drawGoalBack(side) }); items.push({ y: GY2 + 0.05, draw: () => drawGoalFront(side) }); }
   for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) items.push({ y, draw: () => drawCornerFlag(x, y, t) });
   items.push(...officialsItems(dt), ...benchItems());
+  const dog = dogItem(dt); if (dog) items.push(dog);
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
   items.push({ y: by, draw: () => drawBall(b) });

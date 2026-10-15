@@ -125,3 +125,21 @@ function benchItems() {
 }
 const COACH_LOOK = [lookOf({ skin: 1, hair: '#7a4a20', style: 1, beard: true, belly: true, num: 0 }, { c1: '#2b3a52', c2: '#c9ced4', sh: '#1d1d24', so: '#1d1d24' }, false),
   lookOf({ skin: 0, hair: '#b8b0a0', style: 3, beard: false, belly: true, num: 0 }, { c1: '#4a3a2a', c2: '#c9ced4', sh: '#1d1d24', so: '#1d1d24' }, false)];
+
+// Kreisliga-Alltag: ab und zu flitzt ein Hund an der Bande entlang (ohne Einfluss aufs Spiel)
+const DOG = { on: false, x: 0, dir: 1, t: 0 };
+function dogItem(dt) {
+  if (!G || G.demo) return null;
+  if (!DOG.on && G.phase === 'play' && Math.random() < dt / 200) { DOG.on = true; DOG.dir = Math.random() < 0.5 ? 1 : -1; DOG.x = DOG.dir > 0 ? -6 : CW + 6; DOG.t = 0; if (Math.random() < 0.6) AU.bark(); }
+  if (!DOG.on) return null;
+  DOG.t += dt; DOG.x += DOG.dir * 7 * dt;
+  if (DOG.x < -8 || DOG.x > CW + 8) { DOG.on = false; return null; }
+  const y = -0.7, fr = Math.floor(DOG.t * 10) % 2;
+  return { y, draw: () => {
+    const x = sx(DOG.x, y), gy = sy(y), f = DOG.dir;
+    const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + (f > 0 ? dx : -dx - w), gy + dy, w, h); };
+    R(-5, -6, 10, 4, OUTLINE); R(-4, -5, 8, 2, '#8a5a2a'); R(3, -8, 4, 4, OUTLINE); R(4, -7, 3, 2, '#8a5a2a'); R(6, -6, 1, 1, '#1a1010');
+    R(-6, -7, 2, 2, '#8a5a2a');   // Schwanz
+    R(-4 + fr, -2, 1, 2, '#5a3a1a'); R(2 - fr, -2, 1, 2, '#5a3a1a');
+  } };
+}

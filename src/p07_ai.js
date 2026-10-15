@@ -240,7 +240,7 @@ function gkAI(g, dt) {
   if (g.act && g.act.type === 'dive') return;
   if (b.owner === g) { if (G.human !== t || G.watch || G.ctrl !== g) gkHold(g, dt); return; }
   // geplante Parade
-  if (b.plan && b.plan.g === g && !b.owner) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
+  if (b.plan && b.plan.g === g && !b.owner && !b.plan.done && b.plan.fid === b.fid) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
   // freier Ball im Strafraum: rauslaufen, wenn er klar zuerst dran ist
   if (!b.owner && inBox(t, b.x, b.y)) {
     const q = interceptOf(g, { maxZ: 2.6, react: 0.1 });
