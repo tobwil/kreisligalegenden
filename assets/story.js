@@ -290,13 +290,24 @@ function bratwurst(x) {
   text('WURST', x + 17, y - 14, '#ffd200', 6, 'center');
   for (let k = 0; k < 5; k++) { const ph = (T * 0.6 + k / 5) % 1; g.fillStyle = `rgba(230,230,235,${0.45 * (1 - ph)})`; g.fillRect(x + 12 + Math.sin(ph * 6 + k) * 5, y - 30 - ph * 40, 6 + ph * 8, 4 + ph * 4); }
 }
-// Tor von der Seite (Pfosten vorn, Netz nach hinten), 2,44 m hoch
+// Tor von der Seite (wie man es am Sportplatz sieht): vorn der Pfosten, die Latte nur im Querschnitt (sie zeigt in den Bildschirm hinein),
+// das Dachnetz fällt schräg nach hinten ab bis zum niedrigen Netzbügel. Kein waagrechter Balken nach hinten – der sah aus wie eine Latte.
 function goal(x, bulge = 0) {
-  const top = FY - 58;
-  g.strokeStyle = 'rgba(243,234,214,.55)'; g.lineWidth = 1;
-  for (let k = 0; k <= 8; k++) { g.beginPath(); g.moveTo(x, top + k * 7); g.lineTo(x + 26 + Math.sin(k / 8 * Math.PI) * bulge * 9, top + 6 + k * 6.5); g.stroke(); }
-  for (let k = 0; k <= 5; k++) { const bx = x + k * 5.2; g.beginPath(); g.moveTo(bx, top + k * 1.2); g.lineTo(bx + bulge * 6 * Math.sin(k / 5 * Math.PI), FY + 2); g.stroke(); }
-  R(x - 2, top - 2, 3, FY - top + 2, '#f4f4f0'); R(x - 2, top - 2, 30, 3, '#f4f4f0');
+  const top = FY - 58, depth = 30, backTop = top + 22, net = 'rgba(243,234,214,.5)';
+  const roofY = k => top + (backTop - top) * k, b = k => Math.sin(k * Math.PI) * bulge;
+  g.lineWidth = 1; g.strokeStyle = net;
+  for (let k = 0; k <= 8; k++) {   // waagrechte Maschen des Seitennetzes
+    const y0 = top + k * (FY - top) / 8, y1 = backTop + k * (FY - backTop) / 8;
+    g.beginPath(); g.moveTo(x, y0); g.lineTo(x + depth + b(k / 8) * 9, y1); g.stroke();
+  }
+  for (let k = 1; k <= 6; k++) {   // senkrechte Maschen, oben am schrägen Dachnetz
+    const f = k / 6, bx = x + depth * f;
+    g.beginPath(); g.moveTo(bx, roofY(f)); g.lineTo(bx + b(f) * 6, FY + 2); g.stroke();
+  }
+  g.strokeStyle = 'rgba(243,234,214,.8)'; g.beginPath(); g.moveTo(x, top); g.lineTo(x + depth, backTop); g.stroke();   // Kante des Dachnetzes
+  R(x + depth - 1, backTop, 2, FY - backTop + 2, '#a8a8b0');   // Netzbügel hinten
+  R(x - 2, top - 2, 3, FY - top + 2, '#f4f4f0');                // Pfosten
+  R(x - 3, top - 3, 5, 5, '#f4f4f0'); R(x - 2, top - 2, 3, 3, '#d8d8de');   // Latte im Querschnitt
 }
 
 // ---------- Szene: Deutschlandkarte im Vereinsheim (Daten aus src/d_karte.js) ----------

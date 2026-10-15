@@ -2,7 +2,7 @@
 
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial-3ddc84?style=for-the-badge&labelColor=07060b)](LICENSE)
 
-**Fußball im Retro-Pixel-Look: 11 gegen 11 auf Rasen, Kunstrasen und Hartplatz, mit allen rund 4.900 Vereinen der Kreisligen Deutschlands – aus 238 Kreisen und allen 21 Landesverbänden. Wer Kreismeister wird, spielt in den Playoffs gegen Kreismeister aus ganz Deutschland um die Goldene Eckfahne.** Ein komplettes Browserspiel in einer einzigen HTML-Datei, aus der Familie von [Hallen-Legenden](https://github.com/tobwil/hallenlegenden) und [Korb-Legenden](https://github.com/tobwil/korblegenden).
+**Fußball im Retro-Pixel-Look: 11 gegen 11 auf Rasen, Kunstrasen und Hartplatz, mit allen rund 4.900 Vereinen der Kreisligen Deutschlands – aus 238 Kreisen und allen 21 Landesverbänden. Wer Kreismeister wird, spielt in den Playoffs gegen Kreismeister aus ganz Deutschland um die Goldene Eckfahne.** Ein komplettes Browserspiel in einer einzigen HTML-Datei, aus der Familie von [Hallen-Legenden](https://hallenlegenden.de/), [Padel-Legenden](https://padellegenden.de/) und [Korb-Legenden](https://korblegenden.de/).
 
 **[Screenshots](#screenshots) · [Deutsch](#deutsch) · [English](#english)**
 
@@ -108,7 +108,7 @@ Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und
 
 ## English
 
-**Retro pixel football (soccer): 11 vs 11 on grass, artificial turf and cinder pitches, featuring all ~4,900 real clubs of Germany's district leagues ("Kreisliga") from 238 districts and all 21 regional FAs. Pick your club on a map of Germany, win your league and the district cup, then take on district champions from all over the country in a knockout playoff for the Golden Corner Flag.** A complete browser game in a single HTML file, from the family of Hallen-Legenden (handball) and Korb-Legenden (basketball).
+**Retro pixel football (soccer): 11 vs 11 on grass, artificial turf and cinder pitches, featuring all ~4,900 real clubs of Germany's district leagues ("Kreisliga") from 238 districts and all 21 regional FAs. Pick your club on a map of Germany, win your league and the district cup, then take on district champions from all over the country in a knockout playoff for the Golden Corner Flag.** A complete browser game in a single HTML file, from the family of Hallen-Legenden (handball), Padel-Legenden (padel) and Korb-Legenden (basketball).
 
 Club names are the real names of the 2026/27 top district league clubs (source: public tables on fussball.de); all players, ratings, kits, pitches and ads are fictional. Not an official product of the DFB, the regional FAs or the clubs. A club wants to be removed? Please open an issue.
 
