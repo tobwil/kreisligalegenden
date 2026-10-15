@@ -11,6 +11,7 @@ function camTarget() {
   } else if (!b.owner) x += b.vx * 0.25;
   if (G.phase === 'goal' && G.scorer) { x = lerp(b.x, G.scorer.x, 0.5); y = G.scorer.y; }
   if (G.flitzer && G.flitzer.st) { x = G.flitzer.st.runner.x; y = clamp(G.flitzer.st.runner.y, 4, CH - 4); }
+  if (G.sp && G.sp.caim && G.phase === 'setpiece') { x = lerp(b.x, G.sp.caim.x, 0.6); y = lerp(b.y, G.sp.caim.y, 0.6); }   // Ecke: Ball und Ziel im Bild
   const [lo, hi] = camLimits();
   return [clamp(x, lo, hi), y];
 }
@@ -72,6 +73,18 @@ function render() {
   else if (menu.hidden) text('DEMO', 8, 8, '#9b90ad', 8);
 }
 // hoher Ball: gelber Ring dort, wo er in Kopfhöhe ankommt (Flanke, Ecke, Abschlag), damit man hinlaufen und köpfen kann
+// Ecke: Zielvisier im Strafraum, gestrichelte Flugbahn und Markierung am Mitspieler, der hingeht
+function drawCornerAim() {
+  const sp = G.sp; if (!sp || !sp.caim || sp.type !== 'corner' || G.phase !== 'setpiece' || !isHumanTeam(sp.team)) return;
+  const b = G.ball, A = sp.caim, x = sx(A.x, A.y), y = sy(A.y), bx = sx(b.x, b.y), by = sy(b.y), col = (Math.floor(G.t * 6) % 2) ? '#ffc83a' : '#fff1a8';
+  const n = Math.max(6, Math.round(Math.hypot(x - bx, y - by) / 8)), ph = (G.t * 8) % 1, peak = 4.5 * PX * 0.6;
+  for (let i = 1; i < n; i++) { const k = (i + ph) / n, px = Math.round(lerp(bx, x, k)), py = Math.round(lerp(by, y, k) - Math.sin(k * Math.PI) * peak); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 3, 3); ctx.fillStyle = col; ctx.fillRect(px, py, 1, 1); }
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 14, 5.5, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 14, 5.5, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.fillRect(x - 7, y - 1, 15, 3); ctx.fillRect(x - 1, y - 4, 3, 9); ctx.fillStyle = col; ctx.fillRect(x - 6, y, 13, 1); ctx.fillRect(x, y - 3, 1, 7);
+  const q = cornerRecv(sp.taker, A.x, A.y);
+  if (q) { const qx = sx(q.x, q.y), qy = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(qx - 4, qy - 1, 9, 4); ctx.fillRect(qx - 2, qy + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(qx - 3, qy, 7, 2); ctx.fillRect(qx - 2, qy + 2, 5, 1); ctx.fillRect(qx - 1, qy + 3, 3, 1); }
+}
 function drawLanding() {
   const b = G.ball; if (b.owner || b.shot || b.z < 1.2 || !['cross', 'lob', 'clear', 'punt', 'head', 'parry', 'loose'].includes(b.kind)) return;
   let q = null; for (const p of ballPath()) if (p.z < 2.4 && p.t > 0.15 && (q = p)) break;
@@ -110,7 +123,7 @@ function drawHUD(lite) {
   // Name des Ballführers
   const o = G.ball.owner;
   if (o && (G.phase === 'play' || G.phase === 'setpiece')) text(`${o.d.num} ${o.d.name.toUpperCase()}`, sx(o.x, o.y), sy(o.y) + 4, o.team === G.human ? '#ffc83a' : '#cfd6f2', 8, 'center');
-  drawSetPieceHint();
+  drawCornerAim(); drawSetPieceHint();
   if (G.phase === 'goal' && G.scorer && G.scorer.team === G.human && !G.watch && !G.celebSet && G.phaseT < 2.6) { const K = KEYN(); hint(`JUBEL: ${K.a} KNIE-RUTSCHER · ${K.b} FLIEGER · ${K.c} BECKER-FAUST`); }
   if (G.ticker) { const a = clamp(G.ticker.t * 3, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(0, H - 18, W, 14); text(G.ticker.txt, W / 2, H - 15, '#f3ead6', 8, 'center', false); ctx.globalAlpha = 1; }
   else drawKeyBar();
@@ -121,7 +134,7 @@ function drawHUD(lite) {
 // Steuermarke, Passziel, Ladebalken und Zielkreuz für einen gesteuerten Spieler (zu zweit: je Mensch eigene Farbe und Nummer)
 function drawCtrlHUD(c, col, num) {
   // Passziel des eigenen Ballführers
-  if (c && G.ball.owner === c && isHumanTeam(c.team) && (G.phase === 'play' || G.phase === 'setpiece' || G.phase === 'kickoff') && !isGK(c) || (c && G.ball.owner === c && isGK(c) && G.phase === 'play')) {
+  if (c && G.ball.owner === c && isHumanTeam(c.team) && (G.phase === 'play' || G.phase === 'setpiece' && !(G.sp && G.sp.caim) || G.phase === 'kickoff') && !isGK(c) || (c && G.ball.owner === c && isGK(c) && G.phase === 'play')) {
     const hp = c.passHold != null ? passHoldPow(c) : TOUCH.passT ? clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1) : null;   // beim Halten zeigt das Dreieck den weiteren Mitspieler
     const q = choosePass(c, IN.x, IN.y, 'pass', 0.7, hp);
     if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
@@ -205,12 +218,12 @@ function drawSetPieceHint() {
     return;
   }
   const K = KEYN(), m = {
-    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: `ECKE · ${K.c}: FLANKE (RICHTUNG = KURZER/LANGER PFOSTEN) · ${K.a}: KURZ`,
+    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: LASTIN === 'touch' ? 'ECKE · STICK: ZIEL VERSCHIEBEN · SCHUSS: FLANKE DORTHIN · PASS: KURZ' : `ECKE · RICHTUNG: ZIEL VERSCHIEBEN · ${K.c} ODER ${K.b}: FLANKE DORTHIN · ${K.a}: KURZ`,
     goal: `ABSTOSS · ${K.a}: KURZ · ${K.c}: WEIT`, free: `FREISTOSS · ${K.b} HALTEN: SCHUSS · ${K.a}: PASS · ${K.c}: FLANKE`, pen: `ELFMETER · ${K.b} HALTEN, RICHTUNG = ECKE`,
   }[sp.type];
   if (m && (G.phase === 'setpiece' || G.phase === 'kickoff' || G.phase === 'penalty')) hint(m);
 }
-function hint(s) { ctx.font = `8px ${FONT}`; const w = ctx.measureText(s).width + 16; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(W / 2 - w / 2, H - 36, w, 14); text(s, W / 2, H - 33, '#ffc83a', 8, 'center', false); }
+function hint(s) { const y = touchPad() ? 30 : H - 36; ctx.font = `8px ${FONT}`; const w = ctx.measureText(s).width + 16; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(W / 2 - w / 2, y, w, 14); text(s, W / 2, y + 3, '#ffc83a', 8, 'center', false); }   // Handy: oben, nicht über Stick und Knöpfen
 // Tastenleiste in den ersten Spielen (Steuerhilfen)
 const helpsOn = () => (SETTINGS.helps === true || (SETTINGS.helps === 'auto' && (G.helpN ?? 0) < 3)) && G && !G.demo && !G.watch && G.human >= 0 && menu.hidden && LASTIN !== 'touch';
 function keyBarItems() {

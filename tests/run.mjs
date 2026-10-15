@@ -345,6 +345,27 @@ test('Schusstaste aus dem eigenen Strafraum = Befreiungsschlag: landet vor dem g
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Ecke mit Zielvisier: Richtung verschiebt das Ziel im Strafraum, Flanke landet dort, Pass = kurz ausgeführt', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {}, s0 = () => atkDir(0);
+    const corner = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('corner', 0, goalX(0) === CW ? CW - 0.3 : 0.3, 0.3); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
+    corner(); const a0 = { ...G.sp.caim }; KEY.ArrowDown = true; for (let i = 0; i < 30; i++) { readInput(1 / 60); stepSetPiece(1 / 60); } KEY.ArrowDown = false; readInput(1 / 60);
+    const a1 = { ...G.sp.caim }; out.moved = a1.y - a0.y > 4; render(); out.drawn = true;
+    KEY.KeyA = KEYP.KeyA = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyA = false;
+    out.cross = G.ball.kind === 'cross'; const B = G.ball; let land = null;
+    for (let i = 0; i < 200 && land == null; i++) { step(1 / 60); if (B.z < 2.0 && B.vz < 0 && i > 10) land = { x: B.x, y: B.y }; }
+    out.err = land ? Math.hypot(land.x - a1.x, land.y - a1.y) : 99;
+    corner(); KEY.KeyS = KEYP.KeyS = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyS = false; out.short = G.ball.kind === 'pass';
+    return out;
+  });
+  ok(r.moved && r.drawn, 'Zielvisier bewegt sich nicht: ' + JSON.stringify(r));
+  ok(r.cross && r.err < 4.5, 'Flanke landet nicht am Zielvisier: ' + JSON.stringify(r));
+  ok(r.short, 'kurze Ecke fehlt: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
