@@ -57,7 +57,7 @@ function step(dt) {
   }
   moveAll(dt);
   updateBall(dt);
-  if (G.phase === 'play') { checkBlocks(); tryCollect(); }
+  if (G.phase === 'play') { passAssist(dt); checkBlocks(); tryCollect(); }
   recordFrame(dt);
   if (G.so) stepShootout(dt);
 }
@@ -104,9 +104,10 @@ function humanControl(dt) {
       if (IN.pb) c.queue = { k: 'shot', t: G.t }; else if (IN.pa) c.queue = { k: 'pass', t: G.t, x: IN.x, y: IN.y }; else if (IN.pk) c.queue = { k: 'through', t: G.t, x: IN.x, y: IN.y };
       else if (IN.pc && !ours) c.queue = { k: 'cross', t: G.t };
     } else if (!ours) {
-      if (IN.pa) switchPlayer();
-      if (IN.pc) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
-      if (IN.pb) slide(c, IN.x, IN.y);
+      // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
+      if (IN.pa || IN.pf) switchPlayer();
+      if (IN.pb) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
+      if (IN.pc) slide(c, IN.x, IN.y);
     } else if (IN.pa && ours && b.owner !== c && !isGK(b.owner)) {
       // Ball fordern: der Ballführer (KI) spielt sofort zu dir
       const o = b.owner; if (o.think > 0.1) { o.think = 0; pass(o, c); }
@@ -147,9 +148,10 @@ function movePlayer(p, dt) {
   if (act === 'fall' || act === 'stumble' || (G.spray && G.spray.p === p)) { p.vx *= 1 - 5 * dt; p.vy *= 1 - 5 * dt; return integ(p, dt, act === 'fall' || (G.spray && G.spray.p === p) ? 'fall' : 'run'); }
   if (act === 'trick') { return integ(p, dt, 'run'); }
   if (p.stun > 0 || !live) { p.vx *= 1 - 6 * dt; p.vy *= 1 - 6 * dt; return integ(p, dt); }
-  if (G.phase === 'play' && isHumanCtrl(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !(G.ball.passTo === p || (!G.ball.owner && p.role === 'chase')))) {
+  // Arcade: der angespielte Spieler läuft dem Ball von selbst entgegen, auch wenn noch eine Richtung gedrückt ist
+  if (G.phase === 'play' && isHumanCtrl(p) && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !(G.ball.passTo === p || (!G.ball.owner && p.role === 'chase')))) {
     sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : 1);
-    dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 30 : 34;
+    dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 38 : 44;   // direktes Ansprechen auf den Stick (ISS-Gefühl)
     // Torwart mit Ball in der Hand bleibt im Strafraum
     if (isGK(p) && G.ball.owner === p) { dvx *= 0.6; dvy *= 0.6; }
   } else {
@@ -309,6 +311,16 @@ function checkBlocks() {
   }
 }
 // freier Ball: wer bekommt ihn?
+// läuft gerade ein Pass genau zu diesem Spieler?
+const passIncoming = p => { const b = G.ball; return !b.owner && b.passTo === p && p.recv && p.recv.fid === b.fid && ['pass', 'through', 'throw', 'lob'].includes(b.kind); };
+// Pass-Hilfe: flache Pässe ziehen auf den letzten Metern leicht zum Empfänger (gleicht kleine Ungenauigkeiten aus)
+function passAssist(dt) {
+  const b = G.ball, q = b.passTo; if (!q || !passIncoming(q) || b.z > 0.6 || q.off) return;
+  const dx = q.x - b.x, dy = q.y - b.y, d = Math.hypot(dx, dy), v = Math.hypot(b.vx, b.vy); if (d > 6 || d < 0.2 || v < 1) return;
+  if ((dx * b.vx + dy * b.vy) / (d * v) < 0.5) return;   // schon vorbei oder ganz falsche Richtung
+  const k = Math.min(1, dt * (q.team === G.human ? 7 : 4));
+  b.vx += (dx / d * v - b.vx) * k; b.vy += (dy / d * v - b.vy) * k;
+}
 function tryCollect() {
   const b = G.ball; if (b.owner) return;
   let best = null, bd = 1e9;
@@ -318,10 +330,10 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, r = gk ? 1.05 : b.z > 1.0 ? 0.8 : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? 1.1 : 1.35) : b.z > 1.0 ? 0.8 : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
-    if (d < r && d < bd) { bd = d; best = p; }
+    if (d < r && (mine ? d * 0.6 : d) < bd) { bd = mine ? d * 0.6 : d; best = p; }
   }
   if (!best) return;
   const p = best, gk = isGK(p) && inBox(p.team, b.x, b.y);
@@ -346,11 +358,11 @@ function tryCollect() {
     const overHim = b.vz < 0 ? false : b.z > 1.5;
     const slow = Math.hypot(b.vx, b.vy) < 11;
     if (wantShot || attackBox || defend || (overHim && b.z < 2.3)) { header(p, wantShot); return; }
-    if (b.z <= 1.6 && slow) { giveBall(p, true); AU.touch(); return; }
+    if ((b.z <= 1.6 && slow) || (passIncoming(p) && b.z <= 2)) { giveBall(p, true); AU.touch(); return; }
     return;
   }
   // zu hart zum Annehmen: springt weg
-  if (rel > 17 && Math.random() > A_(p, 'tec') / 130) {
+  if (rel > 17 && !passIncoming(p) && Math.random() > A_(p, 'tec') / 130) {
     b.vx = b.vx * -0.25 + rnd(-3, 3); b.vy = b.vy * 0.3 + rnd(-3, 3); b.vz = rnd(0.5, 2.5); b.last = p; b.lastTeam = p.team; b.fid++; b.shot = null; b.nc = p; b.ncT = 0.25; b.kind = 'loose'; AU.touch(); return;
   }
   // Direktabnahme

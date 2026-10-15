@@ -116,7 +116,7 @@ function drawShootoutTally(x0, y0) {
     for (let i = 0; i < n; i++) { const v = S.k[t][i]; ctx.fillStyle = '#000'; ctx.fillRect(x0 + 30 + i * 9, y0 + t * 11, 7, 7); ctx.fillStyle = v === 1 ? '#3ddc84' : v === 0 ? '#ff4f3a' : '#3a2f4d'; ctx.fillRect(x0 + 31 + i * 9, y0 + 1 + t * 11, 5, 5); }
   }
 }
-const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'HOCH', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'X', c: 'B', k: 'Y' } : { a: 'S', b: 'LEER', c: 'D', k: 'A' };
+const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'HOCH', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'B', c: 'X', k: 'Y' } : { a: 'S', b: 'D', c: 'A', k: 'W' };
 function drawSetPieceHint() {
   const c = G.ctrl, K0 = KEYN();
   if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);
@@ -135,8 +135,8 @@ function hint(s) { ctx.font = `8px ${FONT}`; const w = ctx.measureText(s).width 
 const helpsOn = () => (SETTINGS.helps === true || (SETTINGS.helps === 'auto' && (G.helpN ?? 0) < 3)) && G && !G.demo && !G.watch && G.human >= 0 && menu.hidden && LASTIN !== 'touch';
 function keyBarItems() {
   const att = G.ball.owner && G.ball.owner.team === G.human, pad = LASTIN === 'pad';
-  if (pad) return att ? [['A', 'PASS'], ['Y', 'STEIL'], ['B', 'FLANKE'], ['X', 'SCHUSS'], ['LB', 'HAKEN'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
-  return att ? [['S', 'PASS'], ['A', 'STEIL'], ['D', 'FLANKE'], ['LEER', 'SCHUSS'], ['F', 'HAKEN'], ['SHIFT', 'SPRINT']] : [['S', 'WECHSEL'], ['D', 'TACKLING'], ['LEER', 'GRÄTSCHE'], ['A', 'DRUCK'], ['SHIFT', 'SPRINT']];
+  if (pad) return att ? [['A', 'PASS'], ['Y', 'STEIL'], ['X', 'FLANKE'], ['B', 'SCHUSS'], ['LB', 'HAKEN'], ['RT', 'SPRINT']] : [['A', 'WECHSEL'], ['B', 'TACKLING'], ['X', 'GRÄTSCHE'], ['Y', 'DRUCK'], ['RT', 'SPRINT']];
+  return att ? [['S', 'PASS'], ['W', 'STEIL'], ['A', 'FLANKE'], ['D', 'SCHUSS'], ['Q', 'HAKEN'], ['SHIFT', 'SPRINT']] : [['S', 'WECHSEL'], ['D', 'TACKLING'], ['A', 'GRÄTSCHE'], ['W', 'DRUCK'], ['SHIFT', 'SPRINT']];
 }
 function drawKeyBar() {
   if (!helpsOn() || G.phase !== 'play') return;

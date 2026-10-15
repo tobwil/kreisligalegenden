@@ -4,8 +4,8 @@ const TUT_KEY = 'krl_tut';
 const tutKeys = () => LASTIN === 'touch'
   ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS lang drücken', cross: 'HOCH', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING', slide: 'GRÄTSCHE', sw: 'WECHSEL' }
   : LASTIN === 'pad'
-    ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'B', shot: 'X halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
-    : { move: 'die Pfeiltasten', sprint: 'Shift', pass: 'S', through: 'A', cross: 'D', shot: 'Leertaste halten und loslassen', aim: 'Pfeil hoch/runter', tackle: 'D', slide: 'Leertaste', sw: 'S' };
+    ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'X', shot: 'B halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
+    : { move: 'die Pfeiltasten', sprint: 'Shift', pass: 'S', through: 'W', cross: 'A', shot: 'D (oder Leertaste) halten und loslassen', aim: 'Pfeil hoch/runter', tackle: 'D', slide: 'A', sw: 'S' };
 const LESSONS = [
   { t: 'LAUFEN', need: 3, txt: k => `Lauf mit ${k.move} zu den gelben Markierungen. ${k.sprint} = Sprint (kostet Kraft).`,
     setup(T) { const p = tutUse(0, 'ST', CW / 2, MY); T.marks = [[CW / 2 + 12, MY - 10], [CW / 2 - 8, MY + 14], [CW / 2 + 22, MY + 6]]; G.ctrl = p; } },

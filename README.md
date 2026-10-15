@@ -58,20 +58,22 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 
 ### Steuerung
 
+Belegung wie bei EA FC am PC (klassisch), Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe, der angespielte Mitspieler läuft dem Ball entgegen und nimmt ihn sicher an.
+
 | Taste | Angriff | Abwehr |
 |---|---|---|
 | Pfeile | laufen | laufen |
-| S | Pass | Spieler wechseln |
-| A | Steilpass | Druck (zweiter Mann presst) |
-| D | Flanke / hoher Ball | Tackling |
-| Leertaste | Schuss (halten = fester, Pfeil hoch/runter = Ecke) | Grätsche |
-| F | Haken | |
-| Shift / W | Sprint | Sprint |
-| Q | Taktik & Wechsel | |
+| S | Pass (Richtung = Empfänger) | Spieler wechseln |
+| W | Steilpass | Druck (zweiter Mann presst) |
+| A | Flanke / hoher Ball | Grätsche |
+| D / Leertaste | Schuss (halten = fester, Pfeil hoch/runter = Ecke) | Tackling |
+| Q | Haken | Spieler wechseln |
+| Shift / E | Sprint | Sprint |
+| T | Taktik & Wechsel | |
 | Esc / P | Pause | |
 
-Gamepad: Stick laufen · A Pass/Wechsel · Y Steilpass · B Flanke/Tackling · X Schuss/Grätsche · LB Haken · RT Sprint · Select Taktik · Start Pause.
-Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke. Mitspieler antippen = Pass zu ihm.
+Gamepad wie EA FC: Stick laufen · A Pass/Wechsel · B Schuss/Tackling · X Flanke/Grätsche · Y Steilpass/Druck · LB Haken · RT Sprint · Select Taktik · Start Pause.
+Touch: Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm.
 
 ### Entwicklung
 
@@ -91,4 +93,4 @@ Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und
 
 Club names are the real names of the 2026/27 top district league clubs (source: public tables on fussball.de); all players, ratings, kits, pitches and ads are fictional. Not an official product of the DFB, the regional FAs or the clubs. A club wants to be removed? Please open an issue.
 
-Play: open `game/index.html`. Keyboard (arrows to run, S pass, A through ball, D cross/lob, Space shoot/slide tackle, F feint, Shift sprint), gamepad or touch. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.
+Play: open `game/index.html`. Keyboard like EA FC on PC (arrows to run, S pass, W through ball, A cross/lob, D or Space shoot, Q feint, Shift/E sprint; defending: S switch, D tackle, A slide tackle, W pressure), gamepad (FC layout) or touch. Season mode with a newspaper, squad, lineup, training, transfers and multiple seasons. Source in `src/`, build with `sh src/build.sh`, tests with `cd tests && npm install && npm test`.

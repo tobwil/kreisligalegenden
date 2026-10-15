@@ -69,7 +69,7 @@ const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb
 function updateTouchLabels() {
   if (!TOUCHDEV || !G || G.demo) return;
   const m = attacking() || (G.sp && isHumanTeam(G.sp.team)) ? 'att' : 'def'; if (m === tbMode) return; tbMode = m;
-  const L = m === 'att' ? ['PASS', 'SCHUSS', 'HOCH'] : ['WECHSEL', 'GRÄTSCHE', 'TACKLING'];
+  const L = m === 'att' ? ['PASS', 'SCHUSS', 'HOCH'] : ['WECHSEL', 'TACKLING', 'GRÄTSCHE'];
   TBL.a.textContent = L[0]; TBL.b.textContent = L[1]; TBL.c.textContent = L[2];
 }
 addEventListener('pointerdown', () => AU.init());

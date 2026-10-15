@@ -271,7 +271,7 @@ addEventListener('keydown', e => {
   if ((e.code === 'Escape' || e.code === 'KeyP') && G && !G.demo) { e.preventDefault(); if (menu.hidden) togglePause(); else menuBack(); }
   else if (e.code === 'Escape' && !menu.hidden) menuBack();
   if (e.code === 'KeyM' && menu.hidden) AU.toggle();
-  if (e.code === 'KeyQ' && menu.hidden && G && !G.demo && G.human >= 0 && !['intro', 'end', 'replay'].includes(G.phase)) ACT.tactics();
+  if ((e.code === 'KeyT' || e.code === 'Tab') && menu.hidden && G && !G.demo && G.human >= 0 && !['intro', 'end', 'replay'].includes(G.phase)) ACT.tactics();
 });
 addEventListener('keyup', e => { KEY[e.code] = false; });
 addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
@@ -279,18 +279,18 @@ const prevIN = { a: false, b: false, c: false, k: false, f: false, st: false };
 const K = (...c) => c.some(k => KEY[k] || KEYP[k]);
 function readInput(dt) {
   let x = 0, y = 0, a, b, c, s, k, f, st = false;
-  // Pfeile laufen, die linke Hand macht die Aktionen (wie bei Hallen- und Korb-Legenden):
-  // S Pass, A Steilpass, D Flanke/hoher Ball, Leertaste Schuss, F Haken, Shift oder W Sprint (J/K/L gehen auch)
+  // Belegung wie EA FC am PC (klassisch) und ISS: Pfeile laufen, S Pass, W Steilpass, A Flanke/hoher Ball, D oder Leertaste Schuss,
+  // Q oder F Haken, Shift oder E Sprint. Abwehr: S Spieler wechseln, D Tackling, A Grätsche, W Mitspieler presst. (J/K/L/I gehen auch)
   if (K('ArrowLeft')) x -= 1; if (K('ArrowRight')) x += 1;
   if (K('ArrowUp')) y -= 1; if (K('ArrowDown')) y += 1;
-  a = K('KeyS', 'KeyJ'); b = K('Space', 'KeyK'); c = K('KeyD', 'KeyL'); k = K('KeyA'); f = K('KeyF');
-  s = K('ShiftLeft', 'ShiftRight', 'KeyW');
+  a = K('KeyS', 'KeyJ'); b = K('KeyD', 'Space', 'KeyK'); c = K('KeyA', 'KeyL'); k = K('KeyW', 'KeyI'); f = K('KeyQ', 'KeyF');
+  s = K('ShiftLeft', 'ShiftRight', 'KeyE');
   if (navigator.getGamepads) for (const gp of navigator.getGamepads()) {
     if (!gp) continue;
     const bt = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
     if (Math.hypot(ax, ay) > 0.25) { x += ax; y += ay; }
     if (bt(14)) x -= 1; if (bt(15)) x += 1; if (bt(12)) y -= 1; if (bt(13)) y += 1;
-    a = a || bt(0); b = b || bt(2); c = c || bt(1); k = k || bt(3); f = f || bt(4); s = s || bt(5) || bt(7) || bt(6); st = st || bt(9);
+    a = a || bt(0); b = b || bt(1); c = c || bt(2); k = k || bt(3); f = f || bt(4); s = s || bt(5) || bt(7) || bt(6); st = st || bt(9);
     if (bt(8) && !prevIN.sel && G && !G.demo && G.human >= 0 && menu.hidden) ACT.tactics(); prevIN.sel = bt(8);
     if (gp.buttons.some(q => q && q.pressed)) setInput('pad');
     break;

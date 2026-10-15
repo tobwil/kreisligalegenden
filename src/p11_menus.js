@@ -76,19 +76,19 @@ const ACT = {
   controls() {
     show(`<div class="panel narrow"><h2>STEUERUNG</h2>
       <div class="keys">
-        <b>PFEILE</b><span>Laufen (rechte Hand). Die linke Hand macht die Aktionen – wie bei Hallen- und Korb-Legenden</span>
-        <b>S</b><span>Angriff: Pass in Pfeilrichtung (das blaue Dreieck zeigt den Empfänger). Schon drücken, während der Ball kommt = Direktpass. Abwehr: Spieler wechseln</span>
-        <b>A</b><span>Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
-        <b>D</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: Tackling (nur von vorn, von hinten gibt es Fouls)</span>
-        <b>LEERTASTE</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), Pfeil hoch/runter zielt in die Ecke. Kommt der Ball gerade: Direktschuss, Volley oder Kopfball. Abwehr: Grätsche (Ball zuerst treffen!)</span>
-        <b>F</b><span>Haken: Richtungswechsel mit Antritt, lässt den Gegenspieler stehen</span>
-        <b>SHIFT / W</b><span>Sprint (kostet Kraft)</span>
-        <b>Q</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
+        <b>PFEILE</b><span>Laufen. Die Belegung ist wie bei EA FC am PC (klassisch) – wer FIFA kennt, ist sofort drin</span>
+        <b>S</b><span>Angriff: Pass in Pfeilrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Schon drücken, während der Ball kommt = Direktpass. Abwehr: Spieler wechseln</span>
+        <b>W</b><span>Angriff: Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
+        <b>A</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: Grätsche (Ball zuerst treffen!)</span>
+        <b>D / LEERTASTE</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), Pfeil hoch/runter zielt in die Ecke. Kommt der Ball gerade: Direktschuss, Volley oder Kopfball. Abwehr: Tackling (nur von vorn, von hinten gibt es Fouls)</span>
+        <b>Q</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
+        <b>SHIFT / E</b><span>Sprint (kostet Kraft)</span>
+        <b>T</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
         <b>ESC / P</b><span>Pause · M: Ton an/aus</span>
-        <b>TORWART</b><span>Hat dein Torwart den Ball: S abwerfen, D oder Leertaste abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
-        <b>STANDARDS</b><span>Einwurf: Richtung + S · Ecke: D (Richtung = kurzer oder langer Pfosten) · Freistoß: Leertaste halten = Schuss, S Pass, D Flanke · Elfmeter: Leertaste halten, Richtung = Ecke</span>
-        <b>GAMEPAD</b><span>Stick laufen · A Pass/Wechsel · Y Steilpass · B Flanke/Tackling · X Schuss/Grätsche · LB Haken · RT Sprint · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, GRÄTSCHE, TACKLING. Mitspieler antippen = Pass zu ihm</span>
+        <b>TORWART</b><span>Hat dein Torwart den Ball: S abwerfen, D oder A abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
+        <b>STANDARDS</b><span>Einwurf: Richtung + S · Ecke: A (Richtung = kurzer oder langer Pfosten) · Freistoß: D halten = Schuss, S Pass, A Flanke · Elfmeter: D halten, Richtung = Ecke</span>
+        <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
+        <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });

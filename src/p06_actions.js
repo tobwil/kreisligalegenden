@@ -66,7 +66,7 @@ function passScore(p, q, kind) {
 function pass(p, q) {
   if (!q) return;
   const b = G.ball; let tx = q.x, ty = q.y;
-  let d = dist(b.x, b.y, tx, ty), va = clamp(6 + d * 0.16, 6.5, 12), v0 = clamp(groundSpeed(d, va), 9, 30);
+  let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
   const t = (v0 - va) / FRIC();
   tx = clamp(q.x + q.vx * t * 0.75, 0.5, CW - 0.5); ty = clamp(q.y + q.vy * t * 0.75, 0.5, CH - 0.5);
   d = dist(b.x, b.y, tx, ty); v0 = clamp(groundSpeed(d, va), 9, 30);

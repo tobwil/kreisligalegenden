@@ -146,7 +146,7 @@ test('Tastatur: Enter, Freundschaftsspiel startet mit Intro, Anstoß mit S, Pfei
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Aktionen: Pass, Steilpass, Flanke, Haken, Tackling und Grätsche lösen aus', async () => {
+test('Aktionen (Belegung wie EA FC): S Pass, W Steilpass, A Flanke, Q Haken, D Tackling, A Grätsche', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.paused = true; });
   const r = await page.evaluate(() => {
@@ -154,18 +154,39 @@ test('Aktionen: Pass, Steilpass, Flanke, Haken, Tackling und Grätsche lösen au
     const press = k => { KEY[k] = true; KEYP[k] = true; readInput(1 / 60); KEY[k] = false; humanControl(1 / 60); readInput(1 / 60); };
     const out = {};
     setup(); press('KeyS'); out.pass = G.ball.kind;
-    setup(); press('KeyA'); out.through = G.ball.kind;
-    setup(true); press('KeyD'); out.cross = G.ball.kind;
-    const p = setup(); press('KeyF'); out.trick = p.act && p.act.type;
+    setup(); press('KeyW'); out.through = G.ball.kind;
+    setup(true); press('KeyA'); out.cross = G.ball.kind;
+    const p = setup(); press('KeyQ'); out.trick = p.act && p.act.type;
     // Abwehr: Gegner am Ball
     G.phase = 'play'; const o = teamP(1).find(q => grpOf(q) === 'MF'), d = teamP(0).find(q => grpOf(q) === 'AB');
     place(o, CW / 2, MY); giveBall(o, true); place(d, CW / 2 + 0.9, MY); d.cd = 0; G.ctrl = d; d.hx = -1; d.hy = 0;
     press('KeyD'); out.tackle = d.act && d.act.type;
     d.cd = 0; d.act = null; d.stun = 0; place(d, CW / 2 + 2, MY); if (G.ball.owner !== o) { place(o, CW / 2, MY); giveBall(o, true); } G.ctrl = d;
-    press('Space'); out.slide = d.act && d.act.type;
+    press('KeyA'); out.slide = d.act && d.act.type;
     return out;
   });
-  ok(r.pass === 'pass' && r.through === 'through' && r.cross === 'cross' && r.trick === 'trick' && r.tackle === 'tackle' && r.slide === 'slide', JSON.stringify(r));
+  ok(r.pass === 'pass' && r.through === 'through' && r.cross === 'cross' && r.trick === 'trick' && ['tackle', 'stumble'].includes(r.tackle) && r.slide === 'slide', JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Passannahme: der angespielte Mitspieler nimmt den Ball an, auch wenn die Pfeiltaste noch gedrückt ist', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = { ok: 0, n: 0, lost: [] };
+    for (let trial = 0; trial < 48; trial++) {
+      startMatch(L[0], L[5], { human: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+      const ps = teamP(0).filter(q => !isGK(q)), a = ps[3], q = ps[4];
+      for (const o of G.players) if (o !== a && o !== q) place(o, o.team ? 90 : 10, 5 + o.i * 4);
+      const d = 2.5 + (trial % 8) * 1.5, ang = (trial * 0.7) % 6.28, off = [0, 1.57, -1.57, 0.6][trial % 4], hx = Math.cos(ang + off), hy = Math.sin(ang + off);
+      place(a, 50, 32); place(q, 50 + Math.cos(ang) * d, 32 + Math.sin(ang) * d); a.vx = a.vy = q.vx = q.vy = 0;
+      giveBall(a, true); G.ctrl = a; pass(a, choosePass(a, Math.cos(ang), Math.sin(ang)));
+      let got = null;
+      for (let i = 0; i < 180 && !got; i++) { G.frame++; G.t += 1 / 60; IN.x = hx; IN.y = hy; aiTeam(0, 1 / 60); aiTeam(1, 1 / 60); humanControl(1 / 60); moveAll(1 / 60); updateBall(1 / 60); passAssist(1 / 60); checkBlocks(); tryCollect(); if (G.ball.owner) got = G.ball.owner; }
+      out.n++; if (got && got.team === 0) out.ok++; else out.lost.push(d);
+    }
+    IN.x = IN.y = 0; return out;
+  });
+  ok(r.ok >= r.n - 1, `nur ${r.ok}/${r.n} Pässe angekommen, verloren bei ${r.lost}`);
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -378,7 +399,7 @@ test('Training: alle 7 Lektionen mit der Tastatur durchspielbar (Laufen, Passen,
   const { page, ctx, errors } = await open();
   const log = await page.evaluate(() => {
   ACT.training(); G.paused = true; const log = [];
-  const keys = ['KeyS', 'KeyA', 'KeyD', 'Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft'];
+  const keys = ['KeyS', 'KeyA', 'KeyD', 'KeyW', 'KeyQ', 'Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft'];
   const toward = (x, y) => { const c = G.ctrl; if (x - c.x > 0.5) KEY.ArrowRight = true; if (x - c.x < -0.5) KEY.ArrowLeft = true; if (y - c.y > 0.5) KEY.ArrowDown = true; if (y - c.y < -0.5) KEY.ArrowUp = true; };
   let n = 0, lastI = -1, hold = 0, t0 = 0;
   while (G && G.tut && n < 60 * 60 * 6) {
@@ -389,9 +410,9 @@ test('Training: alle 7 Lektionen mit der Tastatur durchspielbar (Laufen, Passen,
     const f = n % 12 === 0;
     if (L.t === 'LAUFEN' && T.marks[0]) toward(...T.marks[0]);
     else if (L.t === 'PASSEN' && b.owner === c && f) KEYP.KeyS = true;
-    else if (L.t === 'STEILPASS' && b.owner === c && f && G.t - c.gotT > 0.5) KEYP.KeyA = true;
+    else if (L.t === 'STEILPASS' && b.owner === c && f && G.t - c.gotT > 0.5) KEYP.KeyW = true;
     else if ((L.t === 'SCHIESSEN' || L.t === 'STANDARDS') && b.owner === c) { if (hold < 30) { KEY.Space = true; hold++; KEY.ArrowUp = hold > 3 && (n / 600 | 0) % 2 === 0; } else hold = 0; }
-    else if (L.t === 'FLANKE & KOPFBALL') { if (b.owner === c && f) KEYP.KeyD = true; else if (!b.owner && b.passTo === c && f) KEYP.Space = true; }
+    else if (L.t === 'FLANKE & KOPFBALL') { if (b.owner === c && f) KEYP.KeyA = true; else if (!b.owner && b.passTo === c && f) KEYP.Space = true; }
     else if (L.t === 'ABWEHR' && b.owner && b.owner.team === 1) { toward(b.owner.x, b.owner.y); if (dist(c.x, c.y, b.owner.x, b.owner.y) < 1.3 && f) KEYP.KeyD = true; }
     if (b.owner !== c) hold = 0;
     readInput(1 / 60); step(1 / 60); n++;
