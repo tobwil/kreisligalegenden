@@ -74,7 +74,7 @@ const ACT = {
   qdiff(arg) { SETTINGS.diff = +arg; saveSettings(); renderQuick(`[data-act="qdiff"][data-arg="${arg}"]`); },
   qlen(arg) { SETTINGS.hlen = +arg; saveSettings(); renderQuick(`[data-act="qlen"][data-arg="${arg}"]`); },
   qmode(arg) { QUICK.mode = arg; renderQuick(`[data-act="qmode"][data-arg="${arg}"]`); },
-  qstart() { startMatch(QUICK.a, QUICK.b, { human: 0, watch: QUICK.mode === 'watch' }); },
+  qstart() { const mp = !TOUCHDEV && QUICK.mp && QUICK.mp !== 'solo' && QUICK.mode !== 'watch' ? QUICK.mp : null; startMatch(QUICK.a, QUICK.b, { human: 0, watch: QUICK.mode === 'watch', mp, mpIn: QUICK.mpIn || 0 }); if (mp) track('zu-zweit', { modus: mp }); },
   controls() {
     const L = LAY(), N = L.keyN, k = x => x === 'LEER' ? 'LEERTASTE' : x, alt = q => (L[q] || []).slice(1).map(c => c.replace(/^Key/, '').replace(/^(Shift)(Left|Right)$/, 'SHIFT').replace('Space', 'LEERTASTE')).filter((v, i, A) => A.indexOf(v) === i && v !== k(N[q]));
     const ks = q => [k(N[q])].concat(alt(q)).join(' / ');
@@ -236,6 +236,9 @@ function renderQuick(focusSel) {
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${SETTINGS.diff === i ? 'on' : ''}" data-act="qdiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
     <div class="row"><span class="tag">HALBZEIT</span>${[2, 3, 5, 8].map(q => `<button class="small ${SETTINGS.hlen === q ? 'on' : ''}" data-act="qlen" data-arg="${q}">${q} MIN</button>`).join('')}
     <span class="tag">MODUS</span>${[['play', 'SELBST SPIELEN'], ['watch', 'ZUSCHAUEN']].map(([m, n]) => `<button class="small ${QUICK.mode === m ? 'on' : ''}" data-act="qmode" data-arg="${m}">${n}</button>`).join('')}</div>
+    ${TOUCHDEV ? '' : `<div class="row"><span class="tag">SPIELER</span>${[['solo', 'ALLEIN'], ['coop', 'ZU ZWEIT MITEINANDER'], ['vs', 'ZU ZWEIT GEGENEINANDER']].map(([m, n]) => `<button class="small ${(QUICK.mp || 'solo') === m ? 'on' : ''}" data-act="qmp" data-arg="${m}">${n}</button>`).join('')}</div>
+    ${QUICK.mp && QUICK.mp !== 'solo' ? `<div class="row"><span class="tag">EINGABE</span>${MP_PRESETS.map((p, i) => `<button class="small ${(QUICK.mpIn || 0) === i ? 'on' : ''}" data-act="qmpIn" data-arg="${i}">${p[2]}</button>`).join('')}</div>
+      <p class="muted">Spieler 1 (gelb): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][0]].help)}<br>Spieler 2 (rosa): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][1]].help)}${QUICK.mp === 'vs' ? '<br>Gegeneinander: Spieler 1 spielt den linken Verein, Spieler 2 den Gegner.' : ''}</p>` : ''}`}
     <div class="row"><button class="main" data-act="qstart" ${focusSel ? '' : 'autofocus'}>ANPFIFF</button></div></div>`, { back: ACT.main });
   pickerWire(renderQuick);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
@@ -284,6 +287,7 @@ function startMatch(ta, tb, o) {
   INGAME_MENU = false; hideMenu(); AU.init(); AU.stopMusic();
   if (!o.resume) delMatch();
   newMatch(ta, tb, o); G.opts = o;
+  if (o.mp) setupMulti(o.mp, o.mpIn || 0);
   if (!o.watch && !o.tut && !o.resume) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
   startFlair(o);

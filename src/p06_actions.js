@@ -82,7 +82,7 @@ function passScore(p, q, kind) {
 function pass(p, q, pow = null) {
   if (!q) return;
   const b = G.ball; let tx = q.x, ty = q.y;
-  const hum = p.team === G.human && !G.watch;
+  const hum = isHumanTeam(p.team);
   let d = dist(b.x, b.y, tx, ty), va = clamp(7.5 + d * 0.17, 8, 13.5) * (hum ? 1.12 : 1) * (pow != null ? 0.88 + pow * 0.3 : 1), v0 = clamp(groundSpeed(d, va), 10, 31);   // zackig wie im Arcade-Fußball, die Annahme-Hilfe fängt ihn
   const t = (v0 - va) / FRIC();
   tx = clamp(q.x + q.vx * t * 0.75, 0.5, CW - 0.5); ty = clamp(q.y + q.vy * t * 0.75, 0.5, CH - 0.5);
@@ -94,7 +94,7 @@ function pass(p, q, pow = null) {
   else { b.vx = Math.cos(a) * v0 * (1 + gauss() * err * 0.4); b.vy = Math.sin(a) * v0 * (1 + gauss() * err * 0.4); b.vz = 0; }
   b.passTo = q; noteRecv(q, tx, ty);
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && !G.watch) { giveAndGo(p, q); G.ctrl = q; }
+  if (isHumanTeam(p.team)) { giveAndGo(p, q); toCtrl(p.team, q, p); }
 }
 // Doppelpass: wer den Ball abgibt, startet in den freien Raum nach vorne und bietet sich für den Rückpass an
 function giveAndGo(p, q) {
@@ -119,7 +119,7 @@ function through(p, q) {
   b.vx = Math.cos(a) * v0; b.vy = Math.sin(a) * v0; b.vz = 0;
   b.passTo = q; noteRecv(q, tx, ty, true);
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && !G.watch) { giveAndGo(p, q); G.ctrl = q; }
+  if (isHumanTeam(p.team)) { giveAndGo(p, q); toCtrl(p.team, q, p); }
 }
 // hoher Ball: über die Abwehr zum Mitspieler (landet vor ihm)
 function lob(p, q) {
@@ -132,7 +132,7 @@ function lob(p, q) {
   launchAir(tx, ty, 0, T);
   b.passTo = q; noteRecv(q, tx, ty);
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && !G.watch) G.ctrl = q;
+  toCtrl(p.team, q, p);
 }
 // Flanke in den Strafraum: auf Kopfhöhe am kurzen oder langen Pfosten oder am Elfmeterpunkt. aim: -1 kurz, 1 lang, 0 automatisch
 function cross(p, aim = 0) {
@@ -150,7 +150,7 @@ function cross(p, aim = 0) {
   launchAir(tx, ty, rnd(1.4, 1.9), T);
   if (tgt) { b.passTo = tgt; noteRecv(tgt, tx, ty); }
   G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (G.human === p.team && tgt && !G.watch) G.ctrl = tgt;
+  if (tgt) toCtrl(p.team, tgt, p);
   if (!G.demo) AU.crowd(0.5);
 }
 // Befreiungsschlag: hoch und weit Richtung Seitenlinie
@@ -165,7 +165,7 @@ function gkThrow(p, q) {
   kickBall(p, 'pass', 0.15); b.z = 1.6;
   launchAir(q.x + q.vx * 0.5, q.y + q.vy * 0.5, 0.3, clamp(d / 15, 0.4, 1.6));
   b.passTo = q; noteRecv(q, q.x, q.y); p.act = { type: 'throw', t: 0, dur: 0.35 };
-  if (G.human === p.team && !G.watch) G.ctrl = q;
+  toCtrl(p.team, q, p);
 }
 function gkPunt(p, q) {
   const b = G.ball, s = atkDir(p.team);
@@ -173,7 +173,7 @@ function gkPunt(p, q) {
   const tx = q ? q.x : p.x + s * 45, ty = q ? q.y : MY + rnd(-12, 12);
   kickBall(p, 'lob', 0.9); b.z = 0.5;
   launchAir(clamp(tx + gauss() * 4, 2, CW - 2), clamp(ty + gauss() * 4, 2, CH - 2), 0, rnd(2.2, 2.8));
-  if (q) { b.passTo = q; noteRecv(q, tx, ty); if (G.human === p.team && !G.watch) G.ctrl = q; }
+  if (q) { b.passTo = q; noteRecv(q, tx, ty); toCtrl(p.team, q, p); }
 }
 
 // ---------- Schuss ----------
@@ -194,8 +194,8 @@ function shoot(p, power, aimY, o = {}) {
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
   let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.3 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
-  if (p.team === G.human && !G.watch) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
-  if (p.team !== G.human && G.human >= 0) err *= 1 - G.diff.cpu / 60;
+  if (isHumanTeam(p.team)) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
+  if (!isHumanTeam(p.team) && G.human >= 0) err *= 1 - G.diff.cpu / 60;
   if (o.finesse) err *= 0.62; if (o.chip) err *= 0.75;
   if (!o.target) { ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5); }
   let v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
@@ -241,13 +241,13 @@ function header(p, wantShot) {
   // dein Spieler köpft im Strafraum von selbst aufs Tor (wie bei ISS), mit Pass vorgemerkt legt er stattdessen ab
   const mine = isHumanCtrl(p), layOff = mine && p.queue && p.queue.k === 'pass' && G.t - p.queue.t < 1.5;
   if (!layOff && (wantShot || mine || p.team !== G.human || G.ctrl !== p) && d < 17 && front && angOk && (wantShot || mine || Math.random() < 0.85)) {
-    shoot(p, 0.5, p.team === G.human && G.ctrl === p && Math.abs(IN.y) > 0.25 ? IN.y : null, { header: true }); return;
+    shoot(p, 0.5, isHumanCtrl(p) && Math.abs(inOf(p).y) > 0.25 ? inOf(p).y : null, { header: true }); return;
   }
   AU.header();
   const q0 = mine && p.queue && G.t - p.queue.t < 1.5 ? p.queue : null;
   if (q0 && (q0.k === 'clear' || q0.k === 'pass')) {
     p.queue = null; kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null; p.act = { type: 'head', t: 0, dur: 0.4 };
-    if (q0.k === 'pass') { const m = choosePass(p, q0.x, q0.y) || choosePass(p, 0, 0); if (m) { launchAir(m.x, m.y, 0, clamp(dist(p.x, p.y, m.x, m.y) / 11, 0.6, 1.4)); b.passTo = m; noteRecv(m, m.x, m.y); G.ctrl = m; return; } }
+    if (q0.k === 'pass') { const m = choosePass(p, q0.x, q0.y) || choosePass(p, 0, 0); if (m) { launchAir(m.x, m.y, 0, clamp(dist(p.x, p.y, m.x, m.y) / 11, 0.6, 1.4)); b.passTo = m; noteRecv(m, m.x, m.y); toCtrl(p.team, m, p); return; } }
     let dx = q0.x, dy = q0.y; if (Math.hypot(dx, dy) < 0.3) { dx = s; dy = p.y < MY ? -0.6 : 0.6; }   // ohne Richtung: nach vorn und nach außen
     const m = Math.hypot(dx, dy); launchAir(clamp(p.x + dx / m * 18, 1, CW - 1), clamp(p.y + dy / m * 18, 1, CH - 1), 0, 1.25);
     feat('kopf-abwehr', p); return;
@@ -265,7 +265,7 @@ function header(p, wantShot) {
     kickBall(p, 'head', 0.3); b.z = 1.9;
     const tx = q ? q.x : p.x + s * 10, ty = q ? q.y : p.y;
     launchAir(tx, ty, 0, clamp(dist(p.x, p.y, tx, ty) / 11, 0.6, 1.3));
-    if (q) { b.passTo = q; noteRecv(q, tx, ty); if (G.human === p.team && !G.watch) G.ctrl = q; }
+    if (q) { b.passTo = q; noteRecv(q, tx, ty); toCtrl(p.team, q, p); }
   }
   p.act = { type: 'head', t: 0, dur: 0.4 };
 }
@@ -278,7 +278,7 @@ function tackle(d, c) {
   if (!c || dist(d.x, d.y, c.x, c.y) > 1.6) { d.cd = 0.4; AU.tackle(); return; }
   const behind = (c.hx * (d.x - c.x) + c.hy * (d.y - c.y)) / Math.max(0.1, dist(d.x, d.y, c.x, c.y)) < -0.3;
   let pr = 0.38 + (A_(d, 'zwk') - A_(c, 'tec')) / 110 - (behind ? 0.15 : 0) + (c.d.energy < 0.4 ? 0.06 : 0);
-  if (G.human >= 0 && d.team !== G.human) pr += (G.diff.tackle - 1) * 0.12;
+  if (G.human >= 0 && !isHumanTeam(d.team)) pr += (G.diff.tackle - 1) * 0.12;
   if (isHumanCtrl(d)) pr += G.diff.htk ?? 0.12;   // Arcade: dein Tackling sitzt öfter
   if (d.d.trait === 'Blutgrätsche' || d.d.trait === 'Dampfwalze') pr += 0.05;
   AU.tackle();
@@ -288,7 +288,7 @@ function tackle(d, c) {
     else { const b = G.ball; b.owner = null; b.state = 'free'; b.last = d; b.lastTeam = d.team; b.fid++; b.kind = 'loose'; b.passer = null; b.vx = (c.x - d.x) * 2 + rnd(-3, 3); b.vy = (c.y - d.y) * 2 + rnd(-3, 3); b.vz = rnd(0, 1.5); b.nc = c; b.ncT = 0.3; G.offs = null; }
     c.stun = 0.35; c.act = { type: 'stumble', t: 0, dur: 0.35 };
   } else {
-    const fr = (behind ? 0.32 : 0.1) * (d.d.trait === 'Blutgrätsche' ? 1.5 : 1) * (G.human === c.team ? G.diff.foul : 0.8);
+    const fr = (behind ? 0.32 : 0.1) * (d.d.trait === 'Blutgrätsche' ? 1.5 : 1) * (isHumanTeam(c.team) ? G.diff.foul : 0.8);
     if (Math.random() < fr) foul(d, c, behind ? 1 : 0);
     else { d.stun = 0.45; d.act = { type: 'stumble', t: 0, dur: 0.45 }; }
   }

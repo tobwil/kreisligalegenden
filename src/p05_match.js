@@ -134,7 +134,7 @@ function giveBall(p, quiet) {
   if (G.poss !== p.team) { G.poss = p.team; G.possT = 0; }
   if (G.offs && G.offs.team !== p.team) G.offs = null;
   if (!quiet) AU.touch();
-  if (G.human === p.team && !G.demo && !G.watch) G.ctrl = p;
+  toCtrl(p.team, p, from);
   void from;
 }
 function nearestTo(team, x, y, excl, gk = false) {
@@ -156,6 +156,7 @@ function setupKickoff(team, full) {
   G.sp = { type: 'kick', team, taker: k, x: CW / 2, y: MY, t: 0 };
   G.camSnap = true;
   if (G.human >= 0 && !G.demo) G.ctrl = G.human === team ? k : nearestTo(G.human, CW / 2, MY);
+  if (G.pl) mpReset(team, k);
   void full;
 }
 function kickoffSpot(p, team) {
@@ -200,6 +201,7 @@ function setupSetPiece(type, team, x, y, who) {
   G.phase = type === 'pen' ? 'penalty' : 'setpiece'; G.phaseT = 0;
   if (type === 'pen') G.pen = { shooter: taker, team, gk: G.gk[1 - team], guess: null, done: false };
   if (G.human >= 0 && !G.demo) G.ctrl = G.human === team ? taker : (type === 'pen' ? G.gk[G.human] : nearestTo(G.human, x, y));
+  if (G.pl) { mpReset(team, taker); if (type === 'pen') { const k = slotOfTeam(1 - team); if (k) k.ctrl = G.gk[1 - team]; } }
 }
 // bester Schütze (Elfmeter, Freistoß): festgelegter Schütze aus der Karriere, sonst der beste Schuss auf dem Platz
 function penTaker(team) {

@@ -145,7 +145,7 @@ function aiTeam(t, dt) {
     if (p.recv && p.recv.fid === b.fid && b.passTo === p && !b.owner) { const q = interceptOf(p); p.tx = q.x; p.ty = q.y; p.urg = 1; p.role = 'recv'; }
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
-      const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && own.team === G.human;
+      const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && isHumanTeam(own.team) && !isHumanTeam(t);
       if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.2 * G.diff.tackle : 1.3)) tackle(p, own);
       else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.16 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
@@ -265,7 +265,7 @@ function gkHold(g, dt) {
   g.holdT = (g.holdT || 0) + dt;
   const b = G.ball; b.z = 1.1;
   const [x, y] = gkSpot(g); g.tx = lerp(g.x, ownX(g.team) + atkDir(g.team) * 6, 0.02); g.ty = lerp(g.y, y, 0.02); g.urg = 0.3; void x;
-  if (g.holdT < (G.human === g.team ? 4 : rnd(1.0, 1.6))) return;
+  if (g.holdT < (isHumanTeam(g.team) ? 4 : rnd(1.0, 1.6))) return;
   g.holdT = 0;
   const near = mates(g).filter(q => dist(q.x, q.y, g.x, g.y) < 28 && openness(q) > 6).sort((a, c) => openness(c) - openness(a))[0];
   if (near && Math.random() < 0.6) gkThrow(g, near); else gkPunt(g);
@@ -283,7 +283,7 @@ function planSave(g) {
   const onT = onGoal.y > GY1 - 0.15 && onGoal.y < GY2 + 0.15 && onGoal.z < GH + 0.15;
   const c = cross || onGoal, v = Math.hypot(b.vx, b.vy, b.vz);
   const sh = b.shot; if (sh && onT && !sh.counted) { sh.counted = true; G.stats.onT[sh.team]++; sh.by.d.ms.sot++; }
-  const cpuKeeper = G.human >= 0 && t !== G.human;
+  const cpuKeeper = G.human >= 0 && !isHumanTeam(t);
   const react = (0.1 + (1 - A_(g, 'tw') / 100) * 0.16) * (cpuKeeper ? G.diff.react : 1) + (b.shot && b.shot.fk ? 0.45 : 0);
   const tw = A_(g, 'tw') + (cpuKeeper ? G.diff.gk : 0) + (g.d.trait === 'Katze' ? 4 : 0);
   const reach = 3.2 * Math.max(0, c.t - react - 0.08) + 1.1 + tw / 100 * 1.4;
@@ -307,6 +307,6 @@ function startDive(g) {
 }
 // Elfmeter: Torwart rät eine Ecke (Mensch: Richtung beim Schuss, CPU: Zufall mit Gefühl)
 function penGuess(g) {
-  if (G.human === g.team && !G.watch) return Math.abs(IN.y) > 0.3 ? Math.sign(IN.y) : 0;
+  if (isHumanTeam(g.team)) { const I = G.pl ? (slotOfTeam(g.team) || { IN }).IN : IN; return Math.abs(I.y) > 0.3 ? Math.sign(I.y) : 0; }
   const r = Math.random(); return r < 0.43 ? -1 : r < 0.86 ? 1 : 0;
 }

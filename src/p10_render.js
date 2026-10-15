@@ -53,7 +53,8 @@ function render() {
   drawTutMarks();
   const items = [];
   const showSel = !G.demo && G.human >= 0 && !G.watch && G.phase !== 'replay';
-  for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, showSel && p === G.ctrl ? (G.ball.owner === p ? '#ffc83a' : '#7cf2ff') : false) });
+  const selCol = p => { if (!showSel) return false; if (G.pl) { const s = slotOfP(p); return s ? MP_COL[s.i] : false; } return p === G.ctrl ? (G.ball.owner === p ? '#ffc83a' : '#7cf2ff') : false; };
+  for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, selCol(p)) });
   for (const side of [0, 1]) { items.push({ y: GY1 - 0.05, draw: () => drawGoalBack(side) }); items.push({ y: GY2 + 0.05, draw: () => drawGoalFront(side) }); }
   for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) items.push({ y, draw: () => drawCornerFlag(x, y, t) });
   items.push(...officialsItems(dt), ...benchItems());
@@ -103,23 +104,8 @@ function drawHUD(lite) {
   if (G.so) drawShootoutTally(x0, y0 + 26);
   if (lite) { if (G.banner) drawBanner(G.banner); if (G.cut) drawCard(G.cut); return; }
   if (SETTINGS.radar && G.phase !== 'intro') drawRadar();
-  const c = G.ctrl;
-  // Passziel des eigenen Ballführers
-  if (c && G.ball.owner === c && c.team === G.human && (G.phase === 'play' || G.phase === 'setpiece' || G.phase === 'kickoff') && !isGK(c) || (c && G.ball.owner === c && isGK(c) && G.phase === 'play')) {
-    const q = choosePass(c, IN.x, IN.y);
-    if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
-  }
-  // Steuermarke über dem eigenen Spieler
-  if (c && G.human >= 0 && !G.watch && !c.off) {
-    const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
-    if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = '#ffc83a'; ctx.fillRect(ex, ey, 6, 6); }
-    else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#ffc83a'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
-    if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
-    if (c.charge > 0 && G.ball.owner === c) {
-      drawPower(c, c.charge); drawAimCross(c);
-      if (PROF.games < 15 || G.tut) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
-    }
-  }
+  if (G.pl) { for (const sl of G.pl) withSlot(sl, () => drawCtrlHUD(sl.ctrl, MP_COL[sl.i], sl.i + 1)); }
+  else drawCtrlHUD(G.ctrl, '#ffc83a', 0);
   // Name des Ballführers
   const o = G.ball.owner;
   if (o && (G.phase === 'play' || G.phase === 'setpiece')) text(`${o.d.num} ${o.d.name.toUpperCase()}`, sx(o.x, o.y), sy(o.y) + 4, o.team === G.human ? '#ffc83a' : '#cfd6f2', 8, 'center');
@@ -130,6 +116,26 @@ function drawHUD(lite) {
   if (G.cut) drawCard(G.cut);
   if (G.banner) drawBanner(G.banner);
   if (G.phase === 'intro') drawIntro();
+}
+// Steuermarke, Passziel, Ladebalken und Zielkreuz für einen gesteuerten Spieler (zu zweit: je Mensch eigene Farbe und Nummer)
+function drawCtrlHUD(c, col, num) {
+  // Passziel des eigenen Ballführers
+  if (c && G.ball.owner === c && isHumanTeam(c.team) && (G.phase === 'play' || G.phase === 'setpiece' || G.phase === 'kickoff') && !isGK(c) || (c && G.ball.owner === c && isGK(c) && G.phase === 'play')) {
+    const q = choosePass(c, IN.x, IN.y);
+    if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
+  }
+  // Steuermarke über dem eigenen Spieler
+  if (c && (G.human >= 0 || G.pl) && !G.watch && !c.off) {
+    const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
+    if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = col; ctx.fillRect(ex, ey, 6, 6); }
+    else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
+    if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
+    if (c.charge > 0 && G.ball.owner === c) {
+      drawPower(c, c.charge); drawAimCross(c);
+      if ((PROF.games < 15 || G.tut) && !G.pl) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
+    }
+    if (num) text(String(num), x, y - 10, col, 8, 'center');
+  }
 }
 function drawPower(p, v, col) {
   const x = sx(p.x, p.y) - 12, y = sy(p.y, p.z) - 44, w = 24;
@@ -205,7 +211,7 @@ function keyBarItems() {
   return att ? [[N.a, 'PASS'], [N.k, 'STEIL'], [N.c, 'FLANKE'], [N.b, 'SCHUSS'], [N.f, 'HAKEN'], [N.s, 'SPRINT']] : [[N.a, 'WECHSEL'], [sw ? N.c : N.b, 'TACKLING'], [sw ? N.b : N.c, 'GRÄTSCHE'], [N.k, 'DRUCK'], [N.s, 'SPRINT']];
 }
 function drawKeyBar() {
-  if (!helpsOn() || G.phase !== 'play') return;
+  if (!helpsOn() || G.phase !== 'play' || G.pl) return;
   const items = keyBarItems(); ctx.font = `8px ${FONT}`;
   const parts = items.map(([k, l]) => [k, ' ' + l]), gap = 12;
   const w = parts.reduce((a, [k, l]) => a + ctx.measureText(k).width + ctx.measureText(l).width, 0) + gap * (parts.length - 1);
@@ -244,6 +250,7 @@ function drawIntro() {
   const k = ease(G.phaseT / 0.6);
   ctx.fillStyle = `rgba(3,5,16,${0.78 * k})`; ctx.fillRect(0, 0, W, H);
   const ev = G.event, T0 = G.T[0];
+  if (G.pl) G.pl.forEach((s, i) => text(`SPIELER ${i + 1}${G.mpMode === 'vs' ? ' · ' + G.T[s.team].short.toUpperCase() : ''}: ${MP_SRC[s.src].help.toUpperCase()}`, W / 2, H - 44 + i * 12, MP_COL[i], 8, 'center'));
   text(G.career && G.career.label ? G.career.label : ev ? ev.title : 'FREUNDSCHAFTSSPIEL', W / 2, 22, ev ? '#ffc83a' : '#9b90ad', 8, 'center');
   text(`${ev && ev.venue ? ev.venue : 'SPORTPLATZ ' + T0.short.toUpperCase()} · ${GROUNDS[PITCH.ground]}${PITCH.wet ? ' · REGEN' : ''}${PITCH.night && !(ev && ev.night) ? ' · FLUTLICHT' : ''}`, W / 2, 36, '#cfd6f2', 8, 'center');
   for (const t of [0, 1]) {

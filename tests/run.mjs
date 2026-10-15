@@ -214,6 +214,30 @@ test('Keine ungewollte Aktion bei der Annahme: gehaltene Tackling-Taste schießt
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Zu zweit: miteinander (zwei Menschen, zwei verschiedene Spieler, geteilte Tastatur) und gegeneinander (je eine Mannschaft)', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {}, frame = () => { readInput(1 / 60); readSlots(1 / 60); step(1 / 60); };
+    startMatch(L[0], L[1], { human: 0, mp: 'coop', mpIn: 0 }); G.paused = true; KEYP.Enter = true; frame(); for (let i = 0; i < 30; i++) frame();
+    G.phase = 'play'; G.sp = null; for (const s of G.pl) s.ctrl = null; mpFix();
+    out.coop = G.pl.every(s => s.ctrl && s.ctrl.team === 0) && G.pl[0].ctrl !== G.pl[1].ctrl;
+    const b = G.pl[1].ctrl, bx = b.x; KEY.ArrowRight = true; for (let i = 0; i < 30; i++) frame(); KEY.ArrowRight = false;
+    out.p2moves = G.pl[1].ctrl === b && Math.abs(b.x - bx) > 1.5;
+    const p1 = G.pl[0].ctrl; place(p1, CW / 2, MY); giveBall(p1, true); const ps0 = G.stats.passes[0]; KEY.KeyF = true; frame(); KEY.KeyF = false; frame();
+    out.pass = G.stats.passes[0] > ps0;
+    for (let i = 0; i < 300; i++) frame(); out.unique = G.pl[0].ctrl !== G.pl[1].ctrl;
+    startMatch(L[0], L[1], { human: 0, mp: 'vs', mpIn: 0 }); G.paused = true; KEYP.Enter = true; frame();
+    for (let i = 0; i < 60 * 15; i++) { if (i % 80 === 0) { KEY.KeyG = !KEY.KeyG; KEY.KeyK = !KEY.KeyK; } frame(); if (G.phase === 'pause') nextHalf(); }
+    out.vs = G.pl.map(s => s.ctrl && s.ctrl.team).join(',') === '0,1';
+    return out;
+  });
+  ok(r.coop, 'zu zweit miteinander: Spieler nicht getrennt');
+  ok(r.p2moves, 'Spieler 2 (Pfeile) läuft nicht');
+  ok(r.pass && r.unique, 'Pass zu zweit / gleicher Spieler doppelt gesteuert');
+  ok(r.vs, 'gegeneinander: Mannschaften falsch');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Abschluss: Zielkreuz beim Aufladen, Antippen schießt platziert, Schlenzer und Heber beim Aufladen, Treffer-Stopp', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

@@ -131,7 +131,7 @@ function flairGoal(team, scorer, sh, og) {
 // Jubel selbst wählen: Pass = Knie-Rutscher, Schuss = Flieger, Flanke = Becker-Faust
 function celebChoice() {
   const sc = G.scorer; if (!sc || !sc.celeb || G.watch || G.demo || sc.team !== G.human || G.celebSet) return;
-  const pose = IN.pa ? 'knee' : IN.pb ? 'plane' : IN.pc ? 'faust' : null;
+  const I = G.pl ? (slotOfTeam(G.scorer ? G.scorer.team : 0) || { IN }).IN : IN, pose = I.pa ? 'knee' : I.pb ? 'plane' : I.pc ? 'faust' : null;
   if (pose) { sc.celeb.pose = pose; G.celebSet = true; AU.cheer(0.6); }
 }
 // ---------- Abpfiff: Aufgaben, Erfolge, Punkte ----------

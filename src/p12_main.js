@@ -155,7 +155,7 @@ applyBtnSize();
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(1 / 30, (now - lastT) / 1000)); lastT = now;
-  readInput(dt); menuPad(); updateTouchLabels(); touchTip();
+  readInput(dt); readSlots(dt); menuPad(); updateTouchLabels(); touchTip();
   if (TTIP && (IN.pa || IN.pb)) closeTouchTip();
   document.body.classList.toggle('ingame', !!(G && !G.demo));
   if (G && !G.paused) gameTick(dt);

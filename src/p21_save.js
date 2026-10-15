@@ -8,7 +8,7 @@ const careerStamp = () => CAREER ? `${CAREER.team}|${CAREER.year}|${CAREER.S.ci}
 const dKey = d => d.pid != null ? 'p' + d.pid : `${d.name}|${d.num}`;
 const dState = d => ({ k: dKey(d), ms: d.ms, yc: d.yc || 0, energy: d.energy, used: !!d.used, subbed: !!d.subbed, onAt: d.onAt || 0, note: d.note });
 function saveMatch() {
-  if (!G || G.demo || G.tut || G.watch || G.so || G.counted || G.phase === 'end') return false;
+  if (!G || G.demo || G.tut || G.watch || G.so || G.counted || G.pl || G.phase === 'end') return false;
   if (G.half === 1 && G.clock < 2 && !G.score[0] && !G.score[1]) return false;   // gerade erst angepfiffen: nichts zu retten
   const o = Object.assign({}, G.opts); for (const k of ['xi', 'bench', 'career', 'watch', 'form', 'ment', 'resume']) delete o[k];
   const brk = ['halfend', 'pause', 'etpause'].includes(G.phase), bo = G.ball.owner ? G.players.indexOf(G.ball.owner) : -1;
