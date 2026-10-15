@@ -154,6 +154,18 @@ function cross(p, aim = 0) {
   if (tgt) toCtrl(p.team, tgt, p);
   if (!G.demo) AU.crowd(0.5);
 }
+// Ecke mit Zielvisier: Flanke genau auf den Punkt (tx, ty), angelaufen vom Mitspieler, der am nächsten dran ist
+function cornerRecv(p, tx, ty) { return mates(p).filter(q => !isGK(q) && dist(q.x, q.y, tx, ty) < 9).sort((a, b) => dist(a.x, a.y, tx, ty) - dist(b.x, b.y, tx, ty))[0] || null; }
+function crossTo(p, tx, ty) {
+  const b = G.ball, q = cornerRecv(p, tx, ty), d = dist(b.x, b.y, tx, ty), T = clamp(0.35 + d / 19, 0.6, 2.0);
+  const err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.5 : 0.9);
+  tx += gauss() * err * d * 0.4; ty += gauss() * err * d * 0.4;
+  kickBall(p, 'cross', 0.5);
+  launchAir(tx, ty, rnd(1.4, 1.8), T);
+  if (q) { b.passTo = q; noteRecv(q, tx, ty); toCtrl(p.team, q, p); }
+  G.stats.passes[p.team]++; p.d.ms.ps++;
+  if (!G.demo) AU.crowd(0.5);
+}
 // Befreiungsschlag: hoch und weit Richtung Seitenlinie
 function clearBall(p) {
   const b = G.ball, s = atkDir(p.team), tx = clamp(p.x + s * rnd(30, 45), 3, CW - 3), ty = clamp(p.y < MY ? rnd(4, 16) : rnd(CH - 16, CH - 4), 2, CH - 2);

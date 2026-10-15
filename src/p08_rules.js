@@ -536,8 +536,13 @@ function stepSetPiece(dt) {
       if (IN.pa) return pass(c, choosePass(c, IN.x, IN.y));
       if (IN.pc || IN.pb || IN.pk) return gkPunt(c, Math.hypot(IN.x, IN.y) > 0.3 ? choosePass(c, IN.x, IN.y, 'lob') : null);
     } else if (sp.type === 'corner') {
-      if (IN.pc || IN.pb) return cross(c, Math.abs(IN.y) > 0.3 || Math.abs(IN.x) > 0.3 ? cornerAim(c) : 0);
-      if (IN.pa) return pass(c, choosePass(c, IN.x, IN.y));
+      // Zielvisier im Strafraum: Richtung verschiebt es, Flanke oder Schuss flankt genau dorthin, Pass = kurz ausgeführt
+      const gx = goalX(sp.team), s = atkDir(sp.team);
+      if (!sp.caim) { const side = c.y < MY ? -1 : 1, q = cornerRecv(c, gx - s * 7, MY + side * 1.5); sp.caim = q ? { x: q.x + s * 1, y: q.y } : { x: gx - s * 7, y: MY + side * 1.5 }; }
+      sp.caim.x = clamp(sp.caim.x + IN.x * dt * 13, Math.min(gx - s * 2.5, gx - s * 22), Math.max(gx - s * 2.5, gx - s * 22));
+      sp.caim.y = clamp(sp.caim.y + IN.y * dt * 13, MY - 17, MY + 17);
+      if (IN.pc || IN.pb) return crossTo(c, sp.caim.x, sp.caim.y);
+      if (IN.pa) return pass(c, mates(c).filter(m => !isGK(m)).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y))[0]);
     } else if (sp.type !== 'pen') {
       if (IN.pa) return pass(c, choosePass(c, IN.x, IN.y));
       if (IN.pk) return through(c, choosePass(c, IN.x, IN.y, 'through'));
@@ -549,7 +554,6 @@ function stepSetPiece(dt) {
   const delay = sp.type === 'kick' ? 0.9 : sp.type === 'pen' ? 1.6 : sp.type === 'corner' ? 1.3 : 0.9;
   if (sp.t > delay * (G.watch ? 1 : 1)) cpuSetPiece(sp);
 }
-function cornerAim(c) { const near = (c.y < MY) === (IN.y > 0); return near ? -1 : 1; }
 function cpuSetPiece(sp) {
   const tk = sp.taker, gx = goalX(tk.team), d = dist(tk.x, tk.y, gx, MY);
   switch (sp.type) {
