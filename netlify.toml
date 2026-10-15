@@ -1,0 +1,31 @@
+# Statische Seite ohne Build-Schritt: Landingpage im Hauptordner (index.html), das Spiel unter /game/ (aus src/ gebaut und mit committet).
+# Mit dem Repo in Netlify verbunden, bekommt jeder Pull Request automatisch einen eigenen Vorschau-Link (Deploy Preview).
+[build]
+  publish = "."
+  command = ""
+
+[[redirects]]
+  from = "/spielen"
+  to = "/game/"
+  status = 301
+
+[[redirects]]
+  from = "/spielen.html"
+  to = "/game/"
+  status = 301
+
+# Entwickler-Ordner nicht in den Suchindex
+[[headers]]
+  for = "/tests/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/tools/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
