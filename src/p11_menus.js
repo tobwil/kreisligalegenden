@@ -4,6 +4,7 @@ let BACK = null;
 const QUICK = { a: HOME_TEAM, b: KREIS_LIGEN[0].ids[1], side: 'a', lg: 0, mode: 'play' };
 function show(html, { back = null, clear = false, focus = true } = {}) {
   menu.innerHTML = html; menu.hidden = false; menu.classList.toggle('clear', clear); BACK = back;
+  if (!G || G.demo) AU.startMusic();   // Menümusik nur außerhalb eines Spiels
   document.body.classList.add('menuopen');
   menu.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.select(); const f = ACT[el.dataset.act]; if (f) f(el.dataset.arg, el); }));
   if (focus) { const f = menu.querySelector('[autofocus]') || menu.querySelector('button.main') || menu.querySelector('button'); if (f) f.focus({ preventScroll: true }); }
@@ -170,7 +171,7 @@ const ACT = {
   tment(a) { G.ment[G.human] = +a; ACT.tactics(`[data-act="tment"][data-arg="${a}"]`); },
   tsel(a) { G.subPick = +a; ACT.tactics(`[data-act="tsub"]:not([disabled])`); },
   tsub(a) { const me = teamP(G.human).concat(G.players.filter(p => p.team === G.human && p.off)), p = me[G.subPick]; if (p && doSub(p, +a)) { G.subPick = null; AU.whistle(1); } ACT.tactics('[data-act="tdone"]'); },
-  tdone() { G.subPick = null; if (G.phase === 'pause') return ACT.halftime(); ACT.resume(); },
+  tdone() { G.subPick = null; if (G.phase === 'pause') return ACT.halftime(); if (G.phase === 'etpause') return ACT.extraTime(); ACT.resume(); },
   halftime() {
     INGAME_MENU = false; AU.jingle('half'); G.paused = false;
     show(`<div class="panel narrow"><h2>HALBZEIT</h2><p class="res">${G.T[0].k} ${G.score[0]} : ${G.score[1]} ${G.T[1].k}</p>${scorersHTML()}${statsHTML(true)}

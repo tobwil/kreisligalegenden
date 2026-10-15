@@ -13,13 +13,14 @@ Object.assign(ACT, {
   ncDiff(a) { NEWC.diff = +a; renderNewCareer(`[data-act="ncDiff"][data-arg="${a}"]`); },
   ncH(a) { NEWC.hlen = +a; renderNewCareer(`[data-act="ncH"][data-arg="${a}"]`); },
   ncGo() { newCareer(NEWC.team, NEWC.len, NEWC.diff, NEWC.hlen); CTAB = 'blatt'; ACT.chub(); },
-  chub(tab) { if (tab) CTAB = tab; if (!CAREER) { const sv = store.get(CAREER_KEY); if (!validCareer(sv)) return ACT.main(); CAREER = sv; } renderHub(); },
+  chub(tab) { if (tab) CTAB = tab; if (G && !G.demo && (G.phase === 'end' || G.counted)) { G = null; startDemo(); } if (!CAREER) { const sv = store.get(CAREER_KEY); if (!validCareer(sv)) return ACT.main(); CAREER = sv; } renderHub(); },
   ctab(a) { CTAB = a; renderHub(`[data-act="ctab"][data-arg="${a}"]`); },
   cplay() { playCareerMatch(false); },
   cwatch() { playCareerMatch(true); },
   csim() { runEvent(null); CTAB = 'blatt'; renderHub(); },
   cnext() { runEvent(null); renderHub(); },
   cseason() { endSeason(); CTAB = 'blatt'; renderHub(); },
+  cskip() { let n = 0; while (!CAREER.S.done && CAREER.S.ci < CAREER.S.cal.length && !myGame() && n < 10) { runEvent(null); n++; } renderHub(); },
   cplayer(a) { showPlayer(+a); },
   cform(a) { CAREER.form = a; CAREER.xi = null; saveCareer(); renderHub(`[data-act="cform"][data-arg="${a}"]`); },
   cment(a) { CAREER.ment = +a; saveCareer(); renderHub(`[data-act="cment"][data-arg="${a}"]`); },
@@ -77,7 +78,7 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
   } else {
     foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : 'Spielfrei.'}</p>
-      <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button></div></div>`;
+      <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
   }
   show(`<div class="panel">${head}<p class="cmsg" hidden></p>${body()}${foot}</div>`, { back: ACT.main, focus: !focusSel });
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }

@@ -44,7 +44,8 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
     let sc;
     if (hasDir) {
       const dot = ((q.x - p.x) * dx + (q.y - p.y) * dy) / d / Math.hypot(dx, dy); if (dot < cone) continue;
-      sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0);
+      const lane = kind === 'lob' ? 4 : laneOpen(p, q.x, q.y);
+      sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0) + Math.min(lane, 4) * 0.45 - (lane < 1.1 ? 1.5 : 0);
       if (isGK(q)) sc -= 2;
     } else sc = passScore(p, q, kind);
     if (sc > bs) { bs = sc; best = q; }

@@ -8,9 +8,9 @@ const CROWD = [0, 1, 2].map(() => { const c = document.createElement('canvas'); 
 const bkx = x => (x + BX) * PX * KB;                      // Welt-x → Hintergrund-x
 let PITCH = { ground: 0, home: null, ads: null, smoke: [], flags: [] };
 const ADS = ['METZGEREI HÜMMER', 'AUTOHAUS SÖLLNER', 'GETRÄNKE WUNDER', 'BÄCKEREI MORGENROTH', 'FAHRSCHULE TEMPO', 'DACHDECKER RAAB', 'SCHREINEREI FABER', 'GASTHOF ZUR LINDE', 'KORBWAREN KOLB', 'BRÄU AM BACH', 'SANITÄR GEUSS', 'ELEKTRO FIEDLER', 'BLUMEN EBERT', 'STEUERBÜRO HETZEL', 'KLÖSS-STUBE'];
-function buildPitch(homeT, homeKit, awayKit, ev) {
+function buildPitch(homeT, homeKit, awayKit, ev, wx = {}) {
   const ground = ev && ev.ground != null ? ev.ground : homeT.ground ?? 0;
-  PITCH = { ground, home: homeT, ev: ev || null, smoke: [], flags: [], night: !!(ev && ev.night) };
+  PITCH = { ground, home: homeT, ev: ev || null, smoke: [], flags: [], night: !!(ev && ev.night) || !!wx.night, wet: !!wx.wet };
   const c = FIELD.getContext('2d'), r = seeded(77 + homeT.id * 13);
   c.clearRect(0, 0, FIELD.width, FIELD.height);
   const dot = (x, y, col, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(Math.round(ftx(x)), Math.round(fty(y)), w, h); };
@@ -138,10 +138,10 @@ function buildCrowd(homeKit, awayKit, neutral) {
 function drawSky(t) {
   const top = PITCH_Y0 - CAMY - 3 * DY - 150 * 0.82;
   const gr = ctx.createLinearGradient(0, 0, 0, Math.max(10, top + 90));
-  if (PITCH.night) { gr.addColorStop(0, '#05070f'); gr.addColorStop(1, '#1a2244'); } else { gr.addColorStop(0, '#5b9bd8'); gr.addColorStop(1, '#bfe0f2'); }
+  if (PITCH.night) { gr.addColorStop(0, '#05070f'); gr.addColorStop(1, '#1a2244'); } else if (PITCH.wet) { gr.addColorStop(0, '#6d7684'); gr.addColorStop(1, '#a9b0ba'); } else { gr.addColorStop(0, '#5b9bd8'); gr.addColorStop(1, '#bfe0f2'); }
   ctx.fillStyle = gr; ctx.fillRect(0, 0, W, Math.max(0, top + 120));
   if (!PITCH.night) {
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillStyle = PITCH.wet ? 'rgba(200,205,215,0.85)' : 'rgba(255,255,255,0.75)';
     for (let i = 0; i < 6; i++) { const x = ((i * 190 - (CAMX * PX * 0.15) + t * 3) % (W + 200) + W + 200) % (W + 200) - 100, y = top + 10 + (i % 3) * 12; ctx.fillRect(x, y, 46, 6); ctx.fillRect(x + 8, y - 4, 26, 4); ctx.fillRect(x + 20, y - 7, 14, 3); }
   }
 }
@@ -166,6 +166,7 @@ function drawPitch() {
   }
   if (r1 < H) { ctx.fillStyle = PITCH.ground === 1 ? '#5b5d63' : '#3f7a35'; ctx.fillRect(0, r1, W, H - r1); }
   if (PITCH.night) { ctx.fillStyle = 'rgba(10,14,40,0.22)'; ctx.fillRect(0, r0, W, H - r0); }
+  else if (PITCH.wet) { ctx.fillStyle = 'rgba(30,40,60,0.12)'; ctx.fillRect(0, r0, W, H - r0); }
 }
 
 // ================= Tore, Eckfahnen =================

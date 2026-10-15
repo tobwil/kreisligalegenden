@@ -55,7 +55,7 @@ function sprite(look, pose, fr, flip = false) {
   const key = look.key + '|' + pose + '|' + fr + '|' + +flip;
   let c = SPR.get(key); if (c) return c;
   c = renderSprite(look, pose, fr, flip); SPR.set(key, c);
-  if (SPR.size > 4000) SPR.clear();
+  if (SPR.size > 9000) SPR.clear();
   return c;
 }
 function renderSprite(L, pose, fr, flip = false) {

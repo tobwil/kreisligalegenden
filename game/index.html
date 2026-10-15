@@ -805,7 +805,7 @@ function sprite(look, pose, fr, flip = false) {
   const key = look.key + '|' + pose + '|' + fr + '|' + +flip;
   let c = SPR.get(key); if (c) return c;
   c = renderSprite(look, pose, fr, flip); SPR.set(key, c);
-  if (SPR.size > 4000) SPR.clear();
+  if (SPR.size > 9000) SPR.clear();
   return c;
 }
 function renderSprite(L, pose, fr, flip = false) {
@@ -953,9 +953,9 @@ const CROWD = [0, 1, 2].map(() => { const c = document.createElement('canvas'); 
 const bkx = x => (x + BX) * PX * KB;                      // Welt-x → Hintergrund-x
 let PITCH = { ground: 0, home: null, ads: null, smoke: [], flags: [] };
 const ADS = ['METZGEREI HÜMMER', 'AUTOHAUS SÖLLNER', 'GETRÄNKE WUNDER', 'BÄCKEREI MORGENROTH', 'FAHRSCHULE TEMPO', 'DACHDECKER RAAB', 'SCHREINEREI FABER', 'GASTHOF ZUR LINDE', 'KORBWAREN KOLB', 'BRÄU AM BACH', 'SANITÄR GEUSS', 'ELEKTRO FIEDLER', 'BLUMEN EBERT', 'STEUERBÜRO HETZEL', 'KLÖSS-STUBE'];
-function buildPitch(homeT, homeKit, awayKit, ev) {
+function buildPitch(homeT, homeKit, awayKit, ev, wx = {}) {
   const ground = ev && ev.ground != null ? ev.ground : homeT.ground ?? 0;
-  PITCH = { ground, home: homeT, ev: ev || null, smoke: [], flags: [], night: !!(ev && ev.night) };
+  PITCH = { ground, home: homeT, ev: ev || null, smoke: [], flags: [], night: !!(ev && ev.night) || !!wx.night, wet: !!wx.wet };
   const c = FIELD.getContext('2d'), r = seeded(77 + homeT.id * 13);
   c.clearRect(0, 0, FIELD.width, FIELD.height);
   const dot = (x, y, col, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(Math.round(ftx(x)), Math.round(fty(y)), w, h); };
@@ -1083,10 +1083,10 @@ function buildCrowd(homeKit, awayKit, neutral) {
 function drawSky(t) {
   const top = PITCH_Y0 - CAMY - 3 * DY - 150 * 0.82;
   const gr = ctx.createLinearGradient(0, 0, 0, Math.max(10, top + 90));
-  if (PITCH.night) { gr.addColorStop(0, '#05070f'); gr.addColorStop(1, '#1a2244'); } else { gr.addColorStop(0, '#5b9bd8'); gr.addColorStop(1, '#bfe0f2'); }
+  if (PITCH.night) { gr.addColorStop(0, '#05070f'); gr.addColorStop(1, '#1a2244'); } else if (PITCH.wet) { gr.addColorStop(0, '#6d7684'); gr.addColorStop(1, '#a9b0ba'); } else { gr.addColorStop(0, '#5b9bd8'); gr.addColorStop(1, '#bfe0f2'); }
   ctx.fillStyle = gr; ctx.fillRect(0, 0, W, Math.max(0, top + 120));
   if (!PITCH.night) {
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillStyle = PITCH.wet ? 'rgba(200,205,215,0.85)' : 'rgba(255,255,255,0.75)';
     for (let i = 0; i < 6; i++) { const x = ((i * 190 - (CAMX * PX * 0.15) + t * 3) % (W + 200) + W + 200) % (W + 200) - 100, y = top + 10 + (i % 3) * 12; ctx.fillRect(x, y, 46, 6); ctx.fillRect(x + 8, y - 4, 26, 4); ctx.fillRect(x + 20, y - 7, 14, 3); }
   }
 }
@@ -1111,6 +1111,7 @@ function drawPitch() {
   }
   if (r1 < H) { ctx.fillStyle = PITCH.ground === 1 ? '#5b5d63' : '#3f7a35'; ctx.fillRect(0, r1, W, H - r1); }
   if (PITCH.night) { ctx.fillStyle = 'rgba(10,14,40,0.22)'; ctx.fillRect(0, r0, W, H - r0); }
+  else if (PITCH.wet) { ctx.fillStyle = 'rgba(30,40,60,0.12)'; ctx.fillRect(0, r0, W, H - r0); }
 }
 
 // ================= Tore, Eckfahnen =================
@@ -1241,7 +1242,9 @@ function newMatch(ta, tb, o = {}) {
     G.ment[t] = o.ment ? o.ment[t] : 1;
   }
   G.gk = [G.players.find(p => p.team === 0 && p.i === 0), G.players.find(p => p.team === 1 && p.i === 0)];
-  buildPitch(A, kits[0], kits[1], o.event);
+  // Wetter: manchmal Regen (schneller, nasser Platz), manchmal Freitagabend unter Flutlicht
+  G.wx = o.wx || (o.demo ? {} : { night: Math.random() < 0.2, wet: Math.random() < 0.15 });
+  buildPitch(A, kits[0], kits[1], o.event, G.wx);
   G.kickoffTeam = Math.random() < 0.5 ? 0 : 1;
   setupKickoff(G.kickoffTeam, true);
   if (G.demo) { G.phase = 'kickoff'; G.phaseT = 0; }
@@ -1532,7 +1535,8 @@ function choosePass(p, dx, dy, kind = 'pass', cone = 0.7) {
     let sc;
     if (hasDir) {
       const dot = ((q.x - p.x) * dx + (q.y - p.y) * dy) / d / Math.hypot(dx, dy); if (dot < cone) continue;
-      sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0);
+      const lane = kind === 'lob' ? 4 : laneOpen(p, q.x, q.y);
+      sc = dot * 6 - d * (kind === 'lob' ? 0.005 : 0.035) + Math.min(openness(q), 8) * 0.15 + (kind === 'through' ? prog(p.team, q.x) * 3 : 0) + Math.min(lane, 4) * 0.45 - (lane < 1.1 ? 1.5 : 0);
       if (isGK(q)) sc -= 2;
     } else sc = passScore(p, q, kind);
     if (sc > bs) { bs = sc; best = q; }
@@ -1957,7 +1961,7 @@ function aiTeam(t, dt) {
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
       const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && own.team === G.human;
-      if (d < 1.4 && Math.random() < dt * 2.2 * (cpuVsHuman ? G.diff.tackle : 1)) tackle(p, own);
+      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.6 * G.diff.tackle : 2.2)) tackle(p, own);
       else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.25 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
   }
@@ -2148,7 +2152,7 @@ function step(dt) {
     case 'replay': return stepReplay(dt);
     case 'halfend': moveAll(dt); if (G.phaseT > 2.2) endOfHalf(); return;
     case 'end': moveAll(dt); return;
-    case 'pause': return;
+    case 'pause': case 'etpause': return;
   }
   if (G.phase === 'play') {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
@@ -2678,7 +2682,7 @@ function endOfHalf() {
   if (G.half === 1) { G.phase = 'pause'; return ACT.halftime(); }
   if (G.half === 2 || G.half === 4) {
     if (G.ko && G.score[0] === G.score[1]) {
-      if (G.half === 2 && G.et) { G.phase = 'pause'; return ACT.extraTime(); }
+      if (G.half === 2 && G.et) { G.phase = 'etpause'; return ACT.extraTime(); }
       return startShootout();
     }
     G.phase = 'end'; return ACT.fulltime();
@@ -2892,8 +2896,8 @@ function render() {
   else if (menu.hidden) text('DEMO', 8, 8, '#9b90ad', 8);
 }
 function drawRain(t) {
-  ctx.fillStyle = 'rgba(200,220,255,0.35)';
-  for (let i = 0; i < 90; i++) { const x = ((i * 97 + t * 260) % (W + 40)) - 20, y = ((i * 53 + t * 520) % (H + 20)) - 10; ctx.fillRect(Math.round(x), Math.round(y), 1, 5); }
+  ctx.fillStyle = 'rgba(205,222,255,0.5)';
+  for (let i = 0; i < 150; i++) { const x = ((i * 97 + t * 260) % (W + 40)) - 20, y = ((i * 53 + t * 520) % (H + 20)) - 10; ctx.fillRect(Math.round(x), Math.round(y), 1, 5); }
 }
 function text(s, x, y, col = '#f3ead6', size = 8, align = 'left', shadow = true) {
   ctx.font = `${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'top';
@@ -2971,6 +2975,8 @@ function drawShootoutTally(x0, y0) {
 }
 const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'HOCH', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'X', c: 'B', k: 'Y' } : { a: 'S', b: 'LEER', c: 'D', k: 'A' };
 function drawSetPieceHint() {
+  const c = G.ctrl, K0 = KEYN();
+  if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);
   const sp = G.sp; if (!sp || !isHumanTeam(sp.team) || G.demo) {
     if (G.phase === 'penalty' && G.pen && isHumanTeam(1 - G.pen.team)) hint('TORWART: RICHTUNG HALTEN = ECKE RATEN');
     return;
@@ -3030,7 +3036,7 @@ function drawIntro() {
   ctx.fillStyle = `rgba(3,5,16,${0.78 * k})`; ctx.fillRect(0, 0, W, H);
   const ev = G.event, T0 = G.T[0];
   text(G.career && G.career.label ? G.career.label : ev ? ev.title : 'FREUNDSCHAFTSSPIEL', W / 2, 22, ev ? '#ffc83a' : '#9b90ad', 8, 'center');
-  text(`${ev && ev.venue ? ev.venue : 'SPORTPLATZ ' + T0.short.toUpperCase()} · ${GROUNDS[PITCH.ground]}`, W / 2, 36, '#cfd6f2', 8, 'center');
+  text(`${ev && ev.venue ? ev.venue : 'SPORTPLATZ ' + T0.short.toUpperCase()} · ${GROUNDS[PITCH.ground]}${PITCH.wet ? ' · REGEN' : ''}${PITCH.night && !(ev && ev.night) ? ' · FLUTLICHT' : ''}`, W / 2, 36, '#cfd6f2', 8, 'center');
   for (const t of [0, 1]) {
     const T = G.T[t], kt = G.kits[t], cx = W / 2 + (t ? 1 : -1) * (W * 0.25) * k;
     ctx.drawImage(jerseyIcon(kt), cx - 24, 54, 48, 48);
@@ -3050,6 +3056,7 @@ let BACK = null;
 const QUICK = { a: HOME_TEAM, b: KREIS_LIGEN[0].ids[1], side: 'a', lg: 0, mode: 'play' };
 function show(html, { back = null, clear = false, focus = true } = {}) {
   menu.innerHTML = html; menu.hidden = false; menu.classList.toggle('clear', clear); BACK = back;
+  if (!G || G.demo) AU.startMusic();   // Menümusik nur außerhalb eines Spiels
   document.body.classList.add('menuopen');
   menu.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); AU.init(); AU.select(); const f = ACT[el.dataset.act]; if (f) f(el.dataset.arg, el); }));
   if (focus) { const f = menu.querySelector('[autofocus]') || menu.querySelector('button.main') || menu.querySelector('button'); if (f) f.focus({ preventScroll: true }); }
@@ -3216,7 +3223,7 @@ const ACT = {
   tment(a) { G.ment[G.human] = +a; ACT.tactics(`[data-act="tment"][data-arg="${a}"]`); },
   tsel(a) { G.subPick = +a; ACT.tactics(`[data-act="tsub"]:not([disabled])`); },
   tsub(a) { const me = teamP(G.human).concat(G.players.filter(p => p.team === G.human && p.off)), p = me[G.subPick]; if (p && doSub(p, +a)) { G.subPick = null; AU.whistle(1); } ACT.tactics('[data-act="tdone"]'); },
-  tdone() { G.subPick = null; if (G.phase === 'pause') return ACT.halftime(); ACT.resume(); },
+  tdone() { G.subPick = null; if (G.phase === 'pause') return ACT.halftime(); if (G.phase === 'etpause') return ACT.extraTime(); ACT.resume(); },
   halftime() {
     INGAME_MENU = false; AU.jingle('half'); G.paused = false;
     show(`<div class="panel narrow"><h2>HALBZEIT</h2><p class="res">${G.T[0].k} ${G.score[0]} : ${G.score[1]} ${G.T[1].k}</p>${scorersHTML()}${statsHTML(true)}
@@ -3711,13 +3718,14 @@ Object.assign(ACT, {
   ncDiff(a) { NEWC.diff = +a; renderNewCareer(`[data-act="ncDiff"][data-arg="${a}"]`); },
   ncH(a) { NEWC.hlen = +a; renderNewCareer(`[data-act="ncH"][data-arg="${a}"]`); },
   ncGo() { newCareer(NEWC.team, NEWC.len, NEWC.diff, NEWC.hlen); CTAB = 'blatt'; ACT.chub(); },
-  chub(tab) { if (tab) CTAB = tab; if (!CAREER) { const sv = store.get(CAREER_KEY); if (!validCareer(sv)) return ACT.main(); CAREER = sv; } renderHub(); },
+  chub(tab) { if (tab) CTAB = tab; if (G && !G.demo && (G.phase === 'end' || G.counted)) { G = null; startDemo(); } if (!CAREER) { const sv = store.get(CAREER_KEY); if (!validCareer(sv)) return ACT.main(); CAREER = sv; } renderHub(); },
   ctab(a) { CTAB = a; renderHub(`[data-act="ctab"][data-arg="${a}"]`); },
   cplay() { playCareerMatch(false); },
   cwatch() { playCareerMatch(true); },
   csim() { runEvent(null); CTAB = 'blatt'; renderHub(); },
   cnext() { runEvent(null); renderHub(); },
   cseason() { endSeason(); CTAB = 'blatt'; renderHub(); },
+  cskip() { let n = 0; while (!CAREER.S.done && CAREER.S.ci < CAREER.S.cal.length && !myGame() && n < 10) { runEvent(null); n++; } renderHub(); },
   cplayer(a) { showPlayer(+a); },
   cform(a) { CAREER.form = a; CAREER.xi = null; saveCareer(); renderHub(`[data-act="cform"][data-arg="${a}"]`); },
   cment(a) { CAREER.ment = +a; saveCareer(); renderHub(`[data-act="cment"][data-arg="${a}"]`); },
@@ -3775,7 +3783,7 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cplay" autofocus>ANPFIFF</button><button data-act="cwatch">ZUSCHAUEN</button><button data-act="csim">SIMULIEREN</button></div></div>`;
   } else {
     foot = `<div class="cfoot"><h3>${esc(eventLabel(ev))}</h3><p class="muted">${ev.t === 'po' ? (S.po.teams.includes(C.team) ? 'Ausgeschieden – die anderen spielen weiter.' : 'Dein Verein ist nicht dabei. Die Kreismeister spielen um die ' + TROPHY + '.') : 'Spielfrei.'}</p>
-      <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button></div></div>`;
+      <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
   }
   show(`<div class="panel">${head}<p class="cmsg" hidden></p>${body()}${foot}</div>`, { back: ACT.main, focus: !focusSel });
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
@@ -4037,7 +4045,7 @@ function frame(now) {
 }
 startDemo();
 ACT.title();
-(document.fonts && document.fonts.load ? Promise.all([document.fonts.load('8px "Press Start 2P"'), document.fonts.load('8px "Press Start 2P"', 'ÄÖÜß')]) : Promise.resolve()).then(() => { if (G) buildPitch(PITCH.home || G.T[0], G.kits[0], G.kits[1], G.event); }).catch(() => { });
+(document.fonts && document.fonts.load ? Promise.all([document.fonts.load('8px "Press Start 2P"'), document.fonts.load('8px "Press Start 2P"', 'ÄÖÜß')]) : Promise.resolve()).then(() => { if (G) buildPitch(PITCH.home || G.T[0], G.kits[0], G.kits[1], G.event, G.wx); }).catch(() => { });
 requestAnimationFrame(frame);
 </script>
 </body></html>

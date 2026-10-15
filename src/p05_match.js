@@ -79,7 +79,9 @@ function newMatch(ta, tb, o = {}) {
     G.ment[t] = o.ment ? o.ment[t] : 1;
   }
   G.gk = [G.players.find(p => p.team === 0 && p.i === 0), G.players.find(p => p.team === 1 && p.i === 0)];
-  buildPitch(A, kits[0], kits[1], o.event);
+  // Wetter: manchmal Regen (schneller, nasser Platz), manchmal Freitagabend unter Flutlicht
+  G.wx = o.wx || (o.demo ? {} : { night: Math.random() < 0.2, wet: Math.random() < 0.15 });
+  buildPitch(A, kits[0], kits[1], o.event, G.wx);
   G.kickoffTeam = Math.random() < 0.5 ? 0 : 1;
   setupKickoff(G.kickoffTeam, true);
   if (G.demo) { G.phase = 'kickoff'; G.phaseT = 0; }

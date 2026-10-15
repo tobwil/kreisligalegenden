@@ -37,8 +37,8 @@ function render() {
   else if (menu.hidden) text('DEMO', 8, 8, '#9b90ad', 8);
 }
 function drawRain(t) {
-  ctx.fillStyle = 'rgba(200,220,255,0.35)';
-  for (let i = 0; i < 90; i++) { const x = ((i * 97 + t * 260) % (W + 40)) - 20, y = ((i * 53 + t * 520) % (H + 20)) - 10; ctx.fillRect(Math.round(x), Math.round(y), 1, 5); }
+  ctx.fillStyle = 'rgba(205,222,255,0.5)';
+  for (let i = 0; i < 150; i++) { const x = ((i * 97 + t * 260) % (W + 40)) - 20, y = ((i * 53 + t * 520) % (H + 20)) - 10; ctx.fillRect(Math.round(x), Math.round(y), 1, 5); }
 }
 function text(s, x, y, col = '#f3ead6', size = 8, align = 'left', shadow = true) {
   ctx.font = `${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'top';
@@ -116,6 +116,8 @@ function drawShootoutTally(x0, y0) {
 }
 const KEYN = () => LASTIN === 'touch' ? { a: 'PASS', b: 'SCHUSS', c: 'HOCH', k: 'PASS LANG' } : LASTIN === 'pad' ? { a: 'A', b: 'X', c: 'B', k: 'Y' } : { a: 'S', b: 'LEER', c: 'D', k: 'A' };
 function drawSetPieceHint() {
+  const c = G.ctrl, K0 = KEYN();
+  if (G.phase === 'play' && c && isGK(c) && G.ball.owner === c && isHumanTeam(c.team)) return hint(`TORWART · ${K0.a}: ABWERFEN (RICHTUNG) · ${K0.c}: ABSCHLAG`);
   const sp = G.sp; if (!sp || !isHumanTeam(sp.team) || G.demo) {
     if (G.phase === 'penalty' && G.pen && isHumanTeam(1 - G.pen.team)) hint('TORWART: RICHTUNG HALTEN = ECKE RATEN');
     return;
@@ -175,7 +177,7 @@ function drawIntro() {
   ctx.fillStyle = `rgba(3,5,16,${0.78 * k})`; ctx.fillRect(0, 0, W, H);
   const ev = G.event, T0 = G.T[0];
   text(G.career && G.career.label ? G.career.label : ev ? ev.title : 'FREUNDSCHAFTSSPIEL', W / 2, 22, ev ? '#ffc83a' : '#9b90ad', 8, 'center');
-  text(`${ev && ev.venue ? ev.venue : 'SPORTPLATZ ' + T0.short.toUpperCase()} · ${GROUNDS[PITCH.ground]}`, W / 2, 36, '#cfd6f2', 8, 'center');
+  text(`${ev && ev.venue ? ev.venue : 'SPORTPLATZ ' + T0.short.toUpperCase()} · ${GROUNDS[PITCH.ground]}${PITCH.wet ? ' · REGEN' : ''}${PITCH.night && !(ev && ev.night) ? ' · FLUTLICHT' : ''}`, W / 2, 36, '#cfd6f2', 8, 'center');
   for (const t of [0, 1]) {
     const T = G.T[t], kt = G.kits[t], cx = W / 2 + (t ? 1 : -1) * (W * 0.25) * k;
     ctx.drawImage(jerseyIcon(kt), cx - 24, 54, 48, 48);

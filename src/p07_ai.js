@@ -145,7 +145,7 @@ function aiTeam(t, dt) {
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
       const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && own.team === G.human;
-      if (d < 1.4 && Math.random() < dt * 2.2 * (cpuVsHuman ? G.diff.tackle : 1)) tackle(p, own);
+      if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.6 * G.diff.tackle : 2.2)) tackle(p, own);
       else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.25 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
   }

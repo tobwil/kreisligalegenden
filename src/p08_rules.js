@@ -26,7 +26,7 @@ function step(dt) {
     case 'replay': return stepReplay(dt);
     case 'halfend': moveAll(dt); if (G.phaseT > 2.2) endOfHalf(); return;
     case 'end': moveAll(dt); return;
-    case 'pause': return;
+    case 'pause': case 'etpause': return;
   }
   if (G.phase === 'play') {
     G.clock += dt; G.possT += dt; if (G.poss >= 0) G.stats.poss[G.poss] += dt;
@@ -556,7 +556,7 @@ function endOfHalf() {
   if (G.half === 1) { G.phase = 'pause'; return ACT.halftime(); }
   if (G.half === 2 || G.half === 4) {
     if (G.ko && G.score[0] === G.score[1]) {
-      if (G.half === 2 && G.et) { G.phase = 'pause'; return ACT.extraTime(); }
+      if (G.half === 2 && G.et) { G.phase = 'etpause'; return ACT.extraTime(); }
       return startShootout();
     }
     G.phase = 'end'; return ACT.fulltime();

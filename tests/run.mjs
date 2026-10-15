@@ -34,7 +34,7 @@ async function open(opts = DESKTOP, seed = 7) {
 // ganzes Spiel ohne Menschen Bild für Bild durchspielen
 const RUN_MATCH = `window.__runMatch = (a, b, o = {}) => {
   newMatch(a, b, Object.assign({ human: -1, hlen: 2 }, o)); G.paused = true; G.phase = 'kickoff';
-  let n = 0; while (G.phase !== 'end' && n < 60 * 60 * 12) { step(1 / 60); n++; if (G.phase === 'pause') { if (G.half === 1) nextHalf(); else { G.half = 2; nextHalf(); } } }
+  let n = 0; while (G.phase !== 'end' && n < 60 * 60 * 12) { step(1 / 60); n++; if (G.phase === 'pause') nextHalf(); else if (G.phase === 'etpause') { G.half = 2; nextHalf(); } }
   return { score: G.score.slice(), phase: G.phase, n, stats: G.stats, log: G.log.slice(), so: G.so ? G.so.k : null };
 };`;
 
