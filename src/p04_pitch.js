@@ -104,7 +104,7 @@ function buildBack(homeT, homeKit, awayKit, ev) {
   // Geländer
   g.fillStyle = '#c9ced4'; g.fillRect(0, 128, w, 1); g.fillStyle = '#8a9099'; for (let x = 0; x < w; x += 14) g.fillRect(x, 128, 1, 6);
   // Banden: lokale Betriebe
-  const ads = (ev && ev.ads) || shuffle(ADS);
+  const ads = (ev && ev.ads) || shuffle(ADS); PITCH.ads = ads;   // auch für die Freistoß-Ansicht
   let x = bkx(-6), i = 0;
   while (x < bkx(CW + 6)) {
     const txt = ads[i % ads.length], tw2 = Math.max(70, txt.length * 7 + 14), col = [['#14306b', '#ffd200'], ['#f4f4f0', '#c8102e'], ['#0a5a2a', '#f4f4f0'], ['#1d1d24', '#f07d00'], ['#ffd200', '#14306b']][i % 5];

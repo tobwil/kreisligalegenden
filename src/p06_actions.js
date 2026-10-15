@@ -106,10 +106,11 @@ function giveAndGo(p, q) {
   p.run = { until: G.t + 2.4, x: clamp(fromProg(t, tp), 2, CW - 2), y: clamp(lerp(p.y, MY, 0.25) + side, 3, CH - 3), gg: true };
 }
 // Steilpass in den Lauf: flach in den Raum vor dem Mitspieler
-function through(p, q) {
+// pow (Taste gehalten): 0 = kurz in den Fuß des Laufwegs, 1 = weit und scharf in die Tiefe; null = normaler Steilpass
+function through(p, q, pow = null) {
   if (!q) return;
   const b = G.ball, s = atkDir(p.team), gx = goalX(p.team);
-  let L = clamp(7 + A_(q, 'tmp') * 0.04, 7, 12);
+  let L = clamp(7 + A_(q, 'tmp') * 0.04, 7, 12) + (pow != null ? (pow - 0.35) * 12 : 0); L = clamp(L, 4, 20);
   let tx = q.x + s * L, ty = q.y + (MY - q.y) * 0.18;
   if (Math.abs(tx - gx) < 4) tx = gx - s * 4;
   tx = clamp(tx, 1, CW - 1); ty = clamp(ty, 1.5, CH - 1.5);

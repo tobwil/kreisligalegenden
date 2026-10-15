@@ -123,7 +123,15 @@ function humanControl(dt) {
         c.passHold = null;   // alter Stand (Taste woanders losgelassen)
       }
     }
-    if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
+    if (LASTIN === 'touch') { if (IN.pk) { const pw = TOUCH.kpow; TOUCH.kpow = null; through(c, choosePass(c, IN.x, IN.y, 'through', 0.7, pw), pw); return; } }
+    else {
+      // Steilpass wie der Pass: antippen = normal, halten = weiter in die Tiefe (Balken), beim Loslassen geht der Ball
+      if (IN.pk) c.thrHold = G.t;
+      if (c.thrHold != null && !IN.k) {
+        if (IN.rk) { const h = G.t - c.thrHold, pw = h > 0.15 ? clamp((h - 0.12) / 0.65, 0, 1) : null; c.thrHold = null; through(c, choosePass(c, IN.x, IN.y, 'through', 0.7, pw), pw); return; }
+        c.thrHold = null;
+      }
+    }
     if (IN.pc) {
       const gx = goalX(me);
       if (Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0)) cross(c, 0);
@@ -132,7 +140,7 @@ function humanControl(dt) {
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
-    c.charge = 0; c.chargeArm = false; c.passHold = null;
+    c.charge = 0; c.chargeArm = false; c.passHold = null; c.thrHold = null;
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
     if (incoming && b.passer && b.passer.team === me && eta < 1.1) {
       // Direktabnahme vormerken (nur kurz bevor ein Pass bei dir ankommt): Schuss, Pass, Steilpass

@@ -82,14 +82,14 @@ Spielgefühl zwischen EA FC und International Superstar Soccer: schnelle Pässe,
 | Sprint | W / Shift | Shift / Leertaste | Shift / E |
 | Pass (antippen = kurz, halten = fester und weiter) · Abwehr: Spieler wechseln | S | K | S |
 | Flanke / hoher Ball | A | J | A |
-| Steilpass | D | I | W |
+| Steilpass (antippen = normal, halten = weiter in die Tiefe) | D | I | W |
 | Schuss und Kopfball (antippen = platziert, halten = fester) | Leertaste | L | D / Leertaste |
 | beim Aufladen: Schlenzer · Heber | S · A | K · J | S · A |
 | Abwehr: Tackling · Grätsche · Druck | D · Leertaste · A | L · J · I | D · A · W |
 | Trick | F | U / O | Q |
 | Taktik · Pause | T · Esc | T · Esc | T · Esc |
 
-**Freistoß und Elfmeter:** Die Kamera wechselt hinter den Ball, man sieht Tor, Torwart und Mauer. Richtung verschiebt das Fadenkreuz (links/rechts, hoch/runter), Schuss halten = Kraft: wenig Kraft gibt einen Bogen über die Mauer, viel Kraft einen harten, flachen Schuss. Die Mauer springt.
+**Freistoß und Elfmeter:** Die Kamera wechselt hinter den Ball, man sieht Schütze, Ball, Mauer, Torwart und Tor vor der Kulisse des Sportplatzes (Bäume, Zuschauer am Geländer, Banden der Betriebe aus dem Ort). Gepunktete Linie = erwartete Flugbahn, sie wird mit mehr Kraft flacher. Richtung verschiebt das Fadenkreuz (links/rechts, hoch/runter), Schuss halten = Kraft: wenig Kraft gibt einen Bogen über die Mauer, viel Kraft einen harten, flachen Schuss. Die Mauer springt.
 
 Gamepad wie EA FC: Stick laufen · A Pass/Wechsel · B Schuss/Tackling · X Flanke/Grätsche · Y Steilpass/Druck · LB Haken · RT Sprint · Select Taktik · Start Pause.
 Touch mit nur zwei Knöpfen – antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion, man muss keinen dritten Knopf suchen: PASS (tippen = kurzer Pass, halten = fester und weiter mit türkisem Balken, wischen = Steilpass, nach oben wischen = Flanke/hoher Ball) · SCHUSS (halten lädt auf; Daumen ziehen = Zielkreuz im Tor verschieben, dabei kurz Zeitlupe wie bei Padel-Legenden; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber). Abwehr: WECHSEL (halten = Druck) · TACKLING (ziehen = Grätsche) · Gegner antippen = zu ihm wechseln. Stick links (weit ziehen = Sprint), Mitspieler antippen = Pass zu ihm, eigenen Spieler antippen = Übersteiger. Tricks direkt mit dem Stick, ohne den Daumen vom Laufen zu nehmen: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Zurückziehen oder Haken, links doppelt antippen = Übersteiger (doppelt antippen und gleich ziehen = Trick in die Zugrichtung). Knopfgröße in den Optionen, Hilfe direkt an Stick und Knöpfen in den ersten zwei Spielen. Lässt du den Stick los, spielt dein Mann nach 0,8 s von selbst mit.

@@ -267,7 +267,7 @@ function setPieceSpots(type, team, x, y, taker) {
 // ---------- Eingabe ----------
 const KEY = {}, KEYP = {};
 const IN = { x: 0, y: 0, s: false, a: false, b: false, c: false, k: false, f: false, pa: false, pb: false, pc: false, pk: false, pf: false, ra: false, rb: false, rc: false, rk: false, bHeld: 0, aHeld: 0, any: false };
-const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pow: null, passT: 0, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0, pulseF: 0, fdir: null };
+const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pow: null, passT: 0, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0, pulseF: 0, fdir: null, kpow: null };
 let LASTIN = TOUCHDEV ? 'touch' : 'key';
 const setInput = k => { if (k === LASTIN) return; LASTIN = k; document.body.classList.toggle('padin', k === 'pad' || (k === 'key' && TOUCHDEV)); };
 // Gamepad oder Tastatur am Tablet: Touch-Knöpfe weg; der erste Finger auf dem Bildschirm holt sie zurück

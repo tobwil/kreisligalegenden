@@ -137,6 +137,7 @@ function drawCtrlHUD(c, col, num) {
     }
     if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
     if (c.passHold != null && G.ball.owner === c && G.t - c.passHold > 0.15) drawPower(c, passHoldPow(c), '#7cf2ff');
+    if (c.thrHold != null && G.ball.owner === c && G.t - c.thrHold > 0.15) drawPower(c, clamp((G.t - c.thrHold - 0.12) / 0.65, 0, 1), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
       if ((PROF.games < 15 || G.tut) && !G.pl) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }

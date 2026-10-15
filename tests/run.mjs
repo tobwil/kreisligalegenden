@@ -172,7 +172,7 @@ test('Aktionen in den Belegungen Legenden, EA FC und WASD: Pass, Steilpass, Flan
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Tastatur: Pass antippen = kurz zum nahen Mitspieler, halten = fester und weiter (Balken), Pass geht beim Loslassen', async () => {
+test('Tastatur: Pass antippen = kurz zum nahen Mitspieler, halten = fester und weiter (Balken), Pass geht beim Loslassen; Steilpass halten = weiter in die Tiefe', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     SETTINGS.keys = 'legenden'; LASTIN = 'key';
@@ -185,10 +185,15 @@ test('Tastatur: Pass antippen = kurz zum nahen Mitspieler, halten = fester und w
     setup(); KEY.KeyS = KEYP.KeyS = true; frame(); out.notYet = G.ball.owner === p; KEY.KeyS = false; frame(); out.tap = G.ball.passTo === near;
     setup(); KEY.KeyS = KEYP.KeyS = true; for (let i = 0; i < 50; i++) frame(); out.bar = p.passHold != null && passHoldPow(p) > 0.8; render();
     KEY.KeyS = false; frame(); out.hold = G.ball.passTo === far;
+    // Steilpass (D): halten = weiter in die Tiefe, also schneller gespielt
+    const sp = () => Math.hypot(G.ball.vx, G.ball.vy);
+    setup(); KEY.KeyD = KEYP.KeyD = true; frame(); KEY.KeyD = false; frame(); out.t1 = G.ball.kind === 'through' ? sp() : 0;
+    setup(); KEY.KeyD = KEYP.KeyD = true; for (let i = 0; i < 50; i++) frame(); KEY.KeyD = false; frame(); out.t2 = G.ball.kind === 'through' ? sp() : 0;
     return out;
   });
   ok(r.notYet && r.tap, 'Antippen spielt nicht kurz zum nahen Mitspieler: ' + JSON.stringify(r));
   ok(r.bar && r.hold, 'Halten spielt nicht fest zum weiten Mitspieler: ' + JSON.stringify(r));
+  ok(r.t1 > 0 && r.t2 > r.t1 + 2, 'Steilpass halten spielt nicht weiter: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 

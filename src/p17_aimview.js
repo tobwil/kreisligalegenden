@@ -4,8 +4,8 @@
 // Wenig Kraft gibt einen Bogen (über die Mauer), viel Kraft einen harten, flachen Schuss. Nach dem Schuss bleibt die Ansicht,
 // bis der Ball am Tor ist. Die Figuren sind eigene Pixelfiguren von vorn bzw. hinten.
 const AIM_RANGE = 34;   // Freistöße bis 34 m vor dem Tor
-// Kamera 7,5 m hinter und 3,3 m über dem Ball (leicht erhöht, damit das Tor über der Mauer zu sehen ist)
-const AIM_F = 1.9, AIM_Y0 = 0.2;
+// Kamera 9 m hinter und 3,4 m über dem Ball (leicht erhöht, damit das Tor über der Mauer zu sehen ist); Ball, Schütze, Mauer und Tor im Bild
+const AIM_F = 1.6, AIM_Y0 = 0.2, AIM_BACK = 9, AIM_Z = 3.4;
 function aimWanted() {
   const sp = G.sp;
   if (!sp || G.demo || G.watch || !isHumanTeam(sp.team) || !(sp.type === 'pen' || sp.type === 'free')) return false;
@@ -21,7 +21,7 @@ function aimFrame() {
   if (A && (G.aimFly || A.fid === G.ball.fid)) return A;
   const sp = G.sp, team = sp ? sp.team : G.human, gx = goalX(team), b = G.ball, s = atkDir(team);
   let dx = gx - b.x, dy = MY - b.y; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
-  G.aimCam = { team, s, gx, dx, dy, rx: -dy, ry: dx, cx: b.x - dx * 7.5, cy: b.y - dy * 7.5, cz: 3.3, fid: G.ball.fid };
+  G.aimCam = { team, s, gx, dx, dy, rx: -dy, ry: dx, cx: b.x - dx * AIM_BACK, cy: b.y - dy * AIM_BACK, cz: AIM_Z, fid: G.ball.fid, bx: b.x, by: b.y };
   return G.aimCam;
 }
 function aimProj(A, x, y, z) {
@@ -116,16 +116,38 @@ function drawAimView() {
       ctx.fillStyle = Math.floor(wx / 6) % 2 ? colA : colB; ctx.fillRect(x, y, 4, 2);
     }
   }
-  // Hintergrund hinter dem Tor: Bande, Zuschauer, Bäume
+  // Hintergrund hinter dem Tor wie auf dem Sportplatz: Baumreihe, Wiese, Geländer mit ein paar Zuschauern, Banden der Betriebe aus dem Ort
   const back = aimProj(A, A.gx + A.s * 5, MY, 0);
   if (back) {
-    const yb = back.y, k = back.k, top = yb - 3.8 * k;
-    ctx.fillStyle = night ? '#0d1220' : '#2f5a32'; ctx.fillRect(0, Math.max(0, top - 1.5 * k), W, 1.5 * k + 2);
-    ctx.fillStyle = night ? '#1a1a28' : '#5c6a74'; ctx.fillRect(0, top, W, yb - top);
-    for (let i = 0; i < W / 5; i++) for (let j = 0; j < 3; j++) { const hh = (i * 7 + j * 13) % 11; if (hh > 7) continue; ctx.fillStyle = ['#c8102e', '#f3ead6', '#2f56b0', '#3a2f4d', '#ffc83a'][(i + j * 2) % 5]; ctx.fillRect(i * 5 + (j % 2) * 2, top + 2 + j * (k * 0.9), 3, Math.max(2, k * 0.5)); }
-    const ad = yb - 1.0 * k; ctx.fillStyle = '#f4f4f0'; ctx.fillRect(0, ad, W, yb - ad);
-    const ads = (PITCH.ads && PITCH.ads.length ? PITCH.ads : ['KREISLIGA-LEGENDEN']);
-    for (let i = 0, x = -((A.cy * 7) % 160); x < W; i++) { const t = ads[i % ads.length], w0 = t.length * 7 + 20; ctx.fillStyle = ['#c8102e', '#14306b', '#0a8a3e', '#ffd200'][i % 4]; ctx.fillRect(x, ad + 1, w0 - 4, yb - ad - 2); text(t, x + w0 / 2 - 2, ad + (yb - ad) / 2 - 4, i % 4 === 3 ? '#14306b' : '#ffffff', 8, 'center', false); x += w0; }
+    const yb = back.y, k = back.k;
+    const tree = night ? '#0b1a10' : '#3a6a33', tree2 = night ? '#10241a' : '#4a7f3d', treeD = night ? '#07120a' : '#2c5228', hill = night ? '#132a14' : '#5a9645';
+    const crown = yb - 3.6 * k, base = yb - 1.9 * k;
+    for (let x = -((A.cy * 9) % 41) - 41, i = 0; x < W + 40; x += 0.9 * k + ((i * 7) % 5) * 0.25 * k, i++) {   // Baumkronen in zwei Grüntönen
+      const r = (0.9 + ((i * 5) % 4) * 0.22) * k; ctx.fillStyle = i % 2 ? tree : tree2;
+      ctx.beginPath(); ctx.arc(x, crown + r * 0.35, r, Math.PI, 0); ctx.fill();
+    }
+    ctx.fillStyle = tree; ctx.fillRect(0, crown, W, base - crown); ctx.fillStyle = treeD; ctx.fillRect(0, base - 0.25 * k, W, 0.25 * k);
+    ctx.fillStyle = hill; ctx.fillRect(0, base, W, yb - base);
+    // Zuschauer am Geländer: locker verteilt, wie im Kreisliga-Alltag
+    const ph = 1.0 * k, py = yb - 1.0 * k;
+    for (let i = 0, x = -((A.cy * 11) % 23); x < W; i++) {
+      const gap = 9 + ((i * 37) % 23); x += gap; if ((i * 13) % 7 === 0) continue;
+      const col = ['#c8102e', '#3a4a6a', '#7a6a5a', '#2d5a3a', '#d8d2c0', '#5a5a5a', '#1d4f91'][(i * 3) % 7], w0 = Math.max(3, ph * 0.38);
+      ctx.fillStyle = col; ctx.fillRect(x, py - ph * 0.95, w0, ph * 0.55); ctx.fillStyle = '#2a2a33'; ctx.fillRect(x, py - ph * 0.42, w0, ph * 0.42);
+      ctx.fillStyle = SKIN[i % SKIN.length][0]; ctx.fillRect(x + w0 * 0.2, py - ph * 1.2, w0 * 0.6, ph * 0.25);
+    }
+    ctx.fillStyle = '#c9ced4'; ctx.fillRect(0, py - ph * 0.62, W, Math.max(1, k * 0.05));   // Geländer
+    // Banden
+    const ad = yb - 0.9 * k; ctx.fillStyle = OUTLINE; ctx.fillRect(0, ad - 1, W, yb - ad + 1);
+    const ads = PITCH.ads && PITCH.ads.length ? PITCH.ads : ['KREISLIGA-LEGENDEN'], cols = [['#14306b', '#ffd200'], ['#f4f4f0', '#c8102e'], ['#0a5a2a', '#f4f4f0'], ['#1d1d24', '#f07d00'], ['#ffd200', '#14306b']];
+    const fs = Math.max(6, Math.min(10, Math.round(k * 0.36)));
+    ctx.font = `${fs}px ${FONT}`;
+    for (let i = 0, x = -((A.cy * 7) % 120) - 60; x < W; i++) {
+      const t = ads[i % ads.length], w0 = ctx.measureText(t).width + 18, cl = cols[i % 5];
+      ctx.fillStyle = cl[0]; ctx.fillRect(x, ad, w0 - 2, yb - ad - 1);
+      ctx.fillStyle = cl[1]; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x + w0 / 2 - 1, ad + (yb - ad) / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      x += w0;
+    }
   }
   // Linien
   const wh = night ? 'rgba(235,235,235,0.75)' : 'rgba(255,255,255,0.85)';
@@ -145,7 +167,15 @@ function drawAimView() {
   const items = [];
   for (const p of G.players) {
     if (p.off) continue; const q = aimProj(A, p.x, p.y, p.z || 0); if (!q || q.f > 60 || q.x < -60 || q.x > W + 60) continue;
-    if ((G.sp && p === G.sp.taker && !G.aimFly) || q.f < (G.aimFly ? 9 : 5)) continue;   // Schütze steht unter der Kamera
+    const taker = G.sp && p === G.sp.taker && !G.aimFly;
+    if (taker) {   // Schütze steht zum Anlauf links hinter dem Ball, von hinten zu sehen
+      const tq = aimProj(A, A.bx - A.dx * 0.4 - A.rx * 1.5, A.by - A.dy * 0.4 - A.ry * 1.5, 0);
+      if (tq) items.push({ f: tq.f, draw: () => { const img = frontFig(p.look, 'idle', true), sc = tq.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(tq.x, tq.y, 0.35 * tq.k, 0.08 * tq.k, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.imageSmoothingEnabled = false; ctx.drawImage(img, tq.x - w / 2, tq.y - h, w, h); } });
+      continue;
+    }
+    if (q.f < (G.aimFly ? 12 : 5)) continue;   // zu nah an der Kamera (nach dem Schuss laufen die Spieler sonst riesig durchs Bild)
     items.push({ f: q.f, draw: () => {
       const keeper = isGK(p), mine = p.team === A.team, pose = keeper ? 'gk' : p.wall ? (p.z > 0.2 ? 'up' : 'wall') : 'idle';
       const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
@@ -168,18 +198,37 @@ function drawAimView() {
   const pw = Math.max(2, 0.12 * (P(MY, 0) || { k: 20 }).k);
   for (const y of [GY1, GY2]) { const a = P(y, 0), b2 = P(y, GH); if (a && b2) { ctx.fillStyle = '#f4f4f0'; ctx.fillRect(a.x - pw / 2, b2.y, pw, a.y - b2.y); } }
   { const a = P(GY1, GH), b2 = P(GY2, GH); if (a && b2) { ctx.fillStyle = '#f4f4f0'; ctx.fillRect(Math.min(a.x, b2.x), a.y - pw / 2, Math.abs(b2.x - a.x), pw); } }
-  // Fadenkreuz und Kraft (nur vor dem Schuss)
+  // Fadenkreuz, vorhergesagte Flugbahn und Kraft (nur vor dem Schuss)
   const sp = G.sp;
   if (sp && sp.aim && !G.aimFly) {
-    const t = aimProj(A, gx, MY + sp.aim.u * s, sp.aim.z);
-    if (t) { const blink = Math.floor(G.t * 4) % 2, cl = blink ? '#ffc83a' : '#fff1b0'; ctx.fillStyle = '#000'; ctx.fillRect(t.x - 9, t.y - 2, 19, 5); ctx.fillRect(t.x - 2, t.y - 9, 5, 19); ctx.fillStyle = cl; ctx.fillRect(t.x - 8, t.y - 1, 6, 3); ctx.fillRect(t.x + 3, t.y - 1, 6, 3); ctx.fillRect(t.x - 1, t.y - 8, 3, 6); ctx.fillRect(t.x - 1, t.y + 3, 3, 6); }
-    const c = sp.taker, v = c.charge || 0, bw = 140, bx0 = W / 2 - bw / 2, by0 = H - 58;
-    ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(bx0 - 4, by0 - 14, bw + 8, 24);
-    text('KRAFT', bx0, by0 - 11, '#cfd6f2', 8, 'left', false); text(v < 0.01 ? '' : v < 0.45 ? 'BOGEN' : v < 0.85 ? 'MITTEL' : v > 0.97 ? 'ZU FEST!' : 'STRAMM', bx0 + bw, by0 - 11, '#ffc83a', 8, 'right', false);
+    const c = sp.taker, v = c.charge || 0, ty = MY + sp.aim.u * s, tz = sp.aim.z;
+    // Flugbahn als Punkte: wenig Kraft = hoher Bogen über die Mauer, viel Kraft = flach und hart
+    const B0 = G.ball, peak = tz + (sp.type === 'pen' ? 0.2 : lerp(2.6, 0.5, clamp(v || 0.35, 0, 1)));
+    for (let i = 1; i < 18; i++) {
+      const u = i / 18, x = lerp(B0.x, gx, u), y = lerp(B0.y, ty, u), z = lerp(0.11, tz, u) + 4 * (peak - Math.max(tz, 0.11)) * u * (1 - u) * (sp.type === 'pen' ? 0 : 1);
+      const p = aimProj(A, x, y, z); if (!p) continue; const r = Math.max(1, Math.round(0.07 * p.k));
+      ctx.fillStyle = '#000'; ctx.fillRect(p.x - r - 1, p.y - r - 1, r * 2 + 2, r * 2 + 2); ctx.fillStyle = i % 2 ? '#fff1b0' : '#ffc83a'; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    }
+    const t = aimProj(A, gx, ty, tz);
+    if (t) {   // Fadenkreuz: Ring mit Kreuz, gut sichtbar vor Netz und Mauer
+      const blink = Math.floor(G.t * 4) % 2, cl = blink ? '#ffc83a' : '#fff1b0', R2 = 9;
+      ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(t.x, t.y, R2, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = cl; ctx.beginPath(); ctx.arc(t.x, t.y, R2, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#000'; ctx.fillRect(t.x - 15, t.y - 2, 9, 4); ctx.fillRect(t.x + 6, t.y - 2, 9, 4); ctx.fillRect(t.x - 2, t.y - 15, 4, 9); ctx.fillRect(t.x - 2, t.y + 6, 4, 9);
+      ctx.fillStyle = cl; ctx.fillRect(t.x - 14, t.y - 1, 7, 2); ctx.fillRect(t.x + 7, t.y - 1, 7, 2); ctx.fillRect(t.x - 1, t.y - 14, 2, 7); ctx.fillRect(t.x - 1, t.y + 7, 2, 7);
+    }
+    // Kraftbalken unten in der Mitte (zwischen Stick und Knöpfen)
+    const bw = 150, bx0 = W / 2 - bw / 2, by0 = H - 22;
+    ctx.fillStyle = 'rgba(3,5,16,0.88)'; ctx.fillRect(bx0 - 5, by0 - 15, bw + 10, 26);
+    text('KRAFT', bx0, by0 - 12, '#cfd6f2', 8, 'left', false);
+    text(v < 0.01 ? (sp.type === 'free' ? 'WENIG = BOGEN · VIEL = FLACH' : '') : v < 0.45 ? 'BOGEN' : v < 0.85 ? 'MITTEL' : v > 0.97 ? 'ZU FEST!' : 'STRAMM', bx0 + bw, by0 - 12, v < 0.01 ? '#8a90a8' : '#ffc83a', 8, 'right', false);
     ctx.fillStyle = '#1a2040'; ctx.fillRect(bx0, by0, bw, 6);
+    ctx.fillStyle = '#2a3058'; ctx.fillRect(bx0 + Math.round(bw * 0.45), by0, 1, 6); ctx.fillRect(bx0 + Math.round(bw * 0.85), by0, 1, 6);
     ctx.fillStyle = v > 0.97 ? '#ff4f3a' : v > 0.85 ? '#ffc83a' : '#3ddc84'; ctx.fillRect(bx0, by0, Math.round(bw * Math.min(1, v)), 6);
-    const K = KEYN(), m = `${sp.type === 'pen' ? 'ELFMETER' : 'FREISTOSS'} · RICHTUNG: ZIELEN · ${K.b} HALTEN: KRAFT${sp.type === 'free' ? ` · ${K.a}: PASS · ${K.c}: FLANKE` : ''}`;
-    hint(m);
-    if (sp.type === 'free') text('WENIG KRAFT = BOGEN ÜBER DIE MAUER · VIEL KRAFT = HART UND FLACH', W / 2, H - 20, '#cfd6f2', 8, 'center', false);
+    // Hinweis oben unter der Anzeigetafel, damit unten nichts mit Stick und Knöpfen kollidiert
+    const K = KEYN(), touch = LASTIN === 'touch', title = sp.type === 'pen' ? 'ELFMETER' : 'FREISTOSS';
+    const m = touch ? `${title} · STICK = ZIELEN · SCHUSS HALTEN = KRAFT${sp.type === 'free' ? ' · PASS = KURZ' : ''}`
+      : `${title} · RICHTUNG = ZIELEN · ${K.b} HALTEN = KRAFT${sp.type === 'free' ? ` · ${K.a}: PASS · ${K.c}: FLANKE` : ''}`;
+    ctx.font = `8px ${FONT}`; const mw = ctx.measureText(m).width + 16; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(W / 2 - mw / 2, 30, mw, 14); text(m, W / 2, 33, '#ffc83a', 8, 'center', false);
   }
 }
