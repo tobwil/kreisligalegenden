@@ -1,0 +1,33 @@
+# Prüft jeden Pull Request (und jeden Push auf main): ist game/index.html aus src/ gebaut, laufen alle Spieltests durch?
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: game/index.html passt zu src/
+        run: |
+          sh src/build.sh
+          git diff --exit-code -- game/index.html || (echo "::error::game/index.html ist nicht aktuell – bitte 'sh src/build.sh' ausführen und mit committen." && exit 1)
+      - name: Playwright installieren
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright-core install --with-deps chromium
+      - name: Spieltests
+        working-directory: tests
+        run: npm test

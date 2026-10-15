@@ -1,0 +1,20 @@
+# Statische Seite ohne Build-Schritt: das Spiel unter /game/ (aus src/ gebaut und mit committet).
+# Die Startseite (index.html) leitet vorerst ins Spiel weiter, die Landingpage mit Story folgt.
+[build]
+  publish = "."
+  command = ""
+
+[[redirects]]
+  from = "/spielen"
+  to = "/game/"
+  status = 301
+
+[[headers]]
+  for = "/tests/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
