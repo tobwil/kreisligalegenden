@@ -58,6 +58,7 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 - **Vor dem Spiel:** Vergleich beider Vereine (Tabelle, Form, Stärke, Torjäger, bester Spieler, Hinspiel), dann Anpfiff, Zuschauen oder Simulieren
 - **Historie:** Vereinschronik, Rekorde (höchster Sieg, Serien, meiste Punkte und Tore), Auszeichnungen am Saisonende (Torschützenkönig, Spieler der Saison, Vorlagenkönig, bester Torwart, Talent), Vereinslegenden; die Saison als Kreisblatt-Seite (1080 × 1350) teilen
 - **Zu zweit an einem Gerät:** miteinander gegen die CPU oder gegeneinander – Tastatur geteilt (WASD + F/G/H/R/T und Pfeile + J/K/L/I/U), Tastatur + Gamepad oder zwei Gamepads; jeder Mensch hat seine Farbe (gelb, rosa) und steuert nie denselben Spieler
+- **Komfort:** Vorschlag „Zu leicht?/Zu schwer?“ nach klaren Ergebnissen, Menüs wachsen auf Tablets mit, iPhone-Zoom wird zurückgesetzt, Gamepad oder Tastatur am Tablet blendet die Touch-Knöpfe aus, CPU-Vereine schonen erschöpfte Stammspieler, ruhigere Figuren (kein Flackern zwischen Laufen und Stehen)
 - **Spielstände sicher:** Ein laufendes Spiel wird beim Verlassen der Seite gespeichert (Handy im Hintergrund) und lässt sich im Hauptmenü fortsetzen; in der Pause SPEICHERN & BEENDEN. Die Saison merkt sich zu jedem Verein Name und Kreis und ordnet nach neuen Vereinsdaten richtig zu; ein unpassender Stand wird beiseitegelegt statt gelöscht. Spielstand als Datei sichern und laden (Verein-Reiter)
 - **Eigener Verein:** Verein nicht dabei? Name, Kurzname, Kürzel, Trikotfarben, Muster und Platz selbst festlegen – er spielt in der gewählten Kreisliga mit. Echte Vereine bekommen auf Wunsch ein eigenes Trikot
 - **Spieler bearbeiten:** Name, Spitzname, Rückennummer, Position und Aussehen (Haut, Haare, Frisur, Bart, Bauch) der eigenen Spieler – die Werte bleiben, wie sie sind
@@ -97,7 +98,7 @@ Touch mit nur zwei Knöpfen – antippen = Hauptaktion, gedrückt halten und zie
 
 Der Quelltext liegt in `src/` (Module `p01_core.js` bis `p16_picker.js`, Gerüst und Styles in `head.html`, Vereinsdaten in `d_vereine.js`, Karte in `d_karte.js`). Die Vereinsdaten erzeugen `tools/vereine_crawl.py` (öffentliche Tabellen auf fussball.de) und `tools/vereine_build.py`, die Karte `tools/karte_raster.py` (Natural Earth, gemeinfrei). `sh src/build.sh` baut daraus `game/index.html`, das mit committet wird.
 
-Tests (Playwright mit Chromium): `cd tests && npm install && npm test`. Sie spielen ganze Spiele Bild für Bild durch, prüfen Regeln, Standards, Elfmeterschießen, die Vereinsdaten und die Kartenauswahl, zwei komplette Saisons mit Kreispokal und Playoffs, das Training, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
+Tests (Playwright mit Chromium): `cd tests && npm install && npm test`, in der GitHub Action bei jedem Pull Request und jede Nacht. Sie spielen ganze Spiele Bild für Bild durch, prüfen Regeln, Standards, Elfmeterschießen, die Vereinsdaten und die Kartenauswahl, zwei komplette Saisons mit Kreispokal und Playoffs, das Training, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
 
 Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und VT323 (SIL Open Font License).
 

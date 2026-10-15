@@ -244,7 +244,7 @@ function drawReplayOverlay() {
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, W, 16); ctx.fillRect(0, H - 16, W, 16);
   if (Math.floor(G.t * 2) % 2) { ctx.fillStyle = '#ff3a2a'; ctx.fillRect(10, 4, 8, 8); }
   text('WIEDERHOLUNG', 24, 4, '#f3ead6', 8);
-  text(TOUCHDEV ? 'TIPPEN = WEITER' : 'TASTE = WEITER', W - 10, H - 13, '#9b90ad', 8, 'right');
+  text(LASTIN === 'touch' ? 'TIPPEN = WEITER' : LASTIN === 'pad' ? 'A = WEITER' : 'TASTE = WEITER', W - 10, H - 13, '#9b90ad', 8, 'right');
 }
 function drawIntro() {
   const k = ease(G.phaseT / 0.6);

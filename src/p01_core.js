@@ -21,6 +21,9 @@ function fitView() {
   const cs = getComputedStyle(document.body), aw = innerWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const ah = innerHeight - (document.body.classList.contains('touch') ? 0 : 24), w = Math.min(800, Math.max(640, Math.round(H * aw / Math.max(1, ah) / 2) * 2));
   document.documentElement.style.setProperty('--ar', `${w} / ${H}`);
+  // Tablets: Menü-Inhalt wächst mit dem Bildschirm (wie bei Hallen-Legenden), sonst bleibt die Schrift auf dem iPad winzig
+  const tab = document.body.classList.contains('touch') && innerWidth > 760 && innerHeight > 540;
+  document.documentElement.style.setProperty('--mz', tab ? Math.max(1, Math.min(1.5, innerWidth / 800, innerHeight / 620)).toFixed(3) : '1');
   if (w === W) return;
   W = w; VIEW_HALF = W / 2 / PX; cv.width = W; ctx.imageSmoothingEnabled = false;
 }

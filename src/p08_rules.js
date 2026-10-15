@@ -219,7 +219,7 @@ function integ(p, dt, forcePose) {
   p.x += p.vx * dt; p.y += p.vy * dt;
   p.x = clamp(p.x, -3, CW + 3); p.y = clamp(p.y, -2, CH + 2);
   const sp = Math.hypot(p.vx, p.vy);
-  if (sp > 0.4 && (!p.act || p.act.type !== 'slide')) { p.hx = p.vx / sp; p.hy = p.vy / sp; if (Math.abs(p.vx) > 0.3) p.face = p.vx > 0 ? 1 : -1; }
+  if (sp > 0.4 && (!p.act || p.act.type !== 'slide')) { p.hx = p.vx / sp; p.hy = p.vy / sp; const f = p.vx > 0 ? 1 : -1; if (Math.abs(p.vx) > 0.6 && f !== p.face && G.t - (p.faceT || 0) > 0.2) { p.face = f; p.faceT = G.t; } }
   p.animT += sp * dt * 1.7;
   const a = p.act && p.act.type;
   if (forcePose) { p.pose = forcePose; p.fr = Math.floor(p.animT) % 6; return; }
@@ -230,7 +230,7 @@ function integ(p, dt, forcePose) {
   else if (G.ball.owner === p && isGK(p)) p.pose = 'hold';
   else if (G.sp && G.sp.taker === p && G.sp.type === 'throw') p.pose = 'throw1';
   else if (isGK(p) && sp < 1 && G.phase === 'play' && dist(G.ball.x, G.ball.y, p.x, p.y) < 25) { p.pose = 'gk'; p.fr = Math.floor(G.t * 2) % 2; return; }
-  else p.pose = sp > 0.5 ? 'run' : 'idle';
+  else p.pose = sp > 0.6 ? 'run' : sp < 0.35 ? 'idle' : (p.pose === 'run' ? 'run' : 'idle');   // Hysterese: kein Flackern zwischen Laufen und Stehen
   p.fr = p.pose === 'run' ? Math.floor(p.animT) % 6 : Math.floor(G.t * 1.5 + p.i) % 2;
   if (p.pose === 'run' && !G.ball.owner && G.phase === 'play' && sp > 0.5) p.fr = Math.floor(p.animT) % 6;
 }

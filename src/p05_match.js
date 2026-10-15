@@ -42,7 +42,7 @@ function autoXI(squad, form) {
   const gk = bench.find(p => p.grp === 'TW'), rest = bench.filter(p => p !== gk);
   return { xi, bench: (gk ? [gk] : []).concat(rest).slice(0, 7) };
 }
-const effO = p => p.ovr + (p.form || 0) * 0.5 - (100 - (p.fit ?? 100)) * 0.06;
+const effO = p => p.ovr + (p.form || 0) * 0.5 - (100 - (p.fit ?? 100)) * 0.06 - Math.max(0, 70 - (p.fit ?? 100)) * 0.35;   // unter 70 % Fitness bleibt ein Spieler eher draußen (wie bei Hallen-Legenden)
 
 const KIT_NAMES = ['HEIM', 'AUSWÄRTS'];
 const GK_COLS = ['#ffd23f', '#3fd0ff', '#9cff57', '#ff8bd1', '#ff9f1c', '#c58bff', '#1d1d24'];
@@ -269,7 +269,9 @@ const KEY = {}, KEYP = {};
 const IN = { x: 0, y: 0, s: false, a: false, b: false, c: false, k: false, f: false, pa: false, pb: false, pc: false, pk: false, pf: false, ra: false, rb: false, rc: false, rk: false, bHeld: 0, aHeld: 0, any: false };
 const TOUCH = { x: 0, y: 0, a: false, b: false, c: false, k: false, s: false, aim: null, aimLast: null, pow: null, passT: 0, pulseA: 0, pulseB: 0, pulseC: 0, pulseK: 0 };
 let LASTIN = TOUCHDEV ? 'touch' : 'key';
-const setInput = k => { LASTIN = k; };
+const setInput = k => { if (k === LASTIN) return; LASTIN = k; document.body.classList.toggle('padin', k === 'pad' || (k === 'key' && TOUCHDEV)); };
+// Gamepad oder Tastatur am Tablet: Touch-Knöpfe weg; der erste Finger auf dem Bildschirm holt sie zurück
+if (TOUCHDEV) document.addEventListener('touchstart', () => setInput('touch'), { capture: true, passive: true });
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
   KEY[e.code] = true; if (!e.repeat) KEYP[e.code] = true; setInput('key');

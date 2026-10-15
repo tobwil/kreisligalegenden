@@ -1,10 +1,13 @@
 # Prüft jeden Pull Request (und jeden Push auf main): ist game/index.html aus src/ gebaut, laufen alle Spieltests durch?
+# Dazu jede Nacht ein Lauf auf main (wie bei Korb-Legenden): fällt auf, wenn ein Zufallsfall oder ein neuer Browser etwas bricht
 name: Tests
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:

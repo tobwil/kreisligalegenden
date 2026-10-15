@@ -3,6 +3,12 @@ if (TOUCHDEV) document.body.classList.add('touch');
 fitView(); addEventListener('resize', fitView); addEventListener('orientationchange', () => setTimeout(fitView, 250));
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// iOS zoomt trotz user-scalable=no manchmal hinein (Doppeltipp, Bedienungshilfen): Zoom sofort zurücksetzen (wie bei Hallen-Legenden)
+if (window.visualViewport) visualViewport.addEventListener('resize', () => {
+  const vp = document.getElementById('vp'); if (!vp || visualViewport.scale <= 1.01) return;
+  const c = vp.content; vp.content = 'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+  setTimeout(() => { vp.content = c; }, 300);
+});
 const buzz = ms => { if (TOUCHDEV && LASTIN === 'touch' && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { } };
 const attacking = () => !!(G && G.human >= 0 && (G.ball.owner ? G.ball.owner.team === G.human : G.ball.passTo && G.ball.passTo.team === G.human));   // eigener Pass unterwegs zählt als Angriff
 // Tippen aufs Spielfeld: Mitspieler = Pass zu ihm, in der Abwehr = Wechsel zu diesem Spieler

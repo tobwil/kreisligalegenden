@@ -218,10 +218,11 @@ const ACT = {
       ${statsHTML()}
       ${notesHTML()}
       ${res ? `<p class="muted">${res}</p>` : ''}
-      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : '<button class="main" data-act="rematch" autofocus>REVANCHE</button><button data-act="toMain">HAUPTMENÜ</button>'}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
+      <div class="row">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : `<button class="main" data-act="rematch" autofocus>REVANCHE</button>${diffHint()}<button data-act="toMain">HAUPTMENÜ</button>`}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
+  rematchDiff(v) { const d = clamp(+v, 0, 2); track(d > G.diffI ? 'stufe-hoch' : 'stufe-runter', { stufe: DIFF[d].n.toLowerCase() }); SETTINGS.diff = d; saveSettings(); startMatch(G.tid[0], G.tid[1], Object.assign({}, G.opts, { diff: d })); },
   toMain() { hideTutBox(); G = null; startDemo(); ACT.main(); },
 };
 function renderQuick(focusSel) {
@@ -283,6 +284,14 @@ function notesHTML() {
   return `<div class="leaders">${team(0)}${team(1)}</div>`;
 }
 function togglePause() { if (!G || G.demo) return; if (menu.hidden) ACT.pause(); else if (INGAME_MENU) ACT.resume(); }
+// nach einem klaren Ergebnis im Freundschaftsspiel eine andere Schwierigkeit vorschlagen (wie bei Hallen-Legenden)
+function diffHint() {
+  const h = G.human; if (G.career || G.watch || G.pl || h < 0) return '';
+  const gd = G.score[h] - G.score[1 - h], d = G.diffI ?? SETTINGS.diff;
+  if (gd >= 4 && d < 2) return `<button data-act="rematchDiff" data-arg="${d + 1}">ZU LEICHT? REVANCHE AUF ${DIFF[d + 1].n.toUpperCase()}</button>`;
+  if (gd <= -4 && d > 0) return `<button data-act="rematchDiff" data-arg="${d - 1}">ZU SCHWER? REVANCHE AUF ${DIFF[d - 1].n.toUpperCase()}</button>`;
+  return '';
+}
 function startMatch(ta, tb, o) {
   INGAME_MENU = false; hideMenu(); AU.init(); AU.stopMusic();
   if (!o.resume) delMatch();

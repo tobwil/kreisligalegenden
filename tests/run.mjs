@@ -737,6 +737,40 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Bildschirmgrößen: Hauptmenü, Freundschaftsspiel, neue Saison, Optionen ohne seitliches Überlaufen von 320 bis 1920 px; Tablet-Zoom', async () => {
+  const sizes = [[320, 568], [568, 320], [360, 640], [667, 375], [740, 360], [844, 390], [932, 430], [1024, 768], [1180, 820], [1366, 768], [1920, 1080]];
+  const bad = [];
+  for (const [w, h] of sizes) {
+    const touch = w < 1300;
+    const { page, ctx, errors } = await open({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch && w < 1000, deviceScaleFactor: 1 });
+    for (const act of ['main', 'quick', 'career', 'options']) {
+      const r = await page.evaluate(a => { document.body.classList.add('portraitok'); ACT[a](); const el = menu.firstElementChild; return { doc: document.documentElement.scrollWidth - innerWidth, panel: el ? Math.round(el.getBoundingClientRect().right - innerWidth) : 0, mz: getComputedStyle(document.documentElement).getPropertyValue('--mz').trim() }; }, act);
+      if (r.doc > 1 || r.panel > 2) bad.push(`${w}x${h} ${act}: ${JSON.stringify(r)}`);
+      if (w === 1180 && act === 'main' && !(+r.mz > 1)) bad.push('Tablet-Zoom fehlt: ' + r.mz);
+    }
+    if (errors.length) bad.push(`${w}x${h}: ${errors.join('; ')}`);
+    await ctx.close();
+  }
+  ok(!bad.length, bad.join(' | '));
+});
+
+test('Spielstand aus älterer Version lädt (ohne Schlüssel, Vereinsniveau, Rekorde), Zu leicht?-Vorschlag nach klarem Sieg', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    ACT.career(); ACT.ncGo(); for (let i = 0; i < 3; i++) runEvent(null); saveCareer();
+    const C = JSON.parse(localStorage.getItem(CAREER_KEY)); for (const k of ['keys', 'lvl', 'records', 'awards', 'legends', 'custom', 'kit']) delete C[k];
+    localStorage.setItem(CAREER_KEY, JSON.stringify(C)); CAREER = null;
+    const c = loadCareerSave(), out = { old: !!c && c.team === C.team && !!JSON.parse(localStorage.getItem(CAREER_KEY)).keys };
+    if (c) { CAREER = c; ACT.chub(); ACT.ctab('hist'); out.hub = !!menu.querySelector('[data-act="ctab"]'); }
+    startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[1], { human: 0, diff: 1 }); G.score = [5, 0]; G.phase = 'end'; ACT.fulltime();
+    out.hint = !!menu.querySelector('[data-act="rematchDiff"][data-arg="2"]');
+    return out;
+  });
+  ok(r.old && r.hub, 'alter Spielstand lädt nicht: ' + JSON.stringify(r));
+  ok(r.hint, 'kein „Zu leicht?“ nach 5:0');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Darstellung: alle Platzarten (Rasen, Kunstrasen, Hartplatz), Nacht im Finale, Screenshots ohne Fehler', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

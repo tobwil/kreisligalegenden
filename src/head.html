@@ -246,6 +246,7 @@ button.link:hover,button.link:focus-visible{background:none;color:var(--gold)}
 }
 /* Tablets: Menüs ebenfalls über den ganzen Bildschirm */
 @media (min-width:761px) and (min-height:541px){
+  body.touch #menu > *{zoom:var(--mz,1)}
   body.touch #menu{position:fixed;inset:0;z-index:20;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 }
 body.touch{padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);gap:0}
@@ -260,6 +261,7 @@ body.touch .tbtn{min-height:60px}
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 @media (orientation:portrait){ body.touch.ingame:not(.portraitok):not(.menuopen) #rotate{display:flex} }
 body.menuopen #pad{display:none!important}
+body.padin #pad{display:none!important}
 body.padedit #pad{display:block}
 body.padedit #zone,body.padedit #tbPause{display:none}
 body.padedit .tb{outline:2px dashed var(--gold);outline-offset:3px;cursor:grab}
