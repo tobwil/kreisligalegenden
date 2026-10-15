@@ -74,6 +74,7 @@ const isHumanCtrl = p => G.pl ? !G.demo && G.pl.some(s => s.ctrl === p) : G.huma
 
 // ---------- Mensch ----------
 const passHoldPow = c => clamp((G.t - c.passHold - 0.12) / 0.65, 0, 1);
+const holdPow = t0 => G.t - t0 > 0.15 ? clamp((G.t - t0 - 0.12) / 0.65, 0, 1) : null;   // nur angetippt = null (wie bisher)
 function humanControl(dt) {
   if (G.human < 0 || G.watch || G.demo) return;
   const me = G.human, b = G.ball;
@@ -132,15 +133,23 @@ function humanControl(dt) {
         c.thrHold = null;
       }
     }
-    if (IN.pc) {
+    // Flanke / hoher Ball: antippen = wie bisher, halten = Kraft (Flanke: kurzer Pfosten → Elfmeterpunkt → langer Pfosten; hoher Ball: weiter)
+    const doCross = pw => {
       const gx = goalX(me);
-      if (Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0)) cross(c, 0);
-      else lob(c, choosePass(c, IN.x, IN.y, 'lob'));
-      return;
+      if (Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0)) cross(c, 0, pw);
+      else lob(c, choosePass(c, IN.x, IN.y, 'lob', 0.7, pw));
+    };
+    if (LASTIN === 'touch') { if (IN.pc) { const pw = TOUCH.cpow; TOUCH.cpow = null; doCross(pw); return; } }
+    else {
+      if (IN.pc) c.crsHold = G.t;
+      if (c.crsHold != null && !IN.c) {
+        if (IN.rc) { const pw = holdPow(c.crsHold); c.crsHold = null; doCross(pw); return; }
+        c.crsHold = null;
+      }
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
-    c.charge = 0; c.chargeArm = false; c.passHold = null; c.thrHold = null;
+    c.charge = 0; c.chargeArm = false; c.passHold = null; c.thrHold = null; c.crsHold = null;
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
     if (incoming && b.passer && b.passer.team === me && eta < 1.1) {
       // Direktabnahme vormerken (nur kurz bevor ein Pass bei dir ankommt): Schuss, Pass, Steilpass
@@ -174,6 +183,17 @@ function airNear(c) {
   const b = G.ball; if (b.owner || (b.z < 0.9 && b.vz <= 0)) return false;
   for (const q of ballPath()) { if (q.t > 1.2) break; if (q.z < 2.5 && q.z > 0.9 && dist(q.x, q.y, c.x, c.y) < 4) return true; }
   return false;
+}
+// Kopfball-Spot: kommt ein hoher Ball in Kopfhöhe in Reichweite deines Spielers, läuft er von selbst zum Treffpunkt.
+// Der Stick bewegt ihn dann nicht mehr weg, sondern gibt die Richtung des Kopfballs vor (Ecke im Tor, wegköpfen, ablegen).
+function headSpot(p) {
+  const b = G.ball; if (b.owner || b.shot || G.phase !== 'play' || isGK(p) || (b.z < 0.9 && b.vz <= 0)) return null;
+  let best = null, bd = 1e9;
+  for (const q of ballPath()) {
+    if (q.t > 1.4) break; if (q.z > 2.4 || q.z < 0.9) continue;
+    const d = dist(q.x, q.y, p.x, p.y); if (d < 5 && d - q.t * maxSpeed(p, true) < 0.6 && d < bd) { bd = d; best = q; }
+  }
+  return best;
 }
 function bestChaser(t) { let best = null, bt = 1e9; for (const p of teamP(t)) { if (isGK(p)) continue; const q = interceptOf(p); if (q.t < bt) { bt = q.t; best = p; } } return best; }
 function switchPlayer() {
@@ -213,15 +233,16 @@ function movePlayer(p, dt) {
   if (p.stun > 0 || !live) { p.vx *= 1 - 6 * dt; p.vy *= 1 - 6 * dt; return integ(p, dt); }
   // Arcade: der angespielte Spieler läuft dem Ball von selbst entgegen, auch wenn noch eine Richtung gedrückt ist
   const selfRun = G.ball.passTo === p || (!G.ball.owner && p.role === 'chase') || (G.ball.owner !== p && (G.idleT || 0) > 0.8);
-  if (G.phase === 'play' && isHumanCtrl(p) && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !selfRun)) {
+  const hs = G.phase === 'play' && isHumanCtrl(p) ? headSpot(p) : null; p.headAim = !!hs;
+  if (G.phase === 'play' && isHumanCtrl(p) && !hs && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !selfRun)) {
     sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : 1);
     dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 38 : 44;   // direktes Ansprechen auf den Stick (ISS-Gefühl)
     // Torwart mit Ball in der Hand bleibt im Strafraum
     if (isGK(p) && G.ball.owner === p) { dvx *= 0.6; dvy *= 0.6; }
   } else {
-    const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+    const dx = (hs ? hs.x : p.tx) - p.x, dy = (hs ? hs.y : p.ty) - p.y, d = Math.hypot(dx, dy);
     if (d > 0.25) {
-      sprint = p.urg > 0.92 && d > 3;
+      sprint = (hs || p.urg > 0.92) && d > 3;
       const v = maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1) * (passIncoming(p) && isHumanTeam(p.team) ? 1.15 : 1);
       dvx = dx / d * v; dvy = dy / d * v;
     }
@@ -541,14 +562,16 @@ function stepSetPiece(dt) {
       if (!sp.caim) { const side = c.y < MY ? -1 : 1, q = cornerRecv(c, gx - s * 7, MY + side * 1.5); sp.caim = q ? { x: q.x + s * 1, y: q.y } : { x: gx - s * 7, y: MY + side * 1.5 }; }
       sp.caim.x = clamp(sp.caim.x + IN.x * dt * 13, Math.min(gx - s * 2.5, gx - s * 22), Math.max(gx - s * 2.5, gx - s * 22));
       sp.caim.y = clamp(sp.caim.y + IN.y * dt * 13, MY - 17, MY + 17);
-      if (IN.pc || IN.pb) return crossTo(c, sp.caim.x, sp.caim.y);
+      // Flanke oder Schuss halten = Kraft: kurz = hoher Bogen, lang = scharf und flach; beim Loslassen fliegt der Ball
+      if ((IN.pc || IN.pb) && sp.chold == null) sp.chold = G.t;
+      if (sp.chold != null && !IN.c && !IN.b) { const pw = holdPow(sp.chold); sp.chold = null; return crossTo(c, sp.caim.x, sp.caim.y, pw); }
       if (IN.pa) return pass(c, mates(c).filter(m => !isGK(m)).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y))[0]);
     } else if (sp.type !== 'pen') {
       if (IN.pa) return pass(c, choosePass(c, IN.x, IN.y));
       if (IN.pk) return through(c, choosePass(c, IN.x, IN.y, 'through'));
       if (IN.pc) { const gx = goalX(c.team); return Math.abs(c.x - gx) < 35 && sp.type !== 'throw' ? cross(c, 0) : lob(c, choosePass(c, IN.x, IN.y, 'lob')); }
     }
-    if (sp.t > (sp.aim ? 20 : sp.type === 'pen' ? 9 : 7)) return cpuSetPiece(sp);
+    if (sp.t > (sp.aim || sp.caim ? 20 : sp.type === 'pen' ? 9 : 7) && sp.chold == null) return cpuSetPiece(sp);
     return;
   }
   const delay = sp.type === 'kick' ? 0.9 : sp.type === 'pen' ? 1.6 : sp.type === 'corner' ? 1.3 : 0.9;

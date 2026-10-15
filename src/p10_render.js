@@ -139,6 +139,11 @@ function drawCtrlHUD(c, col, num) {
     const q = choosePass(c, IN.x, IN.y, 'pass', 0.7, hp);
     if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
   }
+  // Kopfball: Pfeil in Stickrichtung zeigt, wohin er köpft (der Spieler läuft von selbst zum Treffpunkt)
+  if (c && c.headAim && !G.watch && !c.off && Math.hypot(IN.x, IN.y) > 0.3) {
+    const m = Math.hypot(IN.x, IN.y), ux = IN.x / m, uy = IN.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
+    for (let i = 0; i < 5; i++) { const px = Math.round(x0 + ux * (10 + i * 4) * 1.4), py = Math.round(y0 + uy * (10 + i * 4) * 0.7); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 4, 4); ctx.fillStyle = i === 4 ? '#ffc83a' : '#7cf2ff'; ctx.fillRect(px, py, 2, 2); }
+  }
   // Steuermarke über dem eigenen Spieler
   if (c && (G.human >= 0 || G.pl) && !G.watch && !c.off) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
@@ -150,7 +155,7 @@ function drawCtrlHUD(c, col, num) {
     }
     if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
     if (c.passHold != null && G.ball.owner === c && G.t - c.passHold > 0.15) drawPower(c, passHoldPow(c), '#7cf2ff');
-    if (c.thrHold != null && G.ball.owner === c && G.t - c.thrHold > 0.15) drawPower(c, clamp((G.t - c.thrHold - 0.12) / 0.65, 0, 1), '#7cf2ff');
+    for (const h of [c.thrHold, c.crsHold, G.sp && G.sp.taker === c ? G.sp.chold : null]) if (h != null && G.ball.owner === c && G.t - h > 0.15) drawPower(c, clamp((G.t - h - 0.12) / 0.65, 0, 1), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {
       drawPower(c, c.charge); drawAimCross(c);
       if ((PROF.games < 15 || G.tut) && !G.pl) { const K = KEYN(), t = LASTIN === 'touch' ? 'ZUM ZIELEN DEN DAUMEN ZIEHEN' : `${K.a}: SCHLENZER · ${K.c}: HEBER`; text(t, sx(c.x, c.y), sy(c.y, c.z) - 54, '#f3ead6', 8, 'center'); }
@@ -218,7 +223,7 @@ function drawSetPieceHint() {
     return;
   }
   const K = KEYN(), m = {
-    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: LASTIN === 'touch' ? 'ECKE · STICK: ZIEL VERSCHIEBEN · SCHUSS: FLANKE DORTHIN · PASS: KURZ' : `ECKE · RICHTUNG: ZIEL VERSCHIEBEN · ${K.c} ODER ${K.b}: FLANKE DORTHIN · ${K.a}: KURZ`,
+    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: LASTIN === 'touch' ? 'ECKE · STICK: ZIEL · SCHUSS HALTEN: FLANKE (KURZ = HOCH, LANG = SCHARF) · PASS: KURZ' : `ECKE · RICHTUNG: ZIEL · ${K.c}/${K.b} HALTEN: FLANKE (KURZ = HOCH, LANG = SCHARF) · ${K.a}: KURZ`,
     goal: `ABSTOSS · ${K.a}: KURZ · ${K.c}: WEIT`, free: `FREISTOSS · ${K.b} HALTEN: SCHUSS · ${K.a}: PASS · ${K.c}: FLANKE`, pen: `ELFMETER · ${K.b} HALTEN, RICHTUNG = ECKE`,
   }[sp.type];
   if (m && (G.phase === 'setpiece' || G.phase === 'kickoff' || G.phase === 'penalty')) hint(m);

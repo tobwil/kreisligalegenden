@@ -345,7 +345,7 @@ test('Schusstaste aus dem eigenen Strafraum = Befreiungsschlag: landet vor dem g
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Ecke mit Zielvisier: Richtung verschiebt das Ziel im Strafraum, Flanke landet dort, Pass = kurz ausgeführt', async () => {
+test('Ecke mit Zielvisier: Richtung verschiebt das Ziel im Strafraum, Flanke landet dort, halten = scharf, Pass = kurz ausgeführt', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     SETTINGS.keys = 'legenden'; LASTIN = 'key';
@@ -353,16 +353,52 @@ test('Ecke mit Zielvisier: Richtung verschiebt das Ziel im Strafraum, Flanke lan
     const corner = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('corner', 0, goalX(0) === CW ? CW - 0.3 : 0.3, 0.3); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
     corner(); const a0 = { ...G.sp.caim }; KEY.ArrowDown = true; for (let i = 0; i < 30; i++) { readInput(1 / 60); stepSetPiece(1 / 60); } KEY.ArrowDown = false; readInput(1 / 60);
     const a1 = { ...G.sp.caim }; out.moved = a1.y - a0.y > 4; render(); out.drawn = true;
-    KEY.KeyA = KEYP.KeyA = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyA = false;
-    out.cross = G.ball.kind === 'cross'; const B = G.ball; let land = null;
+    KEY.KeyA = KEYP.KeyA = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyA = false; out.wait = G.ball.kind !== 'cross'; readInput(1 / 60); stepSetPiece(1 / 60);   // Flanke beim Loslassen
+    out.cross = G.ball.kind === 'cross'; const B = G.ball; let land = null; const v0 = Math.hypot(B.vx, B.vy);
     for (let i = 0; i < 200 && land == null; i++) { step(1 / 60); if (B.z < 2.0 && B.vz < 0 && i > 10) land = { x: B.x, y: B.y }; }
     out.err = land ? Math.hypot(land.x - a1.x, land.y - a1.y) : 99;
+    // gehalten = scharf: schneller und flacher als angetippt
+    const kick = n => { corner(); KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < n; i++) { readInput(1 / 60); G.t += 1 / 60; stepSetPiece(1 / 60); } KEY.KeyA = false; readInput(1 / 60); stepSetPiece(1 / 60); return G.ball.kind === 'cross' ? G.ball.vz : 99; };
+    const vTap = kick(1), vHold = kick(50); out.vz = [vTap, vHold]; out.sharp = vHold < vTap - 1;
     corner(); KEY.KeyS = KEYP.KeyS = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyS = false; out.short = G.ball.kind === 'pass';
     return out;
   });
   ok(r.moved && r.drawn, 'Zielvisier bewegt sich nicht: ' + JSON.stringify(r));
   ok(r.cross && r.err < 4.5, 'Flanke landet nicht am Zielvisier: ' + JSON.stringify(r));
+  ok(r.wait && r.sharp, 'Ecke: Kraft durch Halten fehlt: ' + JSON.stringify(r));
   ok(r.short, 'kurze Ecke fehlt: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Flanke halten = kurzer bis langer Pfosten; Kopfball: Spieler läuft selbst zum Ball, der Stick zielt (hoch/runter = Ecke)', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.offside = false;   // die Verteidiger stehen in diesem Aufbau an der Mittellinie
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    const frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    const setup = () => {
+      startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+      const s = atkDir(0), gx = goalX(0), w = teamP(0).find(q => grpOf(q) === 'MF'), [near, far] = teamP(0).filter(q => grpOf(q) === 'ST');
+      for (const q of G.players) if (!isGK(q) && q !== w && q !== near && q !== far) place(q, CW / 2, q.team ? 3 : CH - 3);
+      place(w, gx - s * 14, 4); place(near, gx - s * 6, MY - 3); place(far, gx - s * 7, MY + 5); w.cd = 0; G.ctrl = w; giveBall(w, true); for (const k in KEY) KEY[k] = false; frame();
+      return { w, near, far, s, gx };
+    };
+    const crossHold = n => { const P = setup(); KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < n; i++) frame(); KEY.KeyA = false; frame(); return G.ball.passTo === P.near ? 'near' : G.ball.passTo === P.far ? 'far' : G.ball.passTo ? 'other' : 'none'; };
+    out.short = crossHold(3); out.long = crossHold(55);
+    // Kopfball: Stick die ganze Zeit gedrückt, der Spieler läuft trotzdem zum Ball und köpft in die Ecke, in die der Stick zeigt
+    const head = key => {
+      const P = setup(); for (const q of [P.far]) place(q, CW / 2, CH - 3);
+      cross(P.w, 0); G.ctrl = G.ball.passTo || P.near; const c = G.ctrl;
+      for (let i = 0; i < 150; i++) { KEY[key] = true; if (G.ball.z > 0.9 && dist(G.ball.x, G.ball.y, c.x, c.y) < 5) KEYP.Space = KEY.Space = true; else KEY.Space = false; readInput(1 / 60); step(1 / 60); if (G.ball.shot && G.ball.shot.header) break; }
+      const B = G.ball; if (!(B.shot && B.shot.header && B.shot.by === c)) return null;
+      return B.y + B.vy * (P.gx - B.x) / B.vx - MY;
+    };
+    out.down = head('ArrowDown'); out.up = head('ArrowUp');
+    return out;
+  });
+  ok(r.short === 'near' && r.long === 'far', 'Flanke nach Kraft: ' + JSON.stringify(r));
+  ok(r.down != null && r.up != null, 'Kopfball kommt mit gedrücktem Stick nicht zustande: ' + JSON.stringify(r));
+  ok(r.down > 0.5 && r.up < -0.5, 'Kopfball geht nicht in Stickrichtung: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 

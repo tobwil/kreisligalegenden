@@ -136,14 +136,21 @@ function lob(p, q) {
   toCtrl(p.team, q, p);
 }
 // Flanke in den Strafraum: auf Kopfhöhe am kurzen oder langen Pfosten oder am Elfmeterpunkt. aim: -1 kurz, 1 lang, 0 automatisch
-function cross(p, aim = 0) {
+// pow (Taste gehalten): 0 = kurzer Pfosten, 0,5 = Elfmeterpunkt, 1 = langer Pfosten; null = automatisch
+function cross(p, aim = 0, pow = null) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), side = b.y < MY ? -1 : 1;
   const zones = [[gx - s * 6, MY + side * 2.5], [gx - s * 8, MY - side * 3.5], [gx - s * PEN_D, MY]];
   const inB = mates(p).filter(q => !isGK(q) && Math.abs(q.x - gx) < 20 && Math.abs(q.y - MY) < 16);
   let tgt = null, best = -1e9;
   for (const q of inB) { const sc = q.d.kop * 0.02 + Math.min(openness(q), 5) * 0.3 - Math.abs(q.x - gx) * 0.05 + (aim < 0 ? -(q.y - MY) * side * 0.2 : aim > 0 ? (q.y - MY) * side * 0.2 : 0); if (sc > best) { best = sc; tgt = q; } }
+  let zone = null;
+  if (pow != null) {   // Zielzone nach Kraft, angelaufen vom Mitspieler, der am nächsten dran ist
+    const z = pow < 0.34 ? [gx - s * 6, MY + side * 2.5] : pow < 0.67 ? [gx - s * PEN_D, MY] : [gx - s * 7, MY - side * 4];
+    tgt = inB.filter(q => dist(q.x, q.y, z[0], z[1]) < 9).sort((a, c) => dist(a.x, a.y, z[0], z[1]) - dist(c.x, c.y, z[0], z[1]))[0] || null;
+    if (!tgt) zone = z;   // niemand dort: genau in die Zone
+  }
   let tx, ty;
-  if (tgt) { tx = tgt.x + s * 1.5; ty = tgt.y; } else { const z = zones[aim < 0 ? 0 : aim > 0 ? 1 : (Math.random() * 3) | 0]; tx = z[0]; ty = z[1]; }
+  if (zone) { [tx, ty] = zone; } else if (tgt) { tx = tgt.x + s * 1.5; ty = tgt.y; } else { const z = zones[aim < 0 ? 0 : aim > 0 ? 1 : (Math.random() * 3) | 0]; tx = z[0]; ty = z[1]; }
   tx = clamp(tx, gx === CW ? CW - 13 : 3, gx === CW ? CW - 3 : 13);
   const d = dist(b.x, b.y, tx, ty), T = clamp(0.35 + d / 19, 0.6, 2.0), err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.6 : 1.1);
   tx += gauss() * err * d * 0.45; ty += gauss() * err * d * 0.45;
@@ -156,12 +163,14 @@ function cross(p, aim = 0) {
 }
 // Ecke mit Zielvisier: Flanke genau auf den Punkt (tx, ty), angelaufen vom Mitspieler, der am nächsten dran ist
 function cornerRecv(p, tx, ty) { return mates(p).filter(q => !isGK(q) && dist(q.x, q.y, tx, ty) < 9).sort((a, b) => dist(a.x, a.y, tx, ty) - dist(b.x, b.y, tx, ty))[0] || null; }
-function crossTo(p, tx, ty) {
-  const b = G.ball, q = cornerRecv(p, tx, ty), d = dist(b.x, b.y, tx, ty), T = clamp(0.35 + d / 19, 0.6, 2.0);
-  const err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.5 : 0.9);
+// pow: null = normale Flanke, 0 = hohe Bogenlampe, 1 = scharf und flach (schneller da, aber schwerer genau)
+function crossTo(p, tx, ty, pow = null) {
+  const b = G.ball, q = cornerRecv(p, tx, ty), d = dist(b.x, b.y, tx, ty);
+  const T = pow == null ? clamp(0.35 + d / 19, 0.6, 2.0) : clamp(0.25 + d / (12 + pow * 14), 0.55, 2.3);
+  const err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.5 : 0.9) * (1 + (pow || 0) * 0.35);
   tx += gauss() * err * d * 0.4; ty += gauss() * err * d * 0.4;
   kickBall(p, 'cross', 0.5);
-  launchAir(tx, ty, rnd(1.4, 1.8), T);
+  launchAir(tx, ty, pow == null ? rnd(1.4, 1.8) : lerp(1.8, 1.25, pow), T);
   if (q) { b.passTo = q; noteRecv(q, tx, ty); toCtrl(p.team, q, p); }
   G.stats.passes[p.team]++; p.d.ms.ps++;
   if (!G.demo) AU.crowd(0.5);
@@ -272,6 +281,7 @@ function header(p, wantShot) {
   const q0 = mine && p.queue && G.t - p.queue.t < 1.5 ? p.queue : null;
   if (q0 && (q0.k === 'clear' || q0.k === 'pass')) {
     p.queue = null; kickBall(p, 'head', 0.4); b.z = 1.9; G.offs = null; p.act = { type: 'head', t: 0, dur: 0.4 };
+    const st = inOf(p); if (Math.hypot(st.x, st.y) > 0.3) { q0.x = st.x; q0.y = st.y; }   // Richtung im Moment des Kopfballs (der Stick zielt, der Spieler steht schon)
     if (q0.k === 'pass') { const m = choosePass(p, q0.x, q0.y) || choosePass(p, 0, 0); if (m) { launchAir(m.x, m.y, 0, clamp(dist(p.x, p.y, m.x, m.y) / 11, 0.6, 1.4)); b.passTo = m; noteRecv(m, m.x, m.y); toCtrl(p.team, m, p); return; } }
     let dx = q0.x, dy = q0.y; if (Math.hypot(dx, dy) < 0.3) { dx = s; dy = p.y < MY ? -0.6 : 0.6; }   // ohne Richtung: nach vorn und nach außen
     const m = Math.hypot(dx, dy); launchAir(clamp(p.x + dx / m * 18, 1, CW - 1), clamp(p.y + dy / m * 18, 1, CH - 1), 0, 1.25);
