@@ -158,6 +158,22 @@ function touchTip() {
 const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
 function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
 applyBtnSize();
+// Neue Version? Handys halten einen offenen Tab tagelang am Leben und zeigen dann den alten Stand. Kommt die Seite nach einer Weile
+// wieder in den Vordergrund (oder das Hauptmenü öffnet sich), fragen wir leise nach der aktuellen Kennung und bieten NEU LADEN an.
+let VCHK = 0, NEWVER = false;
+function checkVersion() {
+  if (NEWVER || !ON_WEB || location.protocol === 'file:' || performance.now() - VCHK < 10 * 60e3 && VCHK) return;
+  VCHK = performance.now();
+  fetch(location.pathname, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
+    const m = t.match(/const BUILD = '(\d+)'/); if (!m || m[1] === BUILD) return;
+    NEWVER = true; if (G && !G.demo) saveMatch();
+    const el = document.createElement('div'); el.id = 'newver';
+    el.innerHTML = '<span>Es gibt eine neue Version von Kreisliga-Legenden.</span><button>NEU LADEN</button>';
+    el.querySelector('button').addEventListener('click', () => { if (G && !G.demo) saveMatch(); location.reload(); });
+    document.body.appendChild(el);
+  }).catch(() => { });
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(1 / 30, (now - lastT) / 1000)); lastT = now;

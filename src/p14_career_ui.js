@@ -1,5 +1,5 @@
 // ================= Saison: Oberfläche =================
-const NEWC = { team: HOME_TEAM, len: 2, diff: 1, hlen: 3 };
+const NEWC = { team: HOME_TEAM, len: 2, diff: 1, hlen: 2 };
 let CTAB = 'blatt';
 Object.assign(ACT, {
   career() {
@@ -10,7 +10,6 @@ Object.assign(ACT, {
   ncTeam(a) { NEWC.team = +a; pkFocus(NEWC.team); renderNewCareer(`[data-act="ncTeam"][data-arg="${a}"]`); },
   ncLen(a) { NEWC.len = +a; renderNewCareer(`[data-act="ncLen"][data-arg="${a}"]`); },
   ncDiff(a) { NEWC.diff = +a; renderNewCareer(`[data-act="ncDiff"][data-arg="${a}"]`); },
-  ncH(a) { NEWC.hlen = +a; renderNewCareer(`[data-act="ncH"][data-arg="${a}"]`); },
   ncGo() { newCareer(NEWC.team, NEWC.len, NEWC.diff, NEWC.hlen); CTAB = 'blatt'; ACT.chub(); },
   chub(tab) { if (tab) CTAB = tab; if (G && !G.demo && (G.phase === 'end' || G.counted)) { G = null; startDemo(); } if (!CAREER) { const sv = loadCareerSave(); if (!sv) return ACT.main(); CAREER = sv; } renderHub(); },
   ctab(a) { CTAB = a; renderHub(`[data-act="ctab"][data-arg="${a}"]`); },
@@ -40,6 +39,17 @@ Object.assign(ACT, {
   cleg(a) { LEGVIEW = +a; renderHub(`[data-act="cleg"][data-arg="${a}"]`); },
 });
 const LINEUP = { pick: null };
+// Karriere-Kopfleiste (.csticky) klebt unter dem Innenabstand des Menüs. Der enthält am iPhone Notch oder Dynamic Island, darüber
+// scrollte der Inhalt sichtbar durch und die Leiste schien zu schweben. Sobald sie klebt, deckt ein Streifen in ihrer Farbe die Lücke ab
+// (wie bei Korb- und Hallen-Legenden). Gescrollt wird am Handy das ganze Menü, auf Tablet und Desktop das Panel selbst.
+function stickyGap() {
+  const s = menu.querySelector('.csticky'); if (!s) return;
+  const pan = s.closest('.panel'), sc = pan && getComputedStyle(pan).overflowY !== 'visible' && pan.scrollHeight > pan.clientHeight ? pan : menu;
+  if (pan && !pan.sgOn) { pan.sgOn = true; pan.addEventListener('scroll', stickyGap, { passive: true }); }
+  const pt = parseFloat(getComputedStyle(sc).paddingTop) || 0, top = s.getBoundingClientRect().top - sc.getBoundingClientRect().top - sc.clientTop;
+  s.style.setProperty('--gap', (pt + 2) + 'px'); s.classList.toggle('stuck', sc.scrollTop > 0 && Math.abs(top - pt) < 1.5);
+}
+menu.addEventListener('scroll', stickyGap, { passive: true }); addEventListener('resize', stickyGap);
 let LEGVIEW = null;
 function toast(msg) { const el = menu.querySelector('.cmsg'); if (el) { el.textContent = msg; el.hidden = false; } else alert(msg); }
 function renderNewCareer(focusSel) {
@@ -55,7 +65,6 @@ function renderNewCareer(focusSel) {
       <div class="tag">${esc(homeTag(NEWC.team).toUpperCase())} · ${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
     <div class="row"><span class="tag">SAISON</span>${[[1, `NUR HINRUNDE (${md} SPIELTAGE)`], [2, `HIN- UND RÜCKRUNDE (${md * 2})`]].map(([v, n]) => `<button class="small ${NEWC.len === v ? 'on' : ''}" data-act="ncLen" data-arg="${v}">${n}</button>`).join('')}</div>
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${NEWC.diff === i ? 'on' : ''}" data-act="ncDiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
-    <div class="row"><span class="tag">HALBZEIT</span>${[2, 3, 5, 8].map(v => `<button class="small ${NEWC.hlen === v ? 'on' : ''}" data-act="ncH" data-arg="${v}">${v} MIN</button>`).join('')}</div>
     <div class="row"><button class="main" data-act="ncGo" ${focusSel ? '' : 'autofocus'}>LOS GEHT'S</button></div></div>`, { back: ACT.main });
   pickerWire(renderNewCareer);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
@@ -84,6 +93,7 @@ function renderHub(focusSel) {
       <div class="row"><button class="main" data-act="cnext" autofocus>WEITER</button>${ev.t === 'po' ? '<button data-act="cskip">BIS ZUM SAISONENDE</button>' : ''}</div></div>`;
   }
   show(`<div class="panel">${head}<p class="cmsg" hidden></p>${body()}${foot}</div>`, { back: ACT.main, focus: !focusSel });
+  stickyGap();
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
   bindHubCanvases();
   const tw = menu.querySelector('.ctabw'), tb = tw && tw.querySelector('.ctabs');

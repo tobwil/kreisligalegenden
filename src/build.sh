@@ -8,6 +8,8 @@ DESC='Fußball im Browser: Kreisliga im Retro-Pixel-Look mit allen Kreisliga-Ver
 # Nutzungsstatistik (Umami Cloud, ohne Cookies): Website-ID eintragen, dann zählt sie nur auf kreisliga-legenden.de und nicht bei „Do Not Track“
 UMAMI_ID='f4b1de32-7b96-43cb-9ff1-987bbe214049'
 mkdir -p ../game
+# Kennung dieses Stands (aus den Quellen, ändert sich mit jeder Änderung): ein offener alter Tab merkt so, dass es eine neue Version gibt
+BUILD=$(cat $JS head.html | cksum | cut -d' ' -f1)
 {
   echo '<!doctype html>'
   echo '<html lang="de"><head><meta charset="utf-8"><meta name="viewport" id="vp" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">'
@@ -17,7 +19,7 @@ mkdir -p ../game
   [ -n "$UMAMI_ID" ] && echo "<script defer src=\"https://cloud.umami.is/script.js\" data-website-id=\"$UMAMI_ID\" data-domains=\"kreisliga-legenden.de,www.kreisliga-legenden.de\" data-do-not-track=\"true\"></script>"
   echo '</head><body>'
   sed '1,/^<\/style>/d' head.html
-  echo '<script>'; echo "'use strict';"; cat $JS; echo '</script>'
+  echo '<script>'; echo "'use strict';"; echo "const BUILD = '$BUILD';"; cat $JS; echo '</script>'
   echo '</body></html>'
 } > ../game/index.html
 cp d_karte.js ../assets/karte.js   # Deutschlandkarte auch für die Story der Startseite

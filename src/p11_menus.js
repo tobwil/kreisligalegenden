@@ -53,6 +53,7 @@ const ACT = {
       <p class="legal">${esc(PLATFORM.legal || '© 2026 Tobias Wilhelm · Quellcode offen, nicht kommerziell · github.com/tobwil/kreisligalegenden')}</p></div>`, { clear: true });
   },
   main() {
+    checkVersion();
     const sv = loadCareerSave(), ok = !!sv;
     show(`<div class="panel narrow"><div class="title"><h1 class="logo" style="font-size:clamp(16px,3.6vw,34px)">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
       <div class="btns menu-list">
@@ -62,7 +63,7 @@ const ACT = {
         <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
         <button data-act="erfolge">ERFOLGE <i>Stufe ${lpLevel(PROF.lp)} · ${Object.keys(PROF.ach).length}/${ACHS.length} Abzeichen</i></button>
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
-        <button data-act="options">OPTIONEN <i>Ton, Spielzeit, Tempo</i></button>
+        <button data-act="options">OPTIONEN <i>Ton, Steuerung, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
         ${PLATFORM.quit ? '<button data-act="exitGame">BEENDEN</button>' : ''}
       </div>
@@ -72,7 +73,6 @@ const ACT = {
   qpick(arg) { const id = +arg; if (QUICK.side === 'a') { QUICK.a = id; if (QUICK.b === id) QUICK.b = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); QUICK.side = 'b'; } else { QUICK.b = id; if (QUICK.a === id) QUICK.a = LIGEN[TEAMS[id].lg].ids.find(i => i !== id); } pkFocus(id); renderQuick(`[data-act="qpick"][data-arg="${id}"]`); },
   qside(arg) { QUICK.side = arg; pkFocus(arg === 'a' ? QUICK.a : QUICK.b); renderQuick(`.tcard.${arg}`); },
   qdiff(arg) { SETTINGS.diff = +arg; saveSettings(); renderQuick(`[data-act="qdiff"][data-arg="${arg}"]`); },
-  qlen(arg) { SETTINGS.hlen = +arg; saveSettings(); renderQuick(`[data-act="qlen"][data-arg="${arg}"]`); },
   qmode(arg) { QUICK.mode = arg; renderQuick(`[data-act="qmode"][data-arg="${arg}"]`); },
   qstart() { const mp = !TOUCHDEV && QUICK.mp && QUICK.mp !== 'solo' && QUICK.mode !== 'watch' ? QUICK.mp : null; startMatch(QUICK.a, QUICK.b, { human: 0, watch: QUICK.mode === 'watch', mp, mpIn: QUICK.mpIn || 0 }); if (mp) track('zu-zweit', { modus: mp }); },
   controls() {
@@ -118,7 +118,6 @@ const ACT = {
         <span>Ton</span>${tog(AU.on, 'optSound', 'AN', 'AUS')}
         ${sl('master', 'Gesamt')}${sl('music', 'Musik')}${sl('sfx', 'Effekte')}${sl('crowd', 'Zuschauer')}
         <span>Stadionsprecher</span>${tog(AU.vol.speaker, 'optSpeaker', 'AN', 'AUS')}
-        <span>Halbzeit</span><div class="row">${[2, 3, 5, 8].map(q => `<button class="small ${SETTINGS.hlen === q ? 'on' : ''}" data-act="optH" data-arg="${q}">${q} MIN</button>`).join('')}</div>
         <span>Abseits</span>${tog(SETTINGS.offside, 'optOff', 'AN', 'AUS')}
         <span>Auto-Spielerwechsel</span>${tog(SETTINGS.autoswitch, 'optSwitch', 'AN', 'AUS')}
         <span>Co-Trainer wechselt aus</span>${tog(SETTINGS.autosub, 'optSub', 'AN', 'AUS')}
@@ -135,7 +134,6 @@ const ACT = {
   optKeys(a) { SETTINGS.keys = a; saveSettings(); const back = menu.querySelector('.keys') ? ACT.controls : ACT.options; back(); },
   optSound(a) { if ((a === '1') !== AU.on) AU.toggle(); ACT.options(); },
   optSpeaker(a) { AU.vol.speaker = a === '1'; store.set(AUDIO_KEY, AU.vol); ACT.options(); },
-  optH(a) { SETTINGS.hlen = +a; saveSettings(); ACT.options(); },
   optOff(a) { SETTINGS.offside = a === '1'; saveSettings(); ACT.options(); },
   optSwitch(a) { SETTINGS.autoswitch = a === '1'; saveSettings(); ACT.options(); },
   optSub(a) { SETTINGS.autosub = a === '1'; saveSettings(); ACT.options(); },
@@ -235,8 +233,7 @@ function renderQuick(focusSel) {
     <h3>${QUICK.side === 'a' ? 'WÄHLE DEINEN VEREIN' : 'WÄHLE DEN GEGNER'}</h3>
     ${pickerHTML()}
     <div class="row"><span class="tag">SCHWIERIGKEIT</span>${DIFF.map((d, i) => `<button class="small ${SETTINGS.diff === i ? 'on' : ''}" data-act="qdiff" data-arg="${i}">${d.n.toUpperCase()}</button>`).join('')}</div>
-    <div class="row"><span class="tag">HALBZEIT</span>${[2, 3, 5, 8].map(q => `<button class="small ${SETTINGS.hlen === q ? 'on' : ''}" data-act="qlen" data-arg="${q}">${q} MIN</button>`).join('')}
-    <span class="tag">MODUS</span>${[['play', 'SELBST SPIELEN'], ['watch', 'ZUSCHAUEN']].map(([m, n]) => `<button class="small ${QUICK.mode === m ? 'on' : ''}" data-act="qmode" data-arg="${m}">${n}</button>`).join('')}</div>
+    <div class="row"><span class="tag">MODUS</span>${[['play', 'SELBST SPIELEN'], ['watch', 'ZUSCHAUEN']].map(([m, n]) => `<button class="small ${QUICK.mode === m ? 'on' : ''}" data-act="qmode" data-arg="${m}">${n}</button>`).join('')}</div>
     ${TOUCHDEV ? '' : `<div class="row"><span class="tag">SPIELER</span>${[['solo', 'ALLEIN'], ['coop', 'ZU ZWEIT MITEINANDER'], ['vs', 'ZU ZWEIT GEGENEINANDER']].map(([m, n]) => `<button class="small ${(QUICK.mp || 'solo') === m ? 'on' : ''}" data-act="qmp" data-arg="${m}">${n}</button>`).join('')}</div>
     ${QUICK.mp && QUICK.mp !== 'solo' ? `<div class="row"><span class="tag">EINGABE</span>${MP_PRESETS.map((p, i) => `<button class="small ${(QUICK.mpIn || 0) === i ? 'on' : ''}" data-act="qmpIn" data-arg="${i}">${p[2]}</button>`).join('')}</div>
       <p class="muted">Spieler 1 (gelb): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][0]].help)}<br>Spieler 2 (rosa): ${esc(MP_SRC[MP_PRESETS[QUICK.mpIn || 0][1]].help)}${QUICK.mp === 'vs' ? '<br>Gegeneinander: Spieler 1 spielt den linken Verein, Spieler 2 den Gegner.' : ''}</p>` : ''}`}

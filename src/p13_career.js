@@ -341,7 +341,7 @@ function careerMatchOpts(watch) {
   const cupLast = ev.t === 'cup' && ev.r === CAREER.S.cup.rounds.length - 1;
   const event = ev.t === 'po' && ev.r === 3 ? FINAL_EVENT : ev.t === 'po' ? { title: PO_NAMES[ev.r], ground: TEAMS[g.h].ground } : cupLast ? CUP_FINAL() : ev.t === 'cup' ? { title: 'KREISPOKAL', ground: TEAMS[g.h].ground } : null;
   return {
-    human: meHome ? 0 : 1, diff: CAREER.diff, hlen: CAREER.hlen, xi: [H.xi, A.xi], bench: [H.bench, A.bench], form: [H.form, A.form], ment: [meHome ? CAREER.ment : 1, meHome ? 1 : CAREER.ment],
+    human: meHome ? 0 : 1, diff: CAREER.diff, hlen: 2, xi: [H.xi, A.xi], bench: [H.bench, A.bench], form: [H.form, A.form], ment: [meHome ? CAREER.ment : 1, meHome ? 1 : CAREER.ment],
     career: { label: (isDerby(g.h, g.a) ? 'DERBY! · ' : '') + eventLabel(ev), rec, pk: CAREER.pk, ev: CAREER.S.ci }, derby: isDerby(g.h, g.a), ko: ev.t !== 'lg', et: ev.t === 'po' && ev.r === 3, event, watch,
   };
 }
