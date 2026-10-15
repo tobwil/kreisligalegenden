@@ -28,7 +28,7 @@ Echte Aufnahmen aus dem Browserspiel. Für die volle Ansicht auf ein Bild klicke
 
 ## Deutsch
 
-Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/` daneben). Läuft am Desktop mit Tastatur oder Gamepad und auf dem Handy mit Touch-Steuerung (quer). Kostenlos, ohne Werbung, ohne Anmeldung. Die Startseite mit Story folgt.
+Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/` daneben). Läuft am Desktop mit Tastatur oder Gamepad und auf dem Handy mit Touch-Steuerung (quer). Kostenlos, ohne Werbung, ohne Anmeldung. Die Startseite `index.html` erzählt die Geschichte als Pixel-Film beim Scrollen (`assets/story.js`), dazu Impressum und Datenschutz.
 
 > Die Ligen tragen die echten Vereinsnamen der **höchsten Kreisspielklasse (Herren) aller Kreise in Deutschland, Saison 2026/27, Stand Herbst 2026** – je nach Landesverband heißt sie Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Quelle sind die öffentlichen Tabellen auf fussball.de (siehe `tools/`). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden; die Kreisligen 1 und 2 im Kreis Coburg/Kronach/Lichtenfels sind von Hand gestaltet. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Bitte ein Issue öffnen oder über das Impressum melden.
 

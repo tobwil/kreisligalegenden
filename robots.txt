@@ -1,3 +1,7 @@
 User-agent: *
+Allow: /
 Disallow: /tests/
 Disallow: /src/
+Disallow: /tools/
+
+Sitemap: https://kreisligalegenden.de/sitemap.xml

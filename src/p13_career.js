@@ -88,7 +88,7 @@ function newCareer(team, len, diff, hlen) {
   newSeason(); refreshMarket();
   news('Saisonstart', `${TEAMS[team].n}: Auf geht's!`, `Neuer Trainer an der Seitenlinie. Der Vorstand hofft auf eine gute Saison in der ${lgName()} – und auf volle Bratwurstbuden.`, 'start');
   saveCareer();
-  track('saison-start', { verein: TEAMS[team].k });
+  track('saison-start', { verein: TEAMS[team].n, verband: verbOf(team).n });
 }
 function newSeason() {
   const C = CAREER, S = C.S = { year: C.year, tables: {}, cal: [], ci: 0, results: [], po: null, cup: null, done: false, scorers: {}, last: null };

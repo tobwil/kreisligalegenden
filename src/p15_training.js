@@ -62,7 +62,7 @@ function checkTutDone() {
 }
 function nextLesson() {
   const T = G.tut; T.i++; T.n = 0; T.done = false;
-  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
+  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); track('training-fertig'); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
   tutSetup();
 }
 // pro Bild: Markierungen, Haltepositionen, Ballverlust, Neustart

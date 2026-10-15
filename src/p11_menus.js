@@ -101,6 +101,7 @@ const ACT = {
       <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (Quelle: öffentliche Tabellen auf fussball.de). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Kurze Nachricht über das Impressum genügt.</p>
       <p>Kostenlos, ohne Werbung, ohne Anmeldung. Spielstände bleiben nur ${ON_WEB ? 'in deinem Browser' : 'auf diesem Gerät'}.</p>
       <p class="muted">Aus der Familie von Hallen-Legenden und Korb-Legenden. Schriften: Press Start 2P und VT323 (SIL Open Font License).</p>
+      ${ON_WEB ? '<p class="muted"><a href="../">Startseite mit Story</a> · <a href="../impressum.html">Impressum</a> · <a href="../datenschutz.html">Datenschutz</a></p>' : ''}
       <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
   },
   options() {
@@ -269,7 +270,7 @@ function startMatch(ta, tb, o) {
   newMatch(ta, tb, o); G.opts = o;
   if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
-  track('spiel-start', { modus: o.career ? 'saison' : 'freundschaftsspiel' });
+  track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }
 function startDemo() {

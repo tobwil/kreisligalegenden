@@ -1,8 +1,450 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kreisliga-Legenden</title>
-<meta name="description" content="Kreisliga-Legenden: Fußball im Retro-Pixel-Look mit den Vereinen aus dem Kreis Coburg. Die Startseite mit Story folgt, das Spiel läuft schon.">
-<meta http-equiv="refresh" content="0; url=game/">
-<link rel="canonical" href="game/">
-<style>html,body{margin:0;height:100%;background:#07060b;color:#f3ead6;font:20px/1.3 ui-monospace,Menlo,monospace;display:flex;align-items:center;justify-content:center;text-align:center}a{color:#ffc83a}</style>
-</head><body><p>Kreisliga-Legenden<br><a href="game/">Zum Spiel ⚽</a></p></body></html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kreisliga-Legenden – Fußballspiel kostenlos im Browser, mit allen Kreisliga-Vereinen Deutschlands</title>
+<meta name="description" content="Das Fußballspiel für die Kreisliga: 11 gegen 11 im Retro-Pixel-Look mit allen rund 4.900 Kreisliga-Vereinen Deutschlands. Saison mit Kreispokal und Playoffs um die Goldene Eckfahne. Kostenlos, auch am Handy.">
+<meta name="author" content="Tobias Wilhelm">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#07060b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kreisliga-Legenden">
+<meta property="og:locale" content="de_DE">
+<meta property="og:title" content="Kreisliga-Legenden – das Fußballspiel für die Kreisliga">
+<meta property="og:description" content="11 gegen 11 auf Rasen, Kunstrasen und Asche, mit allen Kreisliga-Vereinen Deutschlands. Kreispokal, Kreisblatt und Playoffs um die Goldene Eckfahne. Kostenlos im Browser.">
+<meta property="og:url" content="https://kreisligalegenden.de/">
+<meta property="og:image" content="https://kreisligalegenden.de/docs/screenshots/gameplay.jpg">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
+<meta property="og:image:alt" content="Fußball im Pixel-Look: Kreisliga-Spiel auf dem Dorfsportplatz mit Banden lokaler Betriebe">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kreisliga-Legenden – Fußballspiel im Browser">
+<meta name="twitter:description" content="11 gegen 11 im Pixel-Look mit allen Kreisliga-Vereinen Deutschlands. Kostenlos im Browser spielen.">
+<meta name="twitter:image" content="https://kreisligalegenden.de/docs/screenshots/gameplay.jpg">
+<link rel="canonical" href="https://kreisligalegenden.de/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+<link rel="stylesheet" href="fonts/fonts.css">
+<!-- Nutzungsstatistik (Umami, ohne Cookies): zählt nur auf kreisligalegenden.de und nicht bei „Do Not Track“. Website-ID hier und in src/build.sh eintragen. -->
+<script>(() => { const id = ''; if (!id) return; const s = document.createElement('script'); s.defer = true; s.src = 'https://cloud.umami.is/script.js'; s.dataset.websiteId = id; s.dataset.domains = 'kreisligalegenden.de,www.kreisligalegenden.de'; s.dataset.doNotTrack = 'true'; document.head.appendChild(s); })();</script>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#07060b; --panel:#14111d; --panel2:#201a2e; --ink:#f3ead6; --dim:#b3a9c4; --mute:#8a819c;
+  --gold:#ffc83a; --hot:#ff4f3a; --cyan:#7cf2ff; --green:#3ddc84; --line:#3a2f4d; --wood:#3c9a46; --ball:#f4f4f0; --navy:#2f8a3e;
+  --pix:'Press Start 2P', ui-monospace, Menlo, monospace; --term:'VT323', ui-monospace, Menlo, monospace;
+  --head:56px; --hud:56px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+section[id],.faq[id]{scroll-margin-top:calc(var(--head) + 8px)}   /* Anker nicht unter der festen Kopfleiste */
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--term);font-size:22px;line-height:1.2;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit}
+h1,h2,h3{font-family:var(--pix);font-weight:400;margin:0;line-height:1.25}
+p{margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:fixed;left:16px;top:-80px;z-index:50;background:var(--gold);color:#1a1205;padding:10px 12px;font-family:var(--pix);font-size:11px}
+.skip:focus{top:12px}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+
+.num{font-family:var(--pix);font-size:12px;color:var(--hot);letter-spacing:.2em;display:block}
+
+/* ---------- Knöpfe wie im Spiel ---------- */
+.btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--pix);font-size:clamp(10px,1.3vw,13px);letter-spacing:.04em;color:var(--ink);
+  background:var(--panel2);border:2px solid var(--ink);padding:14px 16px;box-shadow:4px 4px 0 #000;text-decoration:none;cursor:pointer;line-height:1.2}
+.btn:focus-visible{background:var(--gold);color:#1a1205;outline:none}
+@media (hover:hover){.btn:hover{background:var(--gold);color:#1a1205}}
+.btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 #000}
+.btn.main{background:var(--hot)}
+.btn.main:focus-visible{background:var(--gold)}
+@media (hover:hover){.btn.main:hover{background:var(--gold)}}
+.btn.big{font-size:clamp(12px,1.7vw,16px);padding:18px 22px}
+
+/* ---------- Kopfleiste ---------- */
+.top{position:fixed;inset:0 0 auto 0;z-index:20;height:var(--head);display:flex;align-items:center;gap:16px;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
+  background:rgba(7,6,11,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-bottom:2px solid var(--line)}
+.brand{font-family:var(--pix);font-size:12px;color:var(--gold);text-decoration:none;text-shadow:0 2px 0 #7a2c0c;white-space:nowrap}
+.top nav{margin-left:auto;display:flex;align-items:center;gap:18px}
+.top nav a:not(.btn){text-decoration:none;color:var(--dim);font-size:22px}
+.top nav a:not(.btn):hover{color:var(--ink)}
+.top .btn{padding:9px 12px;font-size:10px;box-shadow:3px 3px 0 #000}
+@media (max-width:640px){.top nav a:not(.btn){display:none}}
+
+/* ---------- Story-Film ---------- */
+html:not(.js) .hud{display:none}
+.film{position:relative}
+.film-sticky{position:relative}
+.js .film-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--bg)}
+#story{display:none}
+.js #story{display:block;position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+.caps{position:relative;display:grid;gap:24px;padding:calc(var(--head) + 24px) 16px 48px;max-width:760px;margin:0 auto}
+.js .caps{position:absolute;inset:0;display:block;padding:0;max-width:none;pointer-events:none}
+.cap{background:rgba(20,17,29,.9);border:3px solid var(--ink);box-shadow:6px 6px 0 #000,inset 0 0 0 3px var(--panel2);padding:clamp(14px,1.8vw,22px)}
+.js .cap{position:absolute;top:calc(var(--head) + clamp(12px,3vh,36px));right:clamp(16px,4vw,64px);width:min(470px,44vw);opacity:0;visibility:hidden;pointer-events:auto;will-change:transform,opacity}
+.cap .num{font-family:var(--pix);font-size:11px;color:var(--hot);letter-spacing:.2em;display:block;margin-bottom:10px}
+.cap h2{font-size:clamp(15px,1.7vw,22px);color:var(--gold);text-shadow:0 3px 0 #7a2c0c,0 5px 0 #000;margin-bottom:12px}
+.cap p{font-size:clamp(20px,1.6vw,24px);margin-bottom:10px}
+.cap ul{list-style:none;margin:0;padding:0;display:grid;gap:4px;color:var(--dim);font-size:clamp(19px,1.5vw,22px)}
+.cap li{padding-left:20px;position:relative}
+.cap li::before{content:"";position:absolute;left:2px;top:.42em;width:8px;height:8px;background:var(--ball);box-shadow:2px 2px 0 #000;border-radius:50%}
+.cap li b{color:var(--ink);font-weight:400}
+.cap .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+.cap-hero{text-align:center;background:none;border:0;box-shadow:none;padding:0}
+.js .cap-hero{top:calc(var(--head) + clamp(8px,4vh,48px));left:16px;right:16px;width:auto;opacity:1;visibility:visible;display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.4vh,22px)}
+.logo{font-family:var(--pix);font-size:clamp(26px,min(6.4vw,8vh),78px);line-height:1.05;margin:0;color:var(--gold);letter-spacing:.02em;
+  text-shadow:0 4px 0 #c96a12,0 8px 0 #7a2c0c,0 12px 0 #000,0 0 50px rgba(255,200,58,.35);animation:bob 3s ease-in-out infinite}
+.logo span{display:block;font-size:.4em;color:var(--ink);text-shadow:0 3px 0 var(--hot),0 6px 0 #000;letter-spacing:.3em;margin-top:.55em}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.tagline{font-size:clamp(20px,2.2vw,28px);max-width:40ch;margin:0 auto;text-shadow:0 2px 0 #000,0 0 12px #000}
+.cap-hero .cta{justify-content:center;margin:0}
+.cap .platforms{list-style:none;margin:0;padding:0;display:flex;color:var(--ink);flex-wrap:wrap;justify-content:center;gap:8px 10px}
+.cap .platforms li{font-family:var(--pix);font-size:10px;line-height:1.2;letter-spacing:.04em;padding:7px 10px;background:rgba(13,11,20,.85);border:2px solid var(--line);box-shadow:3px 3px 0 #000;display:flex;align-items:center;gap:8px}
+.cap .platforms li::before{content:"";position:static;flex-shrink:0;width:8px;height:8px;background:var(--green);box-shadow:1px 1px 0 #000;border-radius:0}
+.cap .platforms li.store{padding:0}
+.cap .platforms li.store a{display:flex;align-items:center;gap:8px;padding:7px 10px;color:inherit;text-decoration:none}
+.cap .platforms li.store a::before{content:"";flex-shrink:0;width:8px;height:8px;background:var(--green);box-shadow:1px 1px 0 #000}
+.cap .platforms li.store::before{display:none}
+.cap .platforms li.store:hover,.cap .platforms li.store:focus-within{border-color:var(--gold)}
+.cap .scroll-hint{font-family:var(--pix);font-size:10px;color:var(--dim);animation:blink 1.2s steps(2) infinite;margin:0}
+@keyframes blink{50%{opacity:.25}}
+.thumb{display:block;height:auto;margin:4px 0 12px;border:2px solid var(--line);box-shadow:3px 3px 0 #000;width:100%;aspect-ratio:16/9;object-fit:cover}
+
+/* HUD: Anzeigetafel mit Fortschritt auf dem Basketballfeld */
+.hud{position:absolute;left:0;right:0;bottom:0;z-index:3;height:var(--hud);display:flex;align-items:center;gap:16px;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
+  background:linear-gradient(transparent,rgba(7,6,11,.85) 40%)}
+.board{display:flex;align-items:stretch;font-family:var(--pix);font-size:11px;box-shadow:3px 3px 0 #000;flex-shrink:0}
+.board span{padding:8px 10px;background:#0d0b14;border:2px solid var(--line)}
+.board .no{background:var(--ink);color:#0d0b14;border-color:var(--ink)}
+.board .lbl{color:var(--gold);min-width:14ch}
+.court{position:relative;flex:1;height:22px;background:var(--wood);border:2px solid var(--ink);box-shadow:3px 3px 0 #000;overflow:hidden}
+.court{background:repeating-linear-gradient(90deg,#3c9a46 0 24px,#44a64e 24px 48px)}
+.court::before,.court::after{content:"";position:absolute;top:3px;bottom:3px;width:10%;background:transparent;border:2px solid rgba(243,234,214,.8)}
+.court::before{left:-2px}
+.court::after{right:-2px}
+.court i{position:absolute;left:50%;top:0;bottom:0;margin-left:-1px;width:2px;background:rgba(243,234,214,.8)}
+.court .fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,200,58,.25);width:0}
+.ball{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;background:var(--ball);border-radius:50%;box-shadow:0 0 0 2px #000,inset -3px -3px 0 #9a96a0;z-index:1}
+.hud .hint{font-family:var(--pix);font-size:9px;color:var(--mute);white-space:nowrap}
+@media (max-width:640px){.hud .hint{display:none}.board .lbl{min-width:0}}
+
+/* ---------- Das Spiel: Text für Suchmaschinen und Neugierige ---------- */
+.about{padding:clamp(72px,10vw,140px) 16px clamp(72px,10vw,140px);border-top:2px solid var(--line)}
+.about-inner{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,64px);align-items:start}
+.about h2{font-size:clamp(20px,3vw,36px);color:var(--gold);text-shadow:0 3px 0 #7a2c0c,0 5px 0 #000;margin:10px 0 18px}
+.about .lead{font-size:clamp(22px,2.2vw,28px);margin-bottom:22px}
+.shot{margin:0;border:3px solid var(--ink);box-shadow:8px 8px 0 #000;background:#000}
+.shot img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.shot figcaption{font-size:18px;color:var(--mute);padding:8px 12px;background:var(--panel)}
+.features{grid-column:1/-1;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.features li{background:var(--panel);border:3px solid var(--ink);box-shadow:6px 6px 0 #000,inset 0 0 0 3px var(--panel2);padding:16px 18px}
+.features h3{font-size:12px;color:var(--cyan);margin-bottom:10px;line-height:1.5}
+.features p{color:var(--dim);font-size:20px}
+.gallery{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0}
+.gallery figure{margin:0;border:3px solid var(--ink);box-shadow:6px 6px 0 #000;background:var(--panel)}
+.gallery img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.gallery figcaption{font-size:18px;color:var(--mute);padding:6px 10px}
+.faq{grid-column:1/-1;display:grid;gap:10px}
+.faq h2{font-size:clamp(16px,2vw,24px);margin-bottom:6px}
+.faq details{background:#0d0b14;border:2px solid var(--line)}
+.faq details[open]{border-color:var(--gold)}
+.faq summary{cursor:pointer;padding:12px 16px;font-size:22px;color:var(--ink);list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::before{content:"+";display:inline-block;width:1.2em;font-family:var(--pix);font-size:12px;color:var(--gold)}
+.faq details[open] summary::before{content:"–"}
+.faq details p{padding:0 16px 14px calc(16px + 1.2em);color:var(--dim);font-size:20px}
+.about .en{grid-column:1/-1;font-size:19px;color:var(--mute)}
+.about .en b{color:var(--dim);font-weight:400}
+.final-cta{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px 24px;padding:clamp(20px,3vw,32px);background:var(--panel);border:3px solid var(--ink);box-shadow:8px 8px 0 #000,inset 0 0 0 3px var(--panel2);text-align:center}
+.final-cta p{font-family:var(--pix);font-size:clamp(12px,1.6vw,16px);color:var(--gold);line-height:1.5}
+
+/* ---------- Die Legenden-Familie: Querverweise ---------- */
+.family{padding:clamp(56px,8vw,110px) 16px;border-top:2px solid var(--line);background:radial-gradient(ellipse at 50% 0%,#1a1430 0%,var(--bg) 70%)}
+.family-inner{max-width:1120px;margin:0 auto}
+.family h2{font-size:clamp(18px,2.6vw,30px);color:var(--gold);text-shadow:0 3px 0 #7a2c0c,0 5px 0 #000;margin:10px 0 14px}
+.family .lead{color:var(--dim);font-size:clamp(20px,2vw,24px);max-width:60ch;margin-bottom:26px}
+.sibs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.sib{display:flex;flex-direction:column;gap:12px;background:var(--panel);border:3px solid var(--ink);box-shadow:8px 8px 0 #000,inset 0 0 0 3px var(--panel2);padding:20px 22px;text-decoration:none;color:var(--ink)}
+.sib:focus-visible{outline:3px solid var(--cyan)}
+@media (hover:hover){.sib:hover{border-color:var(--gold)}.sib:hover .go{background:var(--gold);color:#1a1205}}
+.sib .tag{font-family:var(--pix);font-size:10px;letter-spacing:.15em;color:var(--hot)}
+.sib h3{font-size:clamp(15px,1.8vw,20px);color:var(--gold);text-shadow:0 3px 0 #000}
+.sib p{color:var(--dim);font-size:20px}
+.sib .go{align-self:flex-start;font-family:var(--pix);font-size:10px;padding:9px 12px;border:2px solid var(--ink);background:var(--panel2);box-shadow:3px 3px 0 #000;margin-top:auto}
+.sib .icon{font-size:34px;line-height:1}
+
+/* ---------- Fuß ---------- */
+footer{border-top:2px solid var(--line);padding:32px 16px 40px;color:var(--mute);font-size:19px}
+.foot-inner{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--gold)}
+
+/* ---------- Schmale Bildschirme ---------- */
+@media (max-width:820px){
+  .js .cap{left:16px;right:16px;width:auto;top:calc(var(--head) + 10px)}
+  .js .cap-hero{top:calc(var(--head) + clamp(18px,4.5vh,40px))}
+  .cap .more,.thumb{display:none}
+  .about-inner{grid-template-columns:1fr}
+  .features{grid-template-columns:1fr 1fr}
+  .gallery{grid-template-columns:1fr 1fr}
+}
+@media (max-width:820px) and (max-height:720px){ .cap p{display:none} }
+@media (max-height:520px) and (min-width:560px){
+  :root{--head:46px;--hud:46px}
+  .js .cap{top:calc(var(--head) + 6px);width:min(420px,48vw);left:auto}
+  .js .cap-hero{top:calc(var(--head) + 14px)}
+  .cap .more,.thumb,.cap p{display:none}
+  .cap h2{font-size:14px;margin-bottom:8px}
+  .cap ul{font-size:18px}
+  .logo{font-size:22px}
+  .tagline,.cap .platforms{display:none}
+}
+@media (max-height:1000px) and (min-width:821px){ .scroll-hint{display:none} }
+@media (max-width:420px){ .cap .platforms li{font-size:8px;padding:6px 7px;gap:6px} .cap .platforms li.store{padding:0} .cap .platforms li.store a{padding:6px 7px;gap:6px} }
+@media (max-width:560px){ .features,.gallery,.sibs{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ .logo,.scroll-hint{animation:none} }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": "https://kreisligalegenden.de/#website", "name": "Kreisliga-Legenden", "alternateName": ["Kreisligalegenden", "Kreisliga Legenden"], "url": "https://kreisligalegenden.de/", "inLanguage": "de" },
+    {
+      "@type": "VideoGame",
+      "@id": "https://kreisligalegenden.de/#spiel",
+      "name": "Kreisliga-Legenden",
+      "description": "Kostenloses Fußballspiel im Retro-Pixel-Look für den Browser: 11 gegen 11 mit allen Kreisliga-Vereinen Deutschlands, Saison mit Kreispokal, Kreisblatt und Playoffs um die deutsche Kreisliga-Meisterschaft.",
+      "url": "https://kreisligalegenden.de/",
+      "sameAs": ["https://github.com/tobwil/kreisligalegenden"],
+      "image": ["https://kreisligalegenden.de/docs/screenshots/gameplay.jpg", "https://kreisligalegenden.de/docs/screenshots/karte.jpg", "https://kreisligalegenden.de/docs/screenshots/kreisblatt.jpg"],
+      "screenshot": "https://kreisligalegenden.de/docs/screenshots/gameplay.jpg",
+      "genre": ["Sportspiel", "Fußballspiel", "Retro"],
+      "gamePlatform": ["Webbrowser", "PC", "Smartphone"],
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Windows, macOS, Linux, Android, iOS (im Browser)",
+      "playMode": "SinglePlayer",
+      "inLanguage": "de",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR", "availability": "https://schema.org/InStock", "url": "https://kreisligalegenden.de/game/" },
+      "author": { "@type": "Person", "name": "Tobias Wilhelm", "url": "https://github.com/tobwil" },
+      "license": "https://polyformproject.org/licenses/noncommercial/1.0.0",
+      "isRelatedTo": [{ "@type": "VideoGame", "name": "Hallen-Legenden", "url": "https://hallenlegenden.de/" }, { "@type": "VideoGame", "name": "Korb-Legenden", "url": "https://korblegenden.de/" }]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://kreisligalegenden.de/#faq",
+      "mainEntity": [{"@type": "Question", "name": "Ist Kreisliga-Legenden kostenlos?", "acceptedAnswer": {"@type": "Answer", "text": "Ja. Das Fußballspiel ist komplett kostenlos, ohne Werbung, ohne In-App-Käufe und ohne Anmeldung."}},
+        {"@type": "Question", "name": "Ist mein Verein dabei?", "acceptedAnswer": {"@type": "Answer", "text": "Sehr wahrscheinlich: Dabei sind alle rund 4.900 Vereine der höchsten Kreisspielklasse (Herren) aus 238 Kreisen und allen 21 Landesverbänden, Saison 2026/27. Je nach Verband heißt die Liga Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Du wählst deinen Verein auf der Deutschlandkarte oder findest ihn über die Suche."}},
+        {"@type": "Question", "name": "Spielen echte Spieler mit?", "acceptedAnswer": {"@type": "Answer", "text": "Nein. Nur die Vereinsnamen sind echt. Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Das Spiel ist kein offizielles Produkt des DFB, der Landesverbände oder der Vereine."}},
+        {"@type": "Question", "name": "Kann ich das Fußballspiel am Handy spielen?", "acceptedAnswer": {"@type": "Answer", "text": "Ja. Kreisliga-Legenden läuft im Browser am Smartphone mit Touch-Steuerung: links ein Stick zum Laufen (weit ziehen ist Sprint), rechts PASS, SCHUSS und HOCH für Flanken. Einen Mitspieler antippen spielt ihm den Ball zu. Am besten im Querformat."}},
+        {"@type": "Question", "name": "Wie funktioniert die Steuerung?", "acceptedAnswer": {"@type": "Answer", "text": "Am Computer laufen die Spieler mit den Pfeiltasten, die linke Hand macht die Aktionen: S passt, A spielt den Steilpass, D flankt, die Leertaste schießt (halten = fester), F ist ein Haken, Shift oder W ist Sprint. In der Abwehr wechselt S den Spieler, D ist das Tackling und die Leertaste die Grätsche. Ein Gamepad funktioniert auch."}},
+        {"@type": "Question", "name": "Ich habe noch nie ein Fußballspiel am Computer gespielt. Komme ich trotzdem rein?", "acceptedAnswer": {"@type": "Answer", "text": "Ja. Das Training erklärt in sieben Lektionen Laufen, Passen, Steilpass, Schießen, Flanke und Kopfball, Abwehr und Standards. Dazu gibt es drei Schwierigkeitsstufen von Freizeitkick bis Legende."}},
+        {"@type": "Question", "name": "Was passiert in der Saison?", "acceptedAnswer": {"@type": "Answer", "text": "Du übernimmst deinen Verein in seiner Kreisliga, spielst jeden Spieltag selbst, schaust zu oder simulierst. Nebenbei läuft der Kreispokal. Der Meister fährt zu den Playoffs gegen Kreismeister aus ganz Deutschland, bis zum Endspiel unter Flutlicht um die Goldene Eckfahne. Dazu Kader, Aufstellung, Training, Vereinskasse, Wechselbörse und das Kreisblatt."}},
+        {"@type": "Question", "name": "Wo wird mein Spielstand gespeichert?", "acceptedAnswer": {"@type": "Answer", "text": "Im Browser auf deinem Gerät. Es wird nichts an uns übertragen."}},
+        {"@type": "Question", "name": "Unser Verein möchte nicht im Spiel sein. Was tun?", "acceptedAnswer": {"@type": "Answer", "text": "Eine kurze Nachricht über die Kontaktdaten im Impressum genügt, dann nehmen wir den Namen heraus."}}]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+<a class="skip" href="game/">Direkt zum Spiel</a>
+
+<header class="top" id="top">
+  <a class="brand" href="#film">KREISLIGALEGENDEN</a>
+  <nav aria-label="Hauptnavigation">
+    <a href="#film">Die Story</a>
+    <a href="#fussball-spiel">Das Spiel</a>
+    <a href="#fragen">Fragen</a>
+    <a href="#legenden">Mehr Legenden</a>
+    <a class="btn main" href="game/" data-umami-event="spielen-klick" data-umami-event-ort="kopf">▶ Spielen</a>
+  </nav>
+</header>
+
+<main>
+<section class="film" id="film" aria-label="Die Geschichte einer Kreisliga-Legende">
+  <div class="film-sticky">
+    <canvas id="story" aria-hidden="true"></canvas>
+    <div class="caps">
+      <div class="cap cap-hero" id="start">
+        <h1 class="logo">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span><span class="sr"> – das Fußballspiel im Browser</span></h1>
+        <p class="tagline">Fußball im Retro-Pixel-Look. Vom Ascheplatz bis zur deutschen Kreisliga-Meisterschaft – mit deinem Verein.</p>
+        <div class="cta">
+          <a class="btn main big" href="game/" data-umami-event="spielen-klick" data-umami-event-ort="start">▶ JETZT SPIELEN</a>
+          <a class="btn big" href="#fussball-spiel">DAS SPIEL</a>
+        </div>
+        <ul class="platforms" aria-label="Plattformen">
+          <li>BROWSER</li>
+          <li>HANDY &amp; TABLET</li>
+          <li>GAMEPAD</li>
+          <li>4.913 VEREINE</li>
+        </ul>
+        <p class="scroll-hint" aria-hidden="true">SCROLLEN ↓ UND DER BALL ROLLT</p>
+      </div>
+
+      <article class="cap" data-scene="platz">
+        <span class="num">01 / 07 · SONNTAG, 15 UHR</span>
+        <h2>Bratwurst. Bierbecher. Anpfiff.</h2>
+        <p>Der Dorfsportplatz im Pixel-Look: Sportheim, Geländer, Banden vom Metzger und vom Autohaus.</p>
+        <ul>
+          <li><b>11 gegen 11</b> auf Rasen, Kunstrasen oder Asche, bei Regen mit Pfützen</li>
+          <li><b>TV-Kamera</b>, die mitschwenkt, Radar und Wiederholung</li>
+          <li class="more"><b>Schiri und Linienrichter</b> mit Fahne, Abseits ist abschaltbar</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="tor">
+        <span class="num">02 / 07 · DER SCHUSS</span>
+        <h2>Abziehen. Netz. TOOOR!</h2>
+        <p>Schuss aufladen, Ecke anpeilen, der Torwart fliegt – in die falsche Ecke.</p>
+        <ul>
+          <li><b>Pass, Steilpass, Flanke</b>, Direktabnahme, Volley und Kopfball</li>
+          <li><b>Abwehr:</b> Tackling, Grätsche (Ball zuerst!), Druck mit dem zweiten Mann</li>
+          <li class="more"><b>Standards:</b> Ecke, Freistoß mit Mauer, Elfmeter, Elfmeterschießen</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="karte">
+        <span class="num">03 / 07 · GANZ DEUTSCHLAND</span>
+        <h2>Dein Verein ist dabei.</h2>
+        <p>Alle Kreisligen Deutschlands mit echten Vereinsnamen, Saison 2026/27.</p>
+        <ul>
+          <li><b>4.913 Vereine</b> aus 238 Kreisen und allen 21 Landesverbänden</li>
+          <li><b>Deutschlandkarte:</b> Verband antippen, Kreis wählen, Verein wählen – oder suchen</li>
+          <li class="more">Spieler, Trikots und Plätze sind erfunden, die Namen nicht</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="kreisblatt">
+        <span class="num">04 / 07 · DIE SAISON</span>
+        <h2>Was schreibt das Kreisblatt?</h2>
+        <img class="thumb" src="docs/screenshots/kreisblatt.jpg" alt="Das Kreisblatt mit Schlagzeile, Ergebnis-Ticker, nächstem Gegner, Tabelle und Torjägern" width="1280" height="720" loading="lazy">
+        <ul>
+          <li><b>Kreisliga</b> mit Hin- und Rückrunde, die Nachbarstaffeln laufen mit</li>
+          <li><b>Kreisblatt</b> nach jedem Spieltag mit Ticker, Tabelle und Torjägern</li>
+          <li class="more"><b>Vorstand</b> mit Saisonziel, Vereinskasse mit Eintritt und Bratwurst</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="pokal">
+        <span class="num">05 / 07 · KREISPOKAL</span>
+        <h2>Den Pott in die Höhe!</h2>
+        <p>Zwischen den Spieltagen geht es im Kreispokal um alles – Freilos inklusive.</p>
+        <ul>
+          <li><b>K.-o.-Runden</b> gegen die Vereine aus deinem Kreis</li>
+          <li><b>Unentschieden?</b> Sofort Elfmeterschießen</li>
+          <li class="more"><b>Finale</b> auf neutralem Platz im Sportpark</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="bus">
+        <span class="num">06 / 07 · PLAYOFFS</span>
+        <h2>Einsteigen: Deutschlandtour!</h2>
+        <img class="thumb" src="docs/screenshots/playoffs.jpg" alt="Turnierbaum der Playoffs mit 16 Kreismeistern um die Goldene Eckfahne" width="1280" height="720" loading="lazy">
+        <ul>
+          <li><b>Meister werden</b> und gegen Kreismeister aus ganz Deutschland antreten</li>
+          <li><b>Achtelfinale bis Endspiel</b>, von Flensburg bis zum Bodensee</li>
+          <li class="more"><b>Kader und Wechselbörse:</b> mit Handgeld zum Titel</li>
+        </ul>
+      </article>
+
+      <article class="cap" data-scene="finale">
+        <span class="num">07 / 07 · ENDSPIEL</span>
+        <h2>Deine Legende beginnt.</h2>
+        <p>Unter Flutlicht um die Goldene Eckfahne. Kostenlos im Browser: am Computer mit Tastatur oder Gamepad, am Handy mit Touch. Ohne Anmeldung, ohne Werbung.</p>
+        <div class="cta">
+          <a class="btn main" href="game/" data-umami-event="spielen-klick" data-umami-event-ort="finale">▶ JETZT SPIELEN</a>
+          <a class="btn" href="#fussball-spiel">MEHR ZUM SPIEL</a>
+        </div>
+      </article>
+    </div>
+
+    <div class="hud" aria-hidden="true">
+      <div class="board"><span class="no" id="hudNo">00</span><span class="lbl" id="hudLbl">ANSTOSS</span></div>
+      <div class="court"><i></i><span class="fill" id="hudFill"></span><span class="ball" id="hudBall"></span></div>
+      <span class="hint">SCROLLEN ↓</span>
+    </div>
+  </div>
+</section>
+
+<section class="about" id="fussball-spiel" aria-labelledby="about-title">
+  <div class="about-inner">
+    <div class="about-head">
+      <span class="num">DAS SPIEL</span>
+      <h2 id="about-title">Das Fußballspiel für die Kreisliga</h2>
+      <p class="lead">Kreisliga-Legenden ist ein kostenloses Fußballspiel im Retro-Pixel-Look. Du spielst 11 gegen 11 auf Rasen, Kunstrasen oder Asche, mit deinem echten Verein aus einer von 238 Kreisligen, und führst ihn durch Liga, Kreispokal und die Playoffs um die deutsche Kreisliga-Meisterschaft.</p>
+      <a class="btn main big" href="game/" data-umami-event="spielen-klick" data-umami-event-ort="das-spiel">▶ JETZT KOSTENLOS SPIELEN</a>
+    </div>
+    <figure class="shot">
+      <img src="docs/screenshots/gameplay.jpg" alt="Kreisliga-Spiel auf Rasen mit Radar, Werbebanden und Zuschauern am Geländer" width="1280" height="720" loading="lazy">
+      <figcaption>Sonntag, 15 Uhr: Kreisliga auf dem Dorfsportplatz.</figcaption>
+    </figure>
+    <ul class="features">
+      <li><h3>Selbst spielen</h3><p>11 gegen 11 mit Abseits, Einwurf, Ecke, Freistoß mit Mauer, Elfmeter, Karten und Nachspielzeit. Pass mit Vorschau, Steilpass, Flanke, Schuss mit Aufladen, Kopfball, Tackling und Grätsche. Taktik mit fünf Formationen.</p></li>
+      <li><h3>Alle Vereine</h3><p>Alle rund 4.900 Vereine der höchsten Kreisspielklasse aus 238 Kreisen und 21 Landesverbänden. Auswahl über die Deutschlandkarte oder die Suche – keine endlosen Listen.</p></li>
+      <li><h3>Saison</h3><p>Kreisliga mit den Nachbarstaffeln, Kreispokal, Playoffs gegen Kreismeister aus ganz Deutschland. Kader, Aufstellung, Training, Vereinskasse, Wechselbörse und das Kreisblatt nach jedem Spieltag.</p></li>
+      <li><h3>Für alle</h3><p>Training mit sieben Lektionen, drei Schwierigkeitsstufen, zuschauen oder simulieren. Am Handy mit Touch-Steuerung. Im Browser ohne Download, ohne Anmeldung, ohne Werbung.</p></li>
+    </ul>
+    <div class="gallery">
+      <figure><img src="docs/screenshots/karte.jpg" alt="Vereinsauswahl mit Deutschlandkarte und den 21 Landesverbänden" width="1280" height="720" loading="lazy"><figcaption>Vereinswahl auf der Deutschlandkarte</figcaption></figure>
+      <figure><img src="docs/screenshots/hartplatz-regen.jpg" alt="Spiel auf dem Hartplatz bei Regen mit Pfützen" width="1280" height="720" loading="lazy"><figcaption>Asche bei Regen</figcaption></figure>
+      <figure><img src="docs/screenshots/mobile.jpg" alt="Spiel auf dem Handy mit Stick links und Knöpfen für Pass, Schuss und Flanke" width="1688" height="780" loading="lazy"><figcaption>Am Handy quer mit Touch</figcaption></figure>
+    </div>
+    <div class="faq" id="fragen">
+      <h2>Häufige Fragen</h2>
+      <details open><summary>Ist Kreisliga-Legenden kostenlos?</summary><p>Ja. Das Fußballspiel ist komplett kostenlos, ohne Werbung, ohne In-App-Käufe und ohne Anmeldung.</p></details>
+      <details><summary>Ist mein Verein dabei?</summary><p>Sehr wahrscheinlich: Dabei sind alle rund 4.900 Vereine der höchsten Kreisspielklasse (Herren) aus 238 Kreisen und allen 21 Landesverbänden, Saison 2026/27. Je nach Verband heißt die Liga Kreisliga, Kreisliga A, Kreisoberliga oder A-Klasse. Du wählst deinen Verein auf der Deutschlandkarte oder findest ihn über die Suche.</p></details>
+      <details><summary>Spielen echte Spieler mit?</summary><p>Nein. Nur die Vereinsnamen sind echt. Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Das Spiel ist kein offizielles Produkt des DFB, der Landesverbände oder der Vereine.</p></details>
+      <details><summary>Kann ich das Fußballspiel am Handy spielen?</summary><p>Ja. Kreisliga-Legenden läuft im Browser am Smartphone mit Touch-Steuerung: links ein Stick zum Laufen (weit ziehen ist Sprint), rechts PASS, SCHUSS und HOCH für Flanken. Einen Mitspieler antippen spielt ihm den Ball zu. Am besten im Querformat.</p></details>
+      <details><summary>Wie funktioniert die Steuerung?</summary><p>Am Computer laufen die Spieler mit den Pfeiltasten, die linke Hand macht die Aktionen: S passt, A spielt den Steilpass, D flankt, die Leertaste schießt (halten = fester), F ist ein Haken, Shift oder W ist Sprint. In der Abwehr wechselt S den Spieler, D ist das Tackling und die Leertaste die Grätsche. Ein Gamepad funktioniert auch.</p></details>
+      <details><summary>Ich habe noch nie ein Fußballspiel am Computer gespielt. Komme ich trotzdem rein?</summary><p>Ja. Das Training erklärt in sieben Lektionen Laufen, Passen, Steilpass, Schießen, Flanke und Kopfball, Abwehr und Standards. Dazu gibt es drei Schwierigkeitsstufen von Freizeitkick bis Legende.</p></details>
+      <details><summary>Was passiert in der Saison?</summary><p>Du übernimmst deinen Verein in seiner Kreisliga, spielst jeden Spieltag selbst, schaust zu oder simulierst. Nebenbei läuft der Kreispokal. Der Meister fährt zu den Playoffs gegen Kreismeister aus ganz Deutschland, bis zum Endspiel unter Flutlicht um die Goldene Eckfahne. Dazu Kader, Aufstellung, Training, Vereinskasse, Wechselbörse und das Kreisblatt.</p></details>
+      <details><summary>Wo wird mein Spielstand gespeichert?</summary><p>Im Browser auf deinem Gerät. Es wird nichts an uns übertragen.</p></details>
+      <details><summary>Unser Verein möchte nicht im Spiel sein. Was tun?</summary><p>Eine kurze Nachricht über die Kontaktdaten im Impressum genügt, dann nehmen wir den Namen heraus.</p></details>
+    </div>
+    <div class="final-cta">
+      <p>RAUF AUF DEN PLATZ!</p>
+      <a class="btn main big" href="game/" data-umami-event="spielen-klick" data-umami-event-ort="schluss">▶ JETZT SPIELEN</a>
+    </div>
+    <p class="en" lang="en"><b>English:</b> Kreisliga-Legenden is a free retro football (soccer) game that runs in your browser on desktop and mobile: play 11 vs 11 with all ~4,900 real clubs of Germany's district leagues, pick your club on a map of Germany, and lead it through the league, the district cup and a nationwide playoff for the Golden Corner Flag. Club names are real, players and ratings are fictional. The game is in German.</p>
+  </div>
+</section>
+
+<section class="family" id="legenden" aria-labelledby="family-title">
+  <div class="family-inner">
+    <span class="num">DIE LEGENDEN-FAMILIE</span>
+    <h2 id="family-title">Noch mehr Legenden</h2>
+    <p class="lead">Kreisliga-Legenden hat Geschwister mit derselben Technik: Pixel-Look, volle Ränge, Karriere und Zeitung. Auch kostenlos im Browser.</p>
+    <div class="sibs">
+      <a class="sib" href="https://hallenlegenden.de/" data-umami-event="legenden-klick" data-umami-event-ziel="hallenlegenden" data-umami-event-ort="familie">
+        <span class="icon" aria-hidden="true">🤾</span>
+        <span class="tag">HANDBALL · 7 GEGEN 7</span>
+        <h3>Hallen-Legenden</h3>
+        <p>Das Original: Handball mit Kempa-Trick, 7-Meter und Torwart-Paraden, dazu eine Karriere mit Liga, Pokal und Europapokal bis zum Final Four.</p>
+        <span class="go">HALLENLEGENDEN.DE →</span>
+      </a>
+      <a class="sib" href="https://korblegenden.de/" data-umami-event="legenden-klick" data-umami-event-ziel="korblegenden" data-umami-event-ort="familie">
+        <span class="icon" aria-hidden="true">🏀</span>
+        <span class="tag">BASKETBALL · 5 GEGEN 5</span>
+        <h3>Korb-Legenden</h3>
+        <p>Dunks, Crossover und Dreier mit Timing, am Computer auch zu zweit, dazu eine Karriere mit Liga, Pokal und Europapokal.</p>
+        <span class="go">KORBLEGENDEN.DE →</span>
+      </a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <p>Echte Vereinsnamen (Stand Herbst 2026, Quelle: öffentliche Tabellen auf fussball.de). Spieler, Werte, Trikots, Plätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine.</p>
+    <p>© 2026 Tobias Wilhelm · <a href="https://github.com/tobwil/kreisligalegenden" data-umami-event="github-klick">Quellcode auf GitHub</a> · Lizenz: PolyForm Noncommercial · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></p>
+  </div>
+</footer>
+
+<script src="assets/karte.js"></script>
+<script src="assets/story.js"></script>
+</body>
+</html>

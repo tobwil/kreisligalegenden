@@ -316,6 +316,7 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 @media (max-width:560px){.subs{grid-template-columns:1fr}}
 .bracket .bt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.logo,.logo::after,.press{animation:none}}
+#menu a{color:var(--gold)}
 /* Vereinsauswahl: Karte, Verbände, Kreise, Suche */
 .picker{display:flex;flex-direction:column;gap:8px}
 .pkbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
@@ -3253,6 +3254,7 @@ const ACT = {
       <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (Quelle: öffentliche Tabellen auf fussball.de). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Kurze Nachricht über das Impressum genügt.</p>
       <p>Kostenlos, ohne Werbung, ohne Anmeldung. Spielstände bleiben nur ${ON_WEB ? 'in deinem Browser' : 'auf diesem Gerät'}.</p>
       <p class="muted">Aus der Familie von Hallen-Legenden und Korb-Legenden. Schriften: Press Start 2P und VT323 (SIL Open Font License).</p>
+      ${ON_WEB ? '<p class="muted"><a href="../">Startseite mit Story</a> · <a href="../impressum.html">Impressum</a> · <a href="../datenschutz.html">Datenschutz</a></p>' : ''}
       <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
   },
   options() {
@@ -3421,7 +3423,7 @@ function startMatch(ta, tb, o) {
   newMatch(ta, tb, o); G.opts = o;
   if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
-  track('spiel-start', { modus: o.career ? 'saison' : 'freundschaftsspiel' });
+  track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });
 }
 function joinGame() { if (!G || !G.watch) return; G.watch = false; G.ff = 1; G.ctrl = nearestTo(G.human, G.ball.x, G.ball.y); clearEdges(); }
 function startDemo() {
@@ -3520,7 +3522,7 @@ function newCareer(team, len, diff, hlen) {
   newSeason(); refreshMarket();
   news('Saisonstart', `${TEAMS[team].n}: Auf geht's!`, `Neuer Trainer an der Seitenlinie. Der Vorstand hofft auf eine gute Saison in der ${lgName()} – und auf volle Bratwurstbuden.`, 'start');
   saveCareer();
-  track('saison-start', { verein: TEAMS[team].k });
+  track('saison-start', { verein: TEAMS[team].n, verband: verbOf(team).n });
 }
 function newSeason() {
   const C = CAREER, S = C.S = { year: C.year, tables: {}, cal: [], ci: 0, results: [], po: null, cup: null, done: false, scorers: {}, last: null };
@@ -4182,7 +4184,7 @@ function checkTutDone() {
 }
 function nextLesson() {
   const T = G.tut; T.i++; T.n = 0; T.done = false;
-  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
+  if (T.i >= LESSONS.length) { store.set(TUT_KEY, true); track('training-fertig'); hideTutBox(); G.paused = true; G.tut = null; return ACT.tutDone(); }
   tutSetup();
 }
 // pro Bild: Markierungen, Haltepositionen, Ballverlust, Neustart

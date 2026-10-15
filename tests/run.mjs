@@ -346,6 +346,34 @@ test('Darstellung: alle Platzarten (Rasen, Kunstrasen, Hartplatz), Nacht im Fina
 });
 
 
+test('Startseite: Story läuft durch alle sieben Szenen ohne Fehler, Links zu Spiel, Impressum und Datenschutz', async () => {
+  for (const o of [DESKTOP, MOBILE]) {
+    const ctx = await browser.newContext({ ...o, reducedMotion: 'reduce' }), page = await ctx.newPage(), errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    page.on('requestfailed', r => errors.push('fehlt: ' + r.url()));
+    await page.goto(GAME.replace(/game\/index\.html$/, 'index.html'), { timeout: 60000 }); await page.waitForTimeout(500);
+    const kinds = [];
+    const n = await page.evaluate(() => __story.TL.length);
+    for (let i = 0; i < n; i++) {
+      await page.evaluate(i => { const t = __story.TL[i]; scrollTo(0, (t.u0 + (t.u1 - t.u0) / 2) * __story.unitPx()); }, i);
+      await page.waitForTimeout(250);
+      kinds.push(await page.evaluate(() => __story.state().kind));
+    }
+    const links = await page.evaluate(() => [...document.querySelectorAll('a')].map(a => a.getAttribute('href')));
+    ok(['intro', 'tor', 'karte', 'kreisblatt', 'pokal', 'bus', 'finale'].every(k => kinds.includes(k)), 'Szenen: ' + kinds);
+    ok(links.includes('game/') && links.includes('impressum.html') && links.includes('datenschutz.html'), 'Links fehlen');
+    ok(!errors.length, errors.join('; ')); await ctx.close();
+  }
+  for (const f of ['impressum.html', 'datenschutz.html']) {
+    const ctx = await browser.newContext(DESKTOP), page = await ctx.newPage(), errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(GAME.replace(/game\/index\.html$/, f)); await page.click('.card .reveal');
+    const mail = await page.evaluate(() => document.querySelector('[data-k="mail"]').textContent);
+    ok(/@/.test(mail), f + ': Kontakt wird nicht angezeigt');
+    ok(!errors.length, errors.join('; ')); await ctx.close();
+  }
+});
+
 test('Training: alle 7 Lektionen mit der Tastatur durchspielbar (Laufen, Passen, Steilpass, Schießen, Flanke, Abwehr, Standards)', async () => {
   const { page, ctx, errors } = await open();
   const log = await page.evaluate(() => {
