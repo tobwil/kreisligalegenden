@@ -109,25 +109,53 @@ function kitFromName(n, r) {
 // Kurzname: Vereinskürzel, Jahreszahlen und Traditionsnamen weg, der Ort bleibt ("TSV 1860 Staffelstein" -> "Staffelstein")
 const TRAD = new Set('germania eintracht eintr. viktoria victoria concordia borussia fortuna alemannia teutonia union arminia preußen preussen westfalia rhenania olympia sportfreunde sportfr. spfr. kickers hertha tasmania normannia hansa vorwärts dynamo lok lokomotive stahl motor empor traktor aufbau chemie einheit fortschritt turbine inter rapid sparta glückauf glück-auf wacker phönix phoenix jahn frisch auf grün-weiß blau-weiß rot-weiß schwarz-weiß rot-weiss blau-weiss grün-weiss schwarz-weiss blau-gelb gelb-schwarz schwarz-gelb rot-schwarz schwarz-rot blau-rot rot-blau grün-gelb türkspor türkgücü türkiyemspor croatia hellas polonia sportclub sportverein spielvereinigung turnverein sportgemeinschaft spielgemeinschaft fußballverein fussballverein fußballclub fussballclub tura tus turn- sport- club spvgg. spvg. spvgg spvg sg sv tsv fc sc vfb vfl vfr djk post bahn eisenbahn polizei werder'.split(' '));
 const isAbbr = w => /^\d+\.?$/.test(w) || /^\d{2,4}(\/\d{2,4})?$/.test(w) || /^[A-ZÄÖÜ0-9.\-]{1,6}$/.test(w) && /[A-ZÄÖÜ]/.test(w) && w !== w[0] + w.slice(1).toLowerCase() || /^[A-ZÄÖÜ][a-zäöü]{0,3}[A-ZÄÖÜ][A-Za-zäöü]{0,3}\.?$/.test(w) || /^[A-ZÄÖÜ]{1,4}-[A-ZÄÖÜ]{1,4}$/.test(w);
-function shortName(n) {
+// abgekürzte Wörter aus den Tabellen („Mün.“, „Nbg.“, „Germ.“, „Vikt.“, „Ober-u.“) taugen nicht als Ortsname; „St.“ bleibt (St. Johann)
+const dotWord = w => /\.$/.test(w) && w.length <= 7 && !/^(St|Sankt)\.$/.test(w) && !/^[a-zäöü]\.$/.test(w);   // „a. Main“ bleibt
+// Großstädte: steht nur die Stadt im Kurznamen, sieht man den Verein nicht („München III“) – dann kommt die Vereinskennung dazu
+const BIGCITY = new Set('Berlin Hamburg München Köln Frankfurt Stuttgart Düsseldorf Dortmund Essen Leipzig Bremen Dresden Hannover Nürnberg Duisburg Bochum Wuppertal Bielefeld Bonn Münster Mannheim Karlsruhe Augsburg Wiesbaden Gelsenkirchen Mönchengladbach Braunschweig Kiel Chemnitz Aachen Halle Magdeburg Freiburg Krefeld Mainz Lübeck Erfurt Oberhausen Rostock Kassel Hagen Saarbrücken Potsdam Ludwigshafen Oldenburg Leverkusen Osnabrück Solingen Heidelberg Darmstadt Regensburg Ingolstadt Würzburg Wolfsburg Offenbach Ulm Heilbronn Pforzheim Göttingen Bottrop Trier Recklinghausen Reutlingen Bremerhaven Koblenz Jena'.split(' '));
+function shortName(n, dots = false) {
   let suf = '';
   const sm = n.match(/\s+(II|III|IV|V|U\d\d)$/); if (sm) { suf = ' ' + sm[1]; n = n.slice(0, sm.index); }
   n = n.replace(/\s+(I|1\.)$/, '').replace(/(Rot|Blau|Grün|Schwarz|Weiß|Weiss|Gelb|Gold)[- ](Rot|Blau|Grün|Schwarz|Weiß|Weiss|Gelb|Gold)/gi, ' ');
-  const core = s => {
-    const ws = s.replace(/[()]/g, ' ').split(/\s+/).filter(Boolean).filter(w => !isAbbr(w) && !TRAD.has(w.toLowerCase()));
+  const s0 = shortCore(n, dots);
+  if (s0.length === 1 && BIGCITY.has(s0[0])) {   // nur die Großstadt: Vereinskennung davor (Traditionsname, Jahreszahl oder Kürzel direkt vor der Stadt)
+    const city = s0[0], part = n.split('/')[0].includes(city) ? n.split('/')[0] : n, ws = part.replace(/[()]/g, ' ').split(/\s+/).filter(w => w && !/^[-–\/&+]+$/.test(w) && !dotWord(w) && !/^[a-zäöü]+\.?$/.test(w)), ci = ws.indexOf(city);
+    const num = w => /^[\d\/.]+$/.test(w);
+    const id = ws.find(w => w !== city && !isAbbr(w) && !GENERIC.has(w)) || ws.find(w => /^(18|19|20)\d\d$/.test(w)) || (ci > 0 && isAbbr(ws[ci - 1]) && !GENERIC.has(ws[ci - 1]) && !num(ws[ci - 1]) ? ws[ci - 1] : null)
+      || ws.find(w => w !== city && isAbbr(w) && !GENERIC.has(w) && !num(w)) || (ci > 0 && !num(ws[ci - 1]) ? ws[ci - 1] : null) || ws.find(w => w !== city && isAbbr(w) && !num(w));
+    if (id && (id + ' ' + city).length <= 16) return id + ' ' + city + suf;
+    if (id && !isAbbr(id)) return id + suf;   // langer Stadtname: der Traditionsname allein („Croatia“, „Borussia“)
+  }
+  if (!dots && s0.length && s0.every(dotWord)) {   // nur Abkürzungen übrig („FC Teutonia Mün.“): lieber der Traditionsname, sonst die Orte mit Schrägstrich
+    const all = n.split(/[\s\/]+/).filter(Boolean), tr = all.find(w => TRAD.has(w.toLowerCase()) && !dotWord(w) && !isAbbr(w));
+    if (tr) return tr + suf;
+    if (n.includes('/')) { const j = n.replace(/\s+(II|III|IV|V)$/, '').split('/').map(x => x.trim().split(/\s+/).filter(w => (!isAbbr(w) || dotWord(w)) && !GENERIC.has(w)).join(' ')).filter(Boolean).slice(0, 2).join('/'); if (j.length <= 16) return j + suf; }
+  }
+  return shortFrom(n, s0) + suf;
+}
+// gängige Vereinskürzel, die allein nichts über den Verein sagen
+const GENERIC = new Set('FC SV TSV SC SG SpVgg SpVg TuS VfB VfL VfR ESV FSV SSV TSG TV BSC SpG JSG FSG ASV DJK SpVgg. TSC SGM'.split(' '));
+function shortCore(n, keepDots = false) {
+  const core = (s, dots) => {
+    const ws = s.replace(/[()]/g, ' ').split(/\s+/).filter(Boolean).filter(w => !isAbbr(w) && !TRAD.has(w.toLowerCase()) && !/^[-–\/&+]+$/.test(w) && (dots || !dotWord(w)));
     while (ws.length && /^(a\.|i\.|v\.|am|an|im|in|der|die|von|vom|zu|und|e\.|b\.)$/i.test(ws[ws.length - 1])) ws.pop();
     while (ws.length && /^(a\.|i\.|am|an|im|in|der|die|von|vom|zu|und|e\.|b\.)$/i.test(ws[0])) ws.shift();
     return ws;
   };
   n = n.replace(/(^|\s)[RBGSW]\/[RBGSW](?=\s)/g, ' ');
-  let ws = core(n.split('/')[0]); if (ws.join('').length < 3) ws = core(n.replace(/\//g, ' '));
-  if (!ws.length) return (n.length > 16 ? n.slice(0, 15) + '.' : n) + suf;
-  let s = ws.slice(0, 3).join(' ');
-  if (s.length > 15) s = ws.slice(0, 2).join(' ');
-  if (s.length > 15) s = ws[0];
-  if (s.length > 15 && s.includes('-')) s = s.split('-')[0];
+  let ws = core(n.split('/')[0], keepDots); if (ws.join('').length < 3) ws = core(n.replace(/\//g, ' '), keepDots);
+  if (!ws.length) { ws = core(n.split('/')[0], true); if (ws.join('').length < 3) ws = core(n.replace(/\//g, ' '), true); }   // nur Abkürzungen: dann doch die
+  return ws;
+}
+function shortFrom(n, ws) {
+  if (!ws.length) return n.length > 16 ? n.slice(0, 15) + '.' : n;
+  const take = k => { const w = ws.slice(0, k); while (w.length > 1 && /^(a\.|i\.|v\.|b\.|u\.|am|an|im|in|der|die|von|vom|zu|und)$/i.test(w[w.length - 1])) w.pop(); return w.join(' '); };   // nicht auf „a.“ enden
+  let s = take(3);
+  if (s.length > 15) s = take(2);
+  if (s.length > 15) s = BIGCITY.has(ws[0]) && ws[1] && ws[1].length <= 15 ? ws[1] : ws[0];   // „Hamburg Hurricanes“ → „Hurricanes“
+  if (s.length > 15 && s.includes('-')) { const p = s.split('-'); s = BIGCITY.has(p[0]) ? p[p.length - 1] : p[0]; }   // „Stuttgart-Münster“ → „Münster“
   if (s.length > 16) s = s.slice(0, 15) + '.';
-  return s + suf;
+  return s;
 }
 // Kürzel aus drei Buchstaben des Ortsnamens, eindeutig innerhalb des Kreises
 function uniqueK(v, used) {
@@ -157,7 +185,7 @@ for (const [vid, vn, kl, kreise] of VDB) {
         let t;
         if (hm) { used.add(hm[1]); t = { k: hm[1], n: hm[2], short: hm[3], c1: hm[4], c2: hm[5], r: KL_BASE, ground: hm[7], pat: hm[8] }; }
         else {
-          let s = shortName(n); if (shorts.has(s)) s = n.length > 16 ? n.slice(0, 15) + '.' : n;
+          let s = shortName(n); if (shorts.has(s)) s = shortName(n, true); if (shorts.has(s)) s = n.length > 16 ? n.slice(0, 15) + '.' : n;
           const [c1, c2] = kitFromName(n, r), q = r();
           void ppg;   // Punkte pro Spiel aus der echten Tabelle: bewusst ungenutzt, alle Vereine starten gleich stark
           const rating = KL_BASE;

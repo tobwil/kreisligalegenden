@@ -434,6 +434,23 @@ test('Spielerwechsel in der Abwehr: Verteidiger vor dem Gegner statt des überla
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang, Großstadt-Reserven mit Vereinskennung, eindeutig je Liga', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const bad = TEAMS.filter(t => /^[-–\/]/.test(t.short) || /\.$/.test(t.short) && t.short.length <= 7).map(t => t.n + ' → ' + t.short);
+    const dup = []; for (const L of LIGEN) { const s = L.ids.map(i => TEAMS[i].short); s.forEach((x, i) => { if (s.indexOf(x) !== i) dup.push(x); }); }
+    const want = { 'FC Teutonia Mün.': 'Teutonia', 'SC Germania Nbg.': 'Germania', 'Rhen. Rheindürkheim': 'Rheindürkheim', 'FSV Alem. Laubenheim': 'Laubenheim', 'Vikt. Neuenhaßlau': 'Neuenhaßlau',
+      'FC Germ. Wächtersbach': 'Wächtersbach', 'Germ. Kl.-Krotzenburg': 'Kl.-Krotzenburg', 'SV Gr. Ellershausen/Hetj.': 'Ellershausen', 'TuS Westf. Neuenkirchen': 'Neuenkirchen',
+      'BV Berg. Neukirchen': 'Neukirchen', 'TSV 54 - DJK München': 'DJK München', 'TSV 1860 München III': '1860 München III', 'TSV 1860 Staffelstein': 'Staffelstein' };
+    const wrong = Object.entries(want).map(([n, w]) => { const t = TEAMS.find(x => x.n === n); return t && t.short !== w ? `${n} → ${t.short} (erwartet ${w})` : null; }).filter(Boolean);
+    return { bad, dup, wrong };
+  });
+  ok(!r.bad.length, 'kaputte Kurznamen: ' + r.bad.join(', '));
+  ok(!r.dup.length, 'doppelte Kurznamen in einer Liga: ' + r.dup.join(', '));
+  ok(!r.wrong.length, r.wrong.join('; '));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
