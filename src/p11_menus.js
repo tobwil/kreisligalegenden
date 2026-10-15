@@ -74,19 +74,22 @@ const ACT = {
   qmode(arg) { QUICK.mode = arg; renderQuick(`[data-act="qmode"][data-arg="${arg}"]`); },
   qstart() { startMatch(QUICK.a, QUICK.b, { human: 0, watch: QUICK.mode === 'watch' }); },
   controls() {
+    const L = LAY(), N = L.keyN, k = x => x === 'LEER' ? 'LEERTASTE' : x, alt = q => (L[q] || []).slice(1).map(c => c.replace(/^Key/, '').replace(/^(Shift)(Left|Right)$/, 'SHIFT').replace('Space', 'LEERTASTE')).filter((v, i, A) => A.indexOf(v) === i && v !== k(N[q]));
+    const ks = q => [k(N[q])].concat(alt(q)).join(' / ');
     show(`<div class="panel narrow"><h2>STEUERUNG</h2>
+      <div class="row"><span class="tag">TASTATUR</span>${Object.entries(LAYOUTS).map(([id, l]) => `<button class="small ${SETTINGS.keys === id || (!LAYOUTS[SETTINGS.keys] && id === 'wasd') ? 'on' : ''}" data-act="optKeys" data-arg="${id}">${l.n}</button>`).join('')}</div>
       <div class="keys">
-        <b>PFEILE</b><span>Laufen. Die Belegung ist wie bei EA FC am PC (klassisch) – wer FIFA kennt, ist sofort drin</span>
-        <b>S</b><span>Angriff: Pass in Pfeilrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Schon drücken, während der Ball kommt = Direktpass. Abwehr: Spieler wechseln</span>
-        <b>W</b><span>Angriff: Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
-        <b>A</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: Grätsche (Ball zuerst treffen!)</span>
-        <b>D / LEERTASTE</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), Pfeil hoch/runter zielt in die Ecke. Kommt der Ball gerade: Direktschuss, Volley oder Kopfball. Abwehr: Tackling (nur von vorn, von hinten gibt es Fouls)</span>
-        <b>Q</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
-        <b>SHIFT / E</b><span>Sprint (kostet Kraft)</span>
-        <b>T</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
+        <b>${L.moveN.toUpperCase()}</b><span>Laufen${L.move[0] === 'KeyW' ? ' (die Pfeiltasten gehen auch)' : ''}</span>
+        <b>${ks('a')}</b><span>Angriff: Pass in Laufrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Kurz bevor ein Pass bei dir ankommt drücken = Direktpass. Abwehr: Spieler wechseln</span>
+        <b>${ks('k')}</b><span>Angriff: Steilpass in den Lauf. Abwehr: halten = ein Mitspieler presst mit</span>
+        <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball. Abwehr: Grätsche (Ball zuerst treffen!)</span>
+        <b>${ks('b')}</b><span>Angriff: Schuss – halten lädt auf (grün flach, gelb hoch, rot drüber), ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Abwehr: Tackling (nur von vorn, von hinten gibt es Fouls)</span>
+        <b>${ks('f')}</b><span>Angriff: Haken – Richtungswechsel mit Antritt. Abwehr: Spieler wechseln</span>
+        <b>${ks('s')}</b><span>Sprint (kostet Kraft)</span>
+        <b>T / TAB</b><span>Taktik & Wechsel: Formation, Ausrichtung, Auswechslungen (5 Wechsel)</span>
         <b>ESC / P</b><span>Pause · M: Ton an/aus</span>
-        <b>TORWART</b><span>Hat dein Torwart den Ball: S abwerfen, D oder A abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
-        <b>STANDARDS</b><span>Einwurf: Richtung + S · Ecke: A (Richtung = kurzer oder langer Pfosten) · Freistoß: D halten = Schuss, S Pass, A Flanke · Elfmeter: D halten, Richtung = Ecke</span>
+        <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
+        <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke: ${k(N.c)} (Richtung = kurzer oder langer Pfosten) · Freistoß: ${k(N.b)} halten = Schuss, ${k(N.a)} Pass, ${k(N.c)} Flanke · Elfmeter: ${k(N.b)} halten, Richtung = Ecke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass · B Schuss · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
         <b>TOUCH</b><span>Stick links (weit ziehen = Sprint) · PASS (lang drücken = Steilpass) · SCHUSS halten · HOCH = Flanke/hoher Ball. Abwehr: WECHSEL, TACKLING, GRÄTSCHE. Mitspieler antippen = Pass zu ihm</span>
       </div>
@@ -119,11 +122,13 @@ const ACT = {
         <span>Wiederholung nach Toren</span>${tog(SETTINGS.replay !== false, 'optReplay', 'AN', 'AUS')}
         <span>Radar</span>${tog(SETTINGS.radar, 'optRadar', 'AN', 'AUS')}
         <span>Steuerhilfen</span><div class="row">${[['auto', 'AUTO'], ['1', 'AN'], ['0', 'AUS']].map(([v, n]) => `<button class="small ${String(SETTINGS.helps === true ? '1' : SETTINGS.helps === false ? '0' : 'auto') === v ? 'on' : ''}" data-act="optHelps" data-arg="${v}">${n}</button>`).join('')}</div>
+        <span>Tastatur</span><div class="row">${Object.entries(LAYOUTS).map(([id, l]) => `<button class="small ${SETTINGS.keys === id ? 'on' : ''}" data-act="optKeys" data-arg="${id}">${l.n}</button>`).join('')}</div>
         <span>Spieltempo</span><div class="row">${[[0.85, 'RUHIG'], [1, 'NORMAL'], [1.15, 'SCHNELL']].map(([s, n]) => `<button class="small ${SETTINGS.speed === s ? 'on' : ''}" data-act="optSpeed" data-arg="${s}">${n}</button>`).join('')}</div>
       </div>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button></div></div>`, { back: () => ACT.back() });
     menu.querySelectorAll('[data-vol]').forEach(el => el.addEventListener('input', () => { AU.init(); AU.setVol(el.dataset.vol, el.value / 100); }));
   },
+  optKeys(a) { SETTINGS.keys = a; saveSettings(); const back = menu.querySelector('.keys') ? ACT.controls : ACT.options; back(); },
   optSound(a) { if ((a === '1') !== AU.on) AU.toggle(); ACT.options(); },
   optSpeaker(a) { AU.vol.speaker = a === '1'; store.set(AUDIO_KEY, AU.vol); ACT.options(); },
   optH(a) { SETTINGS.hlen = +a; saveSettings(); ACT.options(); },

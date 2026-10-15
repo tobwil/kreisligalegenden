@@ -277,14 +277,27 @@ addEventListener('keyup', e => { KEY[e.code] = false; });
 addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
 const prevIN = { a: false, b: false, c: false, k: false, f: false, st: false };
 const K = (...c) => c.some(k => KEY[k] || KEYP[k]);
+// Tastatur-Belegungen. Bedeutung der Aktionen: a Pass (Abwehr: wechseln), b Schuss (Tackling), c Flanke/hoher Ball (Grätsche),
+// k Steilpass (Druck), f Haken (wechseln), s Sprint
+const LAYOUTS = {
+  // linke Hand läuft, rechte Hand wie die Knöpfe am Gamepad: K unten = Pass, L rechts = Schuss, J links = Flanke, I oben = Steilpass
+  wasd: { n: 'WASD + IJKL', move: ['KeyW', 'KeyS', 'KeyA', 'KeyD'], moveN: 'WASD', a: ['KeyK'], b: ['KeyL'], c: ['KeyJ'], k: ['KeyI'], f: ['KeyU', 'KeyO'], s: ['ShiftLeft', 'ShiftRight', 'Space'],
+    keyN: { a: 'K', b: 'L', c: 'J', k: 'I', f: 'U', s: 'SHIFT' } },
+  // EA FC am PC (klassisch): Pfeile laufen, linke Hand für die Aktionen
+  fc: { n: 'EA FC KLASSISCH', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['KeyD', 'Space'], c: ['KeyA'], k: ['KeyW'], f: ['KeyQ', 'KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyE'],
+    keyN: { a: 'S', b: 'D', c: 'A', k: 'W', f: 'Q', s: 'SHIFT' } },
+  // wie Hallen- und Korb-Legenden: Pfeile laufen, Leertaste schießt
+  legenden: { n: 'LEGENDEN', move: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], moveN: 'Pfeiltasten', a: ['KeyS'], b: ['Space'], c: ['KeyD'], k: ['KeyA'], f: ['KeyF'], s: ['ShiftLeft', 'ShiftRight', 'KeyW'],
+    keyN: { a: 'S', b: 'LEER', c: 'D', k: 'A', f: 'F', s: 'SHIFT' } },
+};
+const LAY = () => LAYOUTS[SETTINGS.keys] || LAYOUTS.wasd;
 function readInput(dt) {
   let x = 0, y = 0, a, b, c, s, k, f, st = false;
-  // Belegung wie EA FC am PC (klassisch) und ISS: Pfeile laufen, S Pass, W Steilpass, A Flanke/hoher Ball, D oder Leertaste Schuss,
-  // Q oder F Haken, Shift oder E Sprint. Abwehr: S Spieler wechseln, D Tackling, A Grätsche, W Mitspieler presst. (J/K/L/I gehen auch)
-  if (K('ArrowLeft')) x -= 1; if (K('ArrowRight')) x += 1;
-  if (K('ArrowUp')) y -= 1; if (K('ArrowDown')) y += 1;
-  a = K('KeyS', 'KeyJ'); b = K('KeyD', 'Space', 'KeyK'); c = K('KeyA', 'KeyL'); k = K('KeyW', 'KeyI'); f = K('KeyQ', 'KeyF');
-  s = K('ShiftLeft', 'ShiftRight', 'KeyE');
+  // Tastatur nach gewählter Belegung (Optionen); bei WASD laufen die Pfeiltasten zusätzlich
+  const L = LAY(), [mu, md, ml, mr] = L.move, arrows = L.move[0] !== 'ArrowUp';
+  if (K(ml) || (arrows && K('ArrowLeft'))) x -= 1; if (K(mr) || (arrows && K('ArrowRight'))) x += 1;
+  if (K(mu) || (arrows && K('ArrowUp'))) y -= 1; if (K(md) || (arrows && K('ArrowDown'))) y += 1;
+  a = K(...L.a); b = K(...L.b); c = K(...L.c); k = K(...L.k); f = K(...L.f); s = K(...L.s);
   if (navigator.getGamepads) for (const gp of navigator.getGamepads()) {
     if (!gp) continue;
     const bt = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;

@@ -86,8 +86,10 @@ function humanControl(dt) {
       else { c.holdT = (c.holdT || 0) + dt; if (c.holdT > 5) gkHold(c, 99); }
       return;
     }
-    if (IN.b) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85); }
-    if (IN.rb && c.charge > 0) { const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); return; }
+    // Schuss nur aufladen, wenn die Taste mit dem Ball am Fuß gedrückt wurde (nicht noch vom Tackling gehalten)
+    if (IN.pb) c.chargeArm = true;
+    if (IN.b && c.chargeArm) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85); }
+    if (IN.rb && c.chargeArm && c.charge > 0) { c.chargeArm = false; const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0); return; }
     if (IN.pa) { pass(c, choosePass(c, IN.x, IN.y)); return; }
     if (IN.pk) { through(c, choosePass(c, IN.x, IN.y, 'through')); return; }
     if (IN.pc) {
@@ -98,13 +100,17 @@ function humanControl(dt) {
     }
     if (IN.pf) trick(c, IN.x, IN.y);
   } else {
-    c.charge = 0;
-    if (incoming || (!b.owner && dist(c.x, c.y, b.x, b.y) < 6)) {
-      // Direktabnahme vormerken: Schuss, Pass, Steilpass
+    c.charge = 0; c.chargeArm = false;
+    const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
+    if (incoming && b.passer && b.passer.team === me && eta < 1.1) {
+      // Direktabnahme vormerken (nur kurz bevor ein Pass bei dir ankommt): Schuss, Pass, Steilpass
       if (IN.pb) c.queue = { k: 'shot', t: G.t }; else if (IN.pa) c.queue = { k: 'pass', t: G.t, x: IN.x, y: IN.y }; else if (IN.pk) c.queue = { k: 'through', t: G.t, x: IN.x, y: IN.y };
       else if (IN.pc && !ours) c.queue = { k: 'cross', t: G.t };
+    } else if (incoming) {
+      // Pass zu dir noch unterwegs: nichts auslösen, der Spieler läuft dem Ball entgegen
     } else if (!ours) {
       // Abwehr wie EA FC: Pass-Taste oder Q wechselt, Schuss-Taste tackelt, Flanken-Taste grätscht
+      if (!b.owner && dist(c.x, c.y, b.x, b.y) < 3) { if (IN.pc) slide(c, IN.x, IN.y); return; }   // loser Ball direkt vor dir: hinlaufen statt wechseln
       if (IN.pa || IN.pf) switchPlayer();
       if (IN.pb) tackle(c, b.owner && b.owner.team !== me && !isGK(b.owner) && dist(c.x, c.y, b.owner.x, b.owner.y) < 1.8 ? b.owner : null);
       if (IN.pc) slide(c, IN.x, IN.y);
@@ -366,7 +372,7 @@ function tryCollect() {
     b.vx = b.vx * -0.25 + rnd(-3, 3); b.vy = b.vy * 0.3 + rnd(-3, 3); b.vz = rnd(0.5, 2.5); b.last = p; b.lastTeam = p.team; b.fid++; b.shot = null; b.nc = p; b.ncT = 0.25; b.kind = 'loose'; AU.touch(); return;
   }
   // Direktabnahme
-  const q = p.queue && G.t - p.queue.t < 1.6 ? p.queue : null;
+  const q = p.queue && G.t - p.queue.t < 0.9 ? p.queue : null;
   const wasCross = b.kind === 'cross' || b.kind === 'lob', fromMate = b.passer && b.passer.team === p.team;
   const lastB = b.passer;
   giveBall(p, true); AU.touch();
