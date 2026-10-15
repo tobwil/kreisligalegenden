@@ -115,7 +115,7 @@ function stickGesture(x, y, now) {
     b.addEventListener('pointermove', e => {
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
-      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
+      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.cpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
