@@ -6,7 +6,7 @@ JS="d_karte.js d_vereine.js p01_core.js p02_audio.js p03_sprites.js p04_pitch.js
 TITLE='Kreisliga-Legenden spielen – Fußball 11 gegen 11 im Retro-Pixel-Look'
 DESC='Fußball im Browser: Kreisliga im Retro-Pixel-Look mit allen Kreisliga-Vereinen Deutschlands, Saison mit Kreispokal, Meisterschaft und Playoffs um die deutsche Kreisliga-Krone. Kostenlos, am Computer und am Handy.'
 # Nutzungsstatistik (Umami Cloud, ohne Cookies): Website-ID eintragen, dann zählt sie nur auf kreisligalegenden.de und nicht bei „Do Not Track“
-UMAMI_ID=''
+UMAMI_ID='f4b1de32-7b96-43cb-9ff1-987bbe214049'
 mkdir -p ../game
 {
   echo '<!doctype html>'
