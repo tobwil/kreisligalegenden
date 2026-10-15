@@ -56,7 +56,8 @@ const ACT = {
     const sv = loadCareerSave(), ok = !!sv;
     show(`<div class="panel narrow"><div class="title"><h1 class="logo" style="font-size:clamp(16px,3.6vw,34px)">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
       <div class="btns menu-list">
-        <button class="main" data-act="quick" autofocus>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
+        ${savedMatch() ? `<button class="main" data-act="resumeMatch" autofocus>SPIEL FORTSETZEN <i>${esc(savedInfo())}</i></button>` : ''}
+        <button class="${savedMatch() ? '' : 'main'}" data-act="quick" ${savedMatch() ? '' : 'autofocus'}>FREUNDSCHAFTSSPIEL <i>1 gegen CPU</i></button>
         <button data-act="career">${ok ? 'SAISON FORTSETZEN' : 'SAISON'} <i>${ok ? `${esc(TEAMS[sv.team].short)} · ${seasonLabel(sv.year)}` : 'Kreisliga, Meisterschaft, Playoffs'}</i></button>
         <button data-act="training">TRAINING <i>${store.get(TUT_KEY) ? 'Steuerung üben' : 'neu? Hier lernst du alles'}</i></button>
         <button data-act="erfolge">ERFOLGE <i>Stufe ${lpLevel(PROF.lp)} · ${Object.keys(PROF.ach).length}/${ACHS.length} Abzeichen</i></button>
@@ -155,13 +156,14 @@ const ACT = {
         <button data-act="statsNow">STATISTIK</button>
         <button data-act="controls">STEUERUNG</button>
         <button data-act="options">OPTIONEN</button>
+        ${!G.watch && !G.so ? '<button data-act="saveQuit">SPEICHERN & BEENDEN <i>später im Hauptmenü fortsetzen</i></button>' : ''}
         <button data-act="quit">${G.career ? 'SPIEL ABBRECHEN (ZÄHLT NICHT)' : 'HAUPTMENÜ'}</button>
       </div></div>`, { back: ACT.resume });
   },
   statsNow() { show(`<div class="panel narrow">${statsHTML()}<div class="row"><button class="main" data-act="pause">ZURÜCK</button></div></div>`, { back: ACT.pause }); },
   resume() { INGAME_MENU = false; hideMenu(); if (G) { G.paused = false; AU.ambience(true); } },
   wresume() { joinGame(); ACT.resume(); },
-  quit() { INGAME_MENU = false; hideTutBox(); const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
+  quit() { delMatch(); INGAME_MENU = false; hideTutBox(); const car = G && G.career; G = null; startDemo(); if (car) ACT.chub(); else ACT.main(); },
   // Taktik & Wechsel: Formation, Ausrichtung, Wechsel (erst Feldspieler, dann Bankspieler antippen)
   tactics(sel) {
     if (!G || G.human < 0) return;
@@ -196,6 +198,7 @@ const ACT = {
   },
   etGo() { hideMenu(); G.paused = false; G.half = 2; nextHalf(); },
   fulltime() {
+    delMatch();
     INGAME_MENU = false;
     const w = winnerOf(), me = G.human;
     rateMatch();
@@ -279,8 +282,9 @@ function notesHTML() {
 function togglePause() { if (!G || G.demo) return; if (menu.hidden) ACT.pause(); else if (INGAME_MENU) ACT.resume(); }
 function startMatch(ta, tb, o) {
   INGAME_MENU = false; hideMenu(); AU.init(); AU.stopMusic();
+  if (!o.resume) delMatch();
   newMatch(ta, tb, o); G.opts = o;
-  if (!o.watch && !o.tut) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
+  if (!o.watch && !o.tut && !o.resume) { G.helpN = store.get('krl_games', 0); store.set('krl_games', G.helpN + 1); }
   if (o.watch) { G.watch = true; G.ff = 1; }
   startFlair(o);
   track('spiel-start', { modus: o.tut ? 'training' : o.career ? 'saison' : 'freundschaftsspiel', zuschauen: !!o.watch, verband: o.tut ? undefined : verbOf(ta).n });

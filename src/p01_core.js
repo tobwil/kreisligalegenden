@@ -50,7 +50,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // Plattform: Im Browser gilt der Standard. Eine Hülle (z. B. eine App) kann vor dem Spiel window.KRL_PLATFORM setzen:
 // name, storage (wie localStorage), event(name, daten), quit(), legal (Copyright-Zeile), shareUrl
-const PLATFORM = Object.assign({ name: 'web', storage: null, event: null, quit: null, legal: null, shareUrl: null }, window.KRL_PLATFORM);
+const PLATFORM = Object.assign({ name: 'web', storage: null, event: null, quit: null, legal: null, shareUrl: null, saveFile: null }, window.KRL_PLATFORM);
 const ON_WEB = PLATFORM.name === 'web';
 const store = {
   get(k, d = null) { try { const v = (PLATFORM.storage || localStorage).getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },

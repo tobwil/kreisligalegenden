@@ -167,6 +167,6 @@ Object.assign(ACT, {
     show(`<div class="panel"><div class="row spread"><h2>ERFOLGE</h2><button class="small" data-act="main">ZURÜCK</button></div>
       <p>Stufe <b class="gold">${lv}</b> · ${PROF.lp.toLocaleString('de-DE')} Legenden-Punkte (nächste Stufe ab ${lpNext(lv).toLocaleString('de-DE')}) · ${n} von ${ACHS.length} Erfolgen · ${PROF.games} Spiele, ${PROF.wins} Siege, ${PROF.goals} Tore, ${PROF.chal} Aufgaben</p>
       <div class="achs">${ACHS.map(([id, name, d]) => `<div class="ach ${PROF.ach[id] ? 'on' : ''}"><b>${PROF.ach[id] ? '★' : '☆'}</b><span>${esc(name)}</span><i>${esc(d)}</i></div>`).join('')}</div>
-      <p class="muted">Erfolge und Punkte bleiben nur in diesem Browser gespeichert.</p></div>`, { back: ACT.main });
+      <p class="muted">Erfolge und Punkte bleiben nur ${ON_WEB ? 'in diesem Browser' : 'auf diesem Gerät'} gespeichert.</p></div>`, { back: ACT.main });
   },
 });

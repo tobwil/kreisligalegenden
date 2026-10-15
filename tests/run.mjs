@@ -565,6 +565,49 @@ test('Saison: eigenen Verein anlegen, Spieler bearbeiten (Name, Nummer, Position
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Spiel speichern: beim Verlassen gespeichert, im Hauptmenü fortsetzen mit Stand, Uhr, Wechseln und Karten', async () => {
+  const { page, ctx, errors } = await open();
+  const a = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; startMatch(L[0], L[3], { human: 0, hlen: 2 }); G.phase = 'kickoff'; G.paused = true;
+    for (let i = 0; i < 60 * 30; i++) step(1 / 60);
+    G.score = [2, 1]; const p = teamP(0).find(q => grpOf(q) === 'MF'); doSub(p, 2, true); G.players.find(q => q.team === 1 && grpOf(q) === 'AB').off = true;
+    document.dispatchEvent(new Event('visibilitychange')); dispatchEvent(new Event('pagehide'));
+    return { clock: Math.round(G.clock), sub: p.d.name, saved: !!savedMatch() };
+  });
+  await page.reload(); await page.waitForTimeout(600);
+  const b = await page.evaluate(() => { ACT.main(); const btn = !!menu.querySelector('[data-act="resumeMatch"]'); ACT.resumeMatch(); return { btn, score: G.score.join(':'), clock: Math.round(G.clock), off: G.players.filter(q => q.off).length, names: G.players.filter(q => q.team === 0).map(q => q.d.name), left: !!savedMatch() }; });
+  ok(a.saved && b.btn, 'kein gespeichertes Spiel / kein FORTSETZEN');
+  ok(b.score === '2:1' && Math.abs(b.clock - a.clock) <= 1 && b.off === 1 && b.names.includes(a.sub) && !b.left, 'Fortsetzen: ' + JSON.stringify({ a, b }));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Spielstand robust: verschobene Vereinsnummern werden zugeordnet, kaputter Stand wird beiseitegelegt, Datei sichern und laden', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    ACT.career(); ACT.ncGo(); for (let i = 0; i < 3; i++) runEvent(null); saveCareer();
+    const C = JSON.parse(localStorage.getItem(CAREER_KEY)), out = { pts: C.S.tables[C.lg][C.team].pkt };
+    const x = LIGEN[C.lg].ids.find(i => i !== C.team), sw = id => id === C.team ? x : id === x ? C.team : id, swapObj = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [sw(+k), v]));
+    const old = JSON.parse(JSON.stringify(C));
+    old.team = sw(old.team); old.rival = sw(old.rival); old.squads = swapObj(old.squads); old.forms = swapObj(old.forms); old.S.tables[old.lg] = swapObj(old.S.tables[old.lg]); old.keys.t = swapObj(old.keys.t);
+    old.S.cal.forEach(ev => { if (ev.games) for (const li in ev.games) ev.games[li] = ev.games[li].map(([h, a]) => [sw(h), sw(a)]); });
+    old.S.results.forEach(r => r.games.forEach(g => { g.h = sw(g.h); g.a = sw(g.a); }));
+    if (old.S.cup) { old.S.cup.teams = old.S.cup.teams.map(sw); old.S.cup.rounds = old.S.cup.rounds.map(R => R.map(t => ({ ...t, a: sw(t.a), b: sw(t.b), w: sw(t.w) }))); }
+    localStorage.setItem(CAREER_KEY, JSON.stringify(old)); CAREER = null;
+    const c = loadCareerSave(); out.mig = !!c && c.team === C.team && c.S.tables[c.lg][c.team].pkt === out.pts && c.S.ci === C.S.ci;
+    // Datei: exportieren (Text abfangen) und wieder laden
+    let txt = null; PLATFORM.saveFile = (n, t) => { txt = t; }; CAREER = c; exportCareer(); PLATFORM.saveFile = null;
+    localStorage.removeItem(CAREER_KEY); CAREER = null; importCareerText(txt); out.imp = !!CAREER && CAREER.team === C.team && !!localStorage.getItem(CAREER_KEY);
+    // kaputt: Verein gibt es nicht mehr
+    const bad = JSON.parse(JSON.stringify(C)); bad.keys.t[bad.team] = 'Gibt es nicht|Nirgendwo'; localStorage.setItem(CAREER_KEY, JSON.stringify(bad)); CAREER = null;
+    out.bad = loadCareerSave() === null && !!localStorage.getItem(CAREER_OLD_KEY) && !localStorage.getItem(CAREER_KEY);
+    return out;
+  });
+  ok(r.mig, 'verschobene Nummern nicht zugeordnet');
+  ok(r.imp, 'Datei sichern/laden');
+  ok(r.bad, 'kaputter Spielstand nicht beiseitegelegt');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Saison: echtes Spiel zählt (Ergebnis, Tabelle, Torschützen, Noten) und Aufstellung wird verwendet', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

@@ -81,12 +81,13 @@ function resultCanvas() {
 }
 async function shareResult() {
   const cv = resultCanvas(), blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-  const txt = `${G.T[0].n} ${G.score[0]}:${G.score[1]} ${G.T[1].n} – gespielt in Kreisliga-Legenden: https://kreisliga-legenden.de`;
+  const txt = `${G.T[0].n} ${G.score[0]}:${G.score[1]} ${G.T[1].n} – gespielt in Kreisliga-Legenden: ${PLATFORM.shareUrl || 'https://kreisliga-legenden.de'}`;
   unlock('teilen'); track('teilen', { modus: G.career ? 'saison' : 'freundschaftsspiel' });
   try {
     const file = new File([blob], 'kreisliga-ergebnis.png', { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: txt }); return 'geteilt'; }
   } catch (e) { if (e && e.name === 'AbortError') return 'abgebrochen'; }
+  if (PLATFORM.saveFile) { PLATFORM.saveFile('kreisliga-ergebnis.png', blob, 'image/png'); return 'gespeichert'; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'kreisliga-ergebnis.png'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   return 'gespeichert';

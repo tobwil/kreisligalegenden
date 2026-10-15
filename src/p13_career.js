@@ -4,7 +4,7 @@
 // parallel, ihre Meister spielen mit Kreismeistern aus ganz Deutschland im K.-o.-System um die deutsche Kreisliga-Meisterschaft.
 const CAREER_KEY = 'krl_saison';
 let CAREER = null;
-const saveCareer = () => store.set(CAREER_KEY, CAREER);
+const saveCareer = () => { if (CAREER && typeof stampKeys === 'function') stampKeys(CAREER); store.set(CAREER_KEY, CAREER); };
 const START_YEAR = 2026;
 const seasonLabel = y => `${y}/${String((y + 1) % 100).padStart(2, '0')}`;
 const CT = () => CAREER.team;

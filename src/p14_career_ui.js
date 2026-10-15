@@ -48,6 +48,8 @@ function renderNewCareer(focusSel) {
   show(`<div class="panel"><div class="row spread"><h2>NEUE SAISON</h2><button class="small" data-act="main">ZURÜCK</button></div>
     <p class="muted">Übernimm einen Verein aus einer Kreisliga in ganz Deutschland: erst den Landesverband auf der Karte, dann den Kreis, dann den Verein – oder einfach suchen. Kreispokal inklusive, und die Meister spielen mit Kreismeistern aus ganz Deutschland um die ${TROPHY}.</p>
     ${pickerHTML()}
+    ${CAREER_NOTE ? `<p class="cmsg">${esc(CAREER_NOTE)} <button class="small" data-act="cExportOld">ALTEN STAND SICHERN</button></p>` : ''}
+    <div class="row"><button class="small" data-act="cImport">SPIELSTAND AUS DATEI LADEN</button></div>
     <div class="row"><button class="small" data-act="ncEigen">${T.custom ? 'EIGENEN VEREIN BEARBEITEN' : '+ EIGENEN VEREIN ANLEGEN'}</button><span class="muted">Verein nicht dabei? Leg ihn selbst an.</span></div>
     <div class="tcard active"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>${bars([['Gesamt', s.ovr], ['Angriff', s.att], ['Abwehr', s.def]], 50, 82)}
       <div class="tag">${esc(homeTag(NEWC.team).toUpperCase())} · ${GROUNDS[T.ground]} · BESTER SPIELER: ${esc(s.star.name.toUpperCase())} (${s.star.grp})</div></div>
@@ -239,5 +241,7 @@ function clubHTML() {
   <h3>TRAINING (SCHWERPUNKT)</h3><div class="row">${Object.entries(TRAIN).map(([k, [n]]) => `<button class="small ${C.train === k ? 'on' : ''}" data-act="ctrain" data-arg="${k}">${n.toUpperCase()}</button>`).join('')}</div>
   <h3>WECHSELBÖRSE</h3>${mk ? `<div class="tblwrap"><table class="dt"><tr><th class="l">SPIELER</th><th>POS</th><th class="hs">ALTER</th><th>STÄRKE</th><th>HANDGELD</th><th></th></tr>${mk}</table></div>` : '<p class="muted">Im Sommer melden sich wechselwillige Spieler aus dem Kreis.</p>'}
   <h3>TROPHÄEN</h3><div class="tshelves">${tro}</div>
-  <div class="row"><button class="small" data-act="cEigen">${C.custom ? 'VEREIN BEARBEITEN' : 'TRIKOT & PLATZ ÄNDERN'}</button><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>`;
+  <div class="row"><button class="small" data-act="cEigen">${C.custom ? 'VEREIN BEARBEITEN' : 'TRIKOT & PLATZ ÄNDERN'}</button><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>
+  <h3>SPIELSTAND</h3><div class="row"><button class="small" data-act="cExport">ALS DATEI SICHERN</button><button class="small" data-act="cImport">AUS DATEI LADEN</button></div>
+  <p class="muted">Der Spielstand liegt ${ON_WEB ? 'nur in diesem Browser' : 'auf diesem Gerät'}. Browser löschen ihn manchmal (Safari nach einigen Wochen ohne Besuch) – sichere ihn ab und zu als Datei.</p>`;
 }

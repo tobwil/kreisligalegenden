@@ -55,6 +55,7 @@ Spielen: `game/index.html` im Browser öffnen (am besten mit dem Ordner `fonts/`
 - **Aufstellung** (Formation, Startelf, Elfmeterschütze), Training mit Schwerpunkt, Vereinskasse (Eintritt, Bratwurst, Sponsoren, Prämien), Wechselbörse mit Handgeld
 - **Mehrere Saisons:** Spieler entwickeln sich, Ältere hängen die Schuhe an den Nagel, Junge kommen aus der A-Jugend. Vereine oben in der Tabelle locken bessere Spieler an, Absteiger verlieren ihre Besten – so entstehen mit jeder Saison echte Favoriten und Außenseiter
 - Jedes Spiel **selbst spielen, zuschauen oder simulieren**
+- **Spielstände sicher:** Ein laufendes Spiel wird beim Verlassen der Seite gespeichert (Handy im Hintergrund) und lässt sich im Hauptmenü fortsetzen; in der Pause SPEICHERN & BEENDEN. Die Saison merkt sich zu jedem Verein Name und Kreis und ordnet nach neuen Vereinsdaten richtig zu; ein unpassender Stand wird beiseitegelegt statt gelöscht. Spielstand als Datei sichern und laden (Verein-Reiter)
 - **Eigener Verein:** Verein nicht dabei? Name, Kurzname, Kürzel, Trikotfarben, Muster und Platz selbst festlegen – er spielt in der gewählten Kreisliga mit. Echte Vereine bekommen auf Wunsch ein eigenes Trikot
 - **Spieler bearbeiten:** Name, Spitzname, Rückennummer, Position und Aussehen (Haut, Haare, Frisur, Bart, Bauch) der eigenen Spieler – die Werte bleiben, wie sie sind
 - **Derbys** gegen den Erzrivalen aus der eigenen Liga: mehr Stimmung, Prämie, eigene Schlagzeilen

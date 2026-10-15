@@ -25,10 +25,8 @@ function removeCustomTeam() { const t = TEAMS.find(x => x.custom); if (t) for (c
 // Spielstand vorbereiten: eigener Verein wieder anlegen, geändertes Trikot übernehmen
 function prepCareer(c) {
   if (!c) return;
-  if (c.custom) addCustomTeam(c.custom); else removeCustomTeam();
   if (c.kit && TEAMS[c.team]) { const t = TEAMS[c.team]; t.c1 = c.kit.c1; t.c2 = c.kit.c2; t.pat = c.kit.pat; t.home = { ...c.kit }; t.away = defaultAway(t); }
 }
-function loadCareerSave() { const sv = store.get(CAREER_KEY); prepCareer(sv); return validCareer(sv) ? sv : null; }
 
 // ---------- Formular: eigener Verein ----------
 function eigenHTML() {
