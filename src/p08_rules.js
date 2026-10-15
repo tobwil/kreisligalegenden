@@ -120,7 +120,7 @@ function humanControl(dt) {
       else lob(c, choosePass(c, IN.x, IN.y, 'lob'));
       return;
     }
-    if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y); }
+    if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
     c.charge = 0; c.chargeArm = false;
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
@@ -191,7 +191,7 @@ function movePlayer(p, dt) {
   if (act === 'slide') { slideStep(p, dt); p.vx *= 1 - 2.6 * dt; p.vy *= 1 - 2.6 * dt; return integ(p, dt, 'slide'); }
   if (act === 'dive' || act === 'block') { diveStep(p, dt); return; }
   if (act === 'fall' || act === 'stumble' || (G.spray && G.spray.p === p)) { p.vx *= 1 - 5 * dt; p.vy *= 1 - 5 * dt; return integ(p, dt, act === 'fall' || (G.spray && G.spray.p === p) ? 'fall' : 'run'); }
-  if (act === 'trick') { return integ(p, dt, 'run'); }
+  if (act === 'trick') { if (p.act.kind === 'drehung') { p.face = Math.floor(p.act.t * 12) % 2 ? -1 : 1; p.faceT = G.t; } return integ(p, dt, 'run'); }   // Drehung: blickt im schnellen Wechsel hin und her
   if (p.stun > 0 || !live) { p.vx *= 1 - 6 * dt; p.vy *= 1 - 6 * dt; return integ(p, dt); }
   // Arcade: der angespielte Spieler läuft dem Ball von selbst entgegen, auch wenn noch eine Richtung gedrückt ist
   const selfRun = G.ball.passTo === p || (!G.ball.owner && p.role === 'chase') || (G.ball.owner !== p && (G.idleT || 0) > 0.8);

@@ -132,7 +132,7 @@ function drawCtrlHUD(c, col, num) {
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
     if (G.ball.owner === c && !isGK(c) && G.phase === 'play' && (PROF.games < 15 || G.tut) && !c.charge && !G.pl && opps(c).some(o => !isGK(o) && dist(o.x, o.y, c.x, c.y) < 4)) {
       const K = KEYN(), tk = TRICK_N[trickKind(c, IN.x, IN.y)];
-      text(LASTIN === 'touch' ? 'WISCHEN: TRICK' : `${K.f || 'F'}: ${tk}`, sx(c.x, c.y), sy(c.y) + 13, '#7cf2ff', 8, 'center');
+      text(LASTIN === 'touch' ? 'STICK KREISEN: TRICK' : `${K.f || 'F'}: ${tk}`, sx(c.x, c.y), sy(c.y) + 13, '#7cf2ff', 8, 'center');
     }
     if (TOUCH.passT && G.ball.owner === c && performance.now() - TOUCH.passT > 150) drawPower(c, clamp((performance.now() - TOUCH.passT - 120) / 650, 0, 1), '#7cf2ff');
     if (c.charge > 0 && G.ball.owner === c) {

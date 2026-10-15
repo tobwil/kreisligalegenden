@@ -335,24 +335,28 @@ function slideStep(d, dt) {
     }
   }
 }
-// Tricks: die Richtung (Stick, beim Handy die Wischrichtung) entscheidet, welcher es wird
+// Tricks: die Richtung (Stick; am Handy Stick-Gesten, siehe p12_main) entscheidet, welcher es wird
 //   zur Seite = Haken (Antritt quer) · zurück = Zurückziehen (Ball zurück, der Gegner rauscht vorbei) · nach vorn = Tempo-Dribbling
 //   (kurzer, scharfer Antritt) · ohne Richtung = Übersteiger (Täuschung im Stand, der Gegner springt in die falsche Richtung)
-const TRICK_N = { haken: 'HAKEN', zurueck: 'ZURÜCKZIEHEN', tempo: 'TEMPO-DRIBBLING', ueber: 'ÜBERSTEIGER' };
+const TRICK_N = { haken: 'HAKEN', zurueck: 'ZURÜCKZIEHEN', tempo: 'TEMPO-DRIBBLING', ueber: 'ÜBERSTEIGER', drehung: 'DREHUNG' };
 function trickKind(p, dx, dy) {
   const m = Math.hypot(dx, dy); if (m < 0.3) return 'ueber';
   const s = atkDir(p.team), fwd = dx * s / m;
   return fwd < -0.55 ? 'zurueck' : fwd > 0.55 ? 'tempo' : 'haken';
 }
-function trick(p, dx, dy) {
+function trick(p, dx, dy, kindIn) {
   if (p.cd > 0) return; p.cd = 1.1;
-  const kind = trickKind(p, dx, dy), s = atkDir(p.team), m = Math.hypot(dx, dy) || 1;
+  const kind = kindIn || trickKind(p, dx, dy), s = atkDir(p.team), m = Math.hypot(dx, dy) || 1;
   let vx = 0, vy = 0, dur = 0.3, reach = 2.2, base = 0.38, stun = 0.7;
   if (kind === 'haken') {
     const px = -p.hy, py = p.hx, dot = px * dx + py * dy, sg = Math.abs(dot) < 0.05 ? (Math.random() < 0.5 ? 1 : -1) : Math.sign(dot);
     vx = px * sg * 7.5; vy = py * sg * 7.5;
   } else if (kind === 'zurueck') { vx = -s * 4.5; vy = 0; dur = 0.28; reach = 1.9; base = 0.42; stun = 0.6; }
   else if (kind === 'tempo') { vx = dx / m * 9.6; vy = dy / m * 9.6; dur = 0.42; reach = 2.4; base = 0.33; stun = 0.45; }
+  else if (kind === 'drehung') {   // Drehung (Stick kreisen): dreht sich mit dem Ball um den Gegner herum weiter in Laufrichtung
+    const hm = Math.hypot(dx, dy) > 0.3 ? m : 0, ux = hm ? dx / m : p.hx, uy = hm ? dy / m : p.hy;
+    vx = ux * 5.2; vy = uy * 5.2; dur = 0.5; reach = 2.6; base = 0.5; stun = 0.75;
+  }
   else { dur = 0.35; reach = 2.6; base = 0.45; stun = 0.65; }   // Übersteiger im Stand
   const sp = Math.hypot(vx, vy);
   p.act = { type: 'trick', t: 0, dur, dx: sp ? vx / sp : p.hx, dy: sp ? vy / sp : p.hy, kind }; p.vx = vx; p.vy = vy; if (sp) { p.hx = vx / sp; p.hy = vy / sp; if (Math.abs(vx) > 0.3) p.face = Math.sign(vx); }
@@ -360,6 +364,7 @@ function trick(p, dx, dy) {
   for (const o of opps(p)) if (!isGK(o) && dist(o.x, o.y, p.x, p.y) < reach && Math.random() < base + (A_(p, 'tec') - A_(o, 'zwk')) / 120 + (p.d.trait === 'Schlitzohr' ? 0.1 : 0)) {
     o.stun = stun; o.act = { type: 'stumble', t: 0, dur: Math.min(0.6, stun) }; fooled = fooled || o;
     if (kind === 'ueber' || kind === 'zurueck') { o.vx = -s * 3 + rnd(-2, 2); o.vy = rnd(-3, 3); }   // springt in die falsche Richtung
+    else if (kind === 'drehung') { const sg = Math.sign((o.y - p.y) || 1); o.vx = -vx * 0.3; o.vy = sg * 3.5; }   // wird zur Seite abgeschüttelt
   }
   if (fooled) feat('haken', p, TRICK_N[kind] + '!', `${p.d.name.toUpperCase()} LÄSST ${fooled.d.name.toUpperCase()} STEHEN`);
   AU.touch();

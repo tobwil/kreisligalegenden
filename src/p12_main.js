@@ -34,9 +34,32 @@ function tapAt(cx0, cy0) {
   }
   if (G.phase === 'play' && !attacking() && !isGK(hit)) { G.ctrl = hit; G.manT = G.t; AU.select(); buzz(8); }
 }
+// Tricks am Handy über den Bewegungs-Stick, der Daumen bleibt dabei im Fluss:
+//   Stick einmal kreisen = Drehung · Stick schnell in die Gegenrichtung schnippen = Trick in die neue Richtung
+//   (zurück = Zurückziehen, zur Seite = Haken, nach vorn = Tempo) · links doppelt antippen = Übersteiger,
+//   doppelt antippen und gleich ziehen = Trick in die Zugrichtung
+const STG = { acc: 0, t0: 0, la: null, hold: null, minM: 1, lastTap: 0 };
+const canTrick = () => !!(G && G.phase === 'play' && !G.pl && G.ctrl && G.ball.owner === G.ctrl && !isGK(G.ctrl) && attacking());
+function touchTrick(x, y, kind) { if (!canTrick()) return false; TOUCH.fdir = { x, y, kind }; TOUCH.pulseF = 1; buzz(14); STG.acc = 0; STG.la = null; STG.hold = null; return true; }
+function stickGesture(x, y, now) {
+  const m = Math.hypot(x, y), S = STG;
+  if (m < 0.45) { S.la = null; S.acc = 0; S.minM = Math.min(S.minM, m); return; }
+  // Kreisen: Winkel aufsummieren, solange der Daumen außen bleibt und gleichmäßig in eine Richtung läuft
+  const a = Math.atan2(y, x);
+  if (S.la === null || now - S.t0 > 1200) { S.la = a; S.acc = 0; S.t0 = now; }
+  else { let d = a - S.la; d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI; S.la = a;
+    if (Math.abs(d) > 1.2 || (S.acc && Math.sign(d) !== Math.sign(S.acc) && Math.abs(d) > 0.08)) { S.acc = 0; S.t0 = now; } else S.acc += d;
+    if (Math.abs(S.acc) > Math.PI * 1.75 && touchTrick(x / m, y / m, 'drehung')) return; }
+  // Schnippen: eben noch kräftig in eine Richtung, über die Mitte, jetzt kräftig in die Gegenrichtung
+  if (m > 0.7) {
+    const H = S.hold;
+    if (H && now - H.t < 240 && S.minM < 0.45 && (x * H.x + y * H.y) / m < -0.45 && G && G.ctrl && opps(G.ctrl).some(o => !isGK(o) && dist(o.x, o.y, G.ctrl.x, G.ctrl.y) < 5) && touchTrick(x / m, y / m)) return;
+    S.hold = { x: x / m, y: y / m, t: now }; S.minM = 1;
+  }
+}
 (() => {
   const zone = document.getElementById('zone'), st = document.getElementById('stick'), kn = document.getElementById('knob'), pend = new Map();
-  let sid = null, sx0 = 0, sy0 = 0;
+  let sid = null, sx0 = 0, sy0 = 0, dblT = null;
   const R = () => 46;
   const rest = () => { st.style.left = ''; st.style.top = ''; st.classList.remove('act', 'sprint'); kn.style.transform = ''; TOUCH.x = TOUCH.y = 0; TOUCH.s = false; };
   const move = e => {
@@ -44,8 +67,16 @@ function tapAt(cx0, cy0) {
     if (m > r * 2) { const f = (m - r * 2) / m; sx0 += dx * f; sy0 += dy * f; dx -= dx * f; dy -= dy * f; m = r * 2; st.style.left = sx0 + 'px'; st.style.top = sy0 + 'px'; }
     const k = Math.min(1, r / (m || 1)); TOUCH.x = dx * k / r; TOUCH.y = dy * k / r; TOUCH.s = m > r * 1.15;
     st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * k}px,${dy * k}px)`;
+    stickGesture(TOUCH.x, TOUCH.y, performance.now());
   };
-  zone.addEventListener('pointerdown', e => { AU.init(); setInput('touch'); zone.setPointerCapture(e.pointerId); pend.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), left: e.clientX < innerWidth * 0.5 }); });
+  zone.addEventListener('pointerdown', e => {
+    AU.init(); setInput('touch'); try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+    const now = performance.now(), left = e.clientX < innerWidth * 0.5, dbl = left && sid === null && now - STG.lastTap < 330 && canTrick();
+    pend.set(e.pointerId, { x: e.clientX, y: e.clientY, t: now, left, dbl });
+    STG.hold = null; STG.la = null; STG.acc = 0; STG.minM = 1;
+    // Doppeltipp: kurz abwarten, ob der Daumen gleich zieht (dann Trick in diese Richtung), sonst Übersteiger
+    if (dbl) { STG.lastTap = 0; clearTimeout(dblT); dblT = setTimeout(() => { dblT = null; const mm = Math.hypot(TOUCH.x, TOUCH.y); touchTrick(mm > 0.45 ? TOUCH.x : 0, mm > 0.45 ? TOUCH.y : 0); }, 140); }
+  });
   zone.addEventListener('pointermove', e => {
     if (e.pointerId === sid) return move(e);
     const p = pend.get(e.pointerId); if (!p) return;
@@ -56,8 +87,8 @@ function tapAt(cx0, cy0) {
     const p = pend.get(e.pointerId); pend.delete(e.pointerId);
     if (e.type !== 'pointerup' || !p) return;
     const ddx = e.clientX - p.x, ddy = e.clientY - p.y, dur = performance.now() - p.t, dd = Math.hypot(ddx, ddy);
-    if (dur < 380 && dd < 16) tapAt(e.clientX, e.clientY);
-    else if (!p.left && dur < 450 && dd > 30 && attacking() && G && G.ball.owner === G.ctrl) { TOUCH.fdir = { x: ddx / dd, y: ddy / dd }; TOUCH.pulseF = 1; buzz(12); }   // rechts wischen = Trick
+    if (p.dbl) { if (dblT) { clearTimeout(dblT); dblT = null; touchTrick(0, 0); } return; }   // Doppeltipp ohne Ziehen = Übersteiger
+    if (dur < 380 && dd < 16) { tapAt(e.clientX, e.clientY); if (p.left && dur < 260) STG.lastTap = performance.now(); }
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
@@ -154,7 +185,7 @@ function touchTip() {
     <li><b>PASS</b> tippen = kurz · halten = fester und weiter · wischen = Steilpass · nach oben wischen = hoch</li>
     <li><b>SCHUSS</b> halten = Kraft · Daumen ziehen = zielen (Zeitlupe) · loslassen = Schuss</li>
     <li>Abwehr: <b>TACKLING</b> tippen, ziehen = Grätsche · <b>WECHSEL</b> oder Gegner antippen</li>
-    <li>Rechts auf dem Platz wischen = Trick: zur Seite Haken, zurück Zurückziehen, nach vorn Tempo · deinen Spieler antippen = Übersteiger</li></ul><button>VERSTANDEN</button>`;
+    <li>Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Haken oder Zurückziehen, links doppelt antippen = Übersteiger</li></ul><button>VERSTANDEN</button>`;
   el.querySelector('button').addEventListener('click', closeTouchTip);
   document.body.appendChild(el); TTIP = el; G.paused = true;
 }

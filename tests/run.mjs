@@ -238,7 +238,7 @@ test('Zu zweit: miteinander (zwei Menschen, zwei verschiedene Spieler, geteilte 
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Tricks: Richtung entscheidet (Haken, Zurückziehen, Tempo-Dribbling, Übersteiger), Handy: rechts wischen; Flitzer unterbricht und es geht weiter', async () => {
+test('Tricks: Richtung entscheidet (Haken, Zurückziehen, Tempo-Dribbling, Übersteiger), Handy: Stick kreisen, schnippen, doppelt antippen; Flitzer unterbricht und es geht weiter', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
@@ -246,6 +246,18 @@ test('Tricks: Richtung entscheidet (Haken, Zurückziehen, Tempo-Dribbling, Über
     const c = teamP(0).find(q => grpOf(q) === 'MF'), s = atkDir(0);
     const kinds = [[0, 1], [-s, 0], [s, 0], [0, 0]].map(([x, y]) => { place(c, CW / 2, MY); c.hx = s; c.hy = 0; c.cd = 0; giveBall(c, true); trick(c, x, y); return c.act && c.act.kind; });
     out.kinds = kinds.join(',');
+    // Handy: Tricks über den Stick, Wischen rechts macht keinen Trick mehr
+    const z = document.getElementById('zone'), W = innerWidth, H = innerHeight, cx = W * 0.2, cy = H * 0.55;
+    const ev = (t, x, y, id) => z.dispatchEvent(new PointerEvent(t, { pointerId: id, clientX: x, clientY: y, bubbles: true }));
+    const prep = () => { for (const o of opps(c)) if (!isGK(o)) place(o, CW / 2 + s * 30, 3); place(c, CW / 2, MY); c.hx = s; c.hy = 0; c.cd = 0; c.act = null; c.stun = 0; G.ctrl = c; giveBall(c, true); TOUCH.fdir = null; TOUCH.pulseF = 0; STG.lastTap = 0; readInput(1 / 60); };
+    const fire = () => { readInput(1 / 60); humanControl(1 / 60); return c.act && c.act.type === 'trick' ? c.act.kind : '-'; };
+    const g = [];
+    prep(); ev('pointerdown', cx, cy, 11); for (let i = 0; i <= 26; i++) { const a = i / 24 * 2 * Math.PI; ev('pointermove', cx + 40 * Math.cos(a), cy + 40 * Math.sin(a), 11); } ev('pointerup', cx + 40, cy, 11); g.push(fire());
+    prep(); place(opps(c).find(o => !isGK(o)), c.x + s * 3, MY + 2);
+    ev('pointerdown', cx, cy, 12); ev('pointermove', cx + s * 40, cy, 12); ev('pointermove', cx, cy + 2, 12); ev('pointermove', cx - s * 40, cy, 12); ev('pointerup', cx - s * 40, cy, 12); g.push(fire());
+    prep(); const tx = W * 0.03, ty = H * 0.97; ev('pointerdown', tx, ty, 13); ev('pointerup', tx, ty, 13); ev('pointerdown', tx, ty, 14); ev('pointerup', tx, ty, 14); g.push(fire());
+    prep(); ev('pointerdown', W * 0.8, H * 0.5, 15); ev('pointermove', W * 0.8 + 60, H * 0.5, 15); ev('pointerup', W * 0.8 + 60, H * 0.5, 15); g.push(fire());
+    out.touch = g.join(',');
     // Flitzer erzwingen: Spiel steht, Uhr steht, danach Freistoß
     startMatch(L[0], L[1], { human: 0, flitzer: 1 }); G.paused = true; G.flitzer.half = 1; G.flitzer.at = 1; G.phase = 'play'; G.sp = null;
     let seen = false, clk = null, n = 0;
@@ -254,6 +266,7 @@ test('Tricks: Richtung entscheidet (Haken, Zurückziehen, Tempo-Dribbling, Über
     return out;
   });
   ok(r.kinds === 'haken,zurueck,tempo,ueber', 'Tricks: ' + r.kinds);
+  ok(r.touch === 'drehung,zurueck,ueber,-', 'Handy-Tricks (kreisen, schnippen, doppelt antippen, wischen rechts): ' + r.touch);
   ok(r.flitzer, 'Flitzer läuft nicht sauber durch');
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
