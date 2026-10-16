@@ -69,7 +69,20 @@ function stickGesture(x, y, now) {
     st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * k}px,${dy * k}px)`;
     stickGesture(TOUCH.x, TOUCH.y, performance.now());
   };
+  // größere Trefferfläche: ein Daumen knapp neben PASS/SCHUSS (bis 22 px außerhalb des Kreises) zählt als Druck auf den Knopf
+  const nearBtn = (x, y) => {
+    if (document.body.classList.contains('padedit')) return null;
+    let best = null, bd = 1e9;
+    for (const b of document.querySelectorAll('.tb[data-k]')) {
+      if (!b.offsetParent) continue;
+      const r = b.getBoundingClientRect(), d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) - r.width / 2;
+      if (d < 22 && d < bd) { bd = d; best = b; }
+    }
+    return best;
+  };
   zone.addEventListener('pointerdown', e => {
+    const nb = nearBtn(e.clientX, e.clientY);
+    if (nb) { nb.dispatchEvent(new PointerEvent('pointerdown', { pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true })); return; }
     AU.init(); setInput('touch'); try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     const now = performance.now(), left = e.clientX < innerWidth * 0.5, dbl = left && sid === null && now - STG.lastTap < 330 && canTrick();
     pend.set(e.pointerId, { x: e.clientX, y: e.clientY, t: now, left, dbl });

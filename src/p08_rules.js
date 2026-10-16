@@ -98,6 +98,7 @@ function humanControl(dt) {
   const DEF = LASTIN === 'key' && LAY().def;   // Tastenbelegung in der Abwehr (Legenden: D Tackling, Leertaste Grätsche, A Druck)
   G.pressHelp = (DEF ? IN[DEF.pr] : IN.k) && !ours;
   if (hasBall) {
+    c.hadT = G.t;   // für die Gnadenfrist
     if (isGK(c)) {
       if (IN.pa) { const q = choosePass(c, IN.x, IN.y); if (q) gkThrow(c, q); }
       else if (IN.pc || IN.pb || IN.pk) gkPunt(c, Math.hypot(IN.x, IN.y) > 0.3 ? choosePass(c, IN.x, IN.y, 'lob') : null);
@@ -157,6 +158,16 @@ function humanControl(dt) {
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
+    // Gnadenfrist (wie „Coyote Time“): Ball eben verloren (weggespitzelt, versprungen) und noch vor deinen Füßen –
+    // wer in den ersten 0,15 s noch Pass, Schuss oder Steilpass drückt, spielt ihn trotzdem (kein „ich hab doch gedrückt!“)
+    if (G.phase === 'play' && !b.owner && !isGK(c) && G.t - (c.hadT ?? -9) < 0.15 && b.z < 1.2 && dist(c.x, c.y, b.x, b.y) < 1.8 && (b.last !== c || b.kind === 'loose')) {
+      const k = IN.pb ? 'shot' : IN.pa ? 'pass' : IN.pk ? 'through' : null;
+      if (k) {
+        giveBall(c, true); c.cd = 0; c.passHold = c.thrHold = c.crsHold = null; c.charge = 0; c.chargeArm = false;
+        if (k === 'shot') shoot(c, 0.65, Math.abs(IN.y) > 0.25 ? IN.y : 0); else if (k === 'pass') pass(c, choosePass(c, IN.x, IN.y)); else through(c, choosePass(c, IN.x, IN.y, 'through'));
+        return;
+      }
+    }
     c.charge = 0; c.chargeArm = false; c.passHold = null; c.thrHold = null; c.crsHold = null;
     if (c.containT != null && (b.owner === null || (b.owner && b.owner.team === me))) { c.containT = null; c.contain = null; }
     const eta = incoming ? dist(c.x, c.y, b.x, b.y) / Math.max(2, Math.hypot(b.vx, b.vy)) : 9;
@@ -379,7 +390,7 @@ function updateBall(dt) {
     else if (G.sp && G.sp.taker === o && G.sp.type === 'throw') { b.x = o.x - o.face * 0.1; b.y = o.y; b.z = 2.1; }
     else if (G.sp && G.sp.taker === o) { /* Ball liegt am Punkt */ }
     else {
-      const sp = Math.hypot(o.vx, o.vy), lead = 0.45 + (o.sprint ? 0.45 : 0) + Math.sin(o.animT * 1.2) * 0.08 * Math.min(1, sp / 4);
+      const sp = Math.hypot(o.vx, o.vy), lead = 0.45 + (o.sprint ? 0.45 : 0) + (G.t - (o.pushT ?? -9) < 0.45 ? 0.75 : 0) + Math.sin(o.animT * 1.2) * 0.08 * Math.min(1, sp / 4);
       // weich am Fuß führen: der Ball läuft mit und dreht beim Richtungswechsel um den Spieler herum statt zu springen
       const tx = o.x + o.hx * lead, ty = o.y + o.hy * lead * 0.9, k = Math.min(1, dt * (G.t - (o.gotT || 0) < 0.15 ? 60 : 16));
       b.x += o.vx * dt; b.y += o.vy * dt; b.x += (tx - b.x) * k; b.y += (ty - b.y) * k;
@@ -540,7 +551,7 @@ function tryCollect() {
     const hq = isHumanCtrl(p) && q && ['clear', 'pass'].includes(q.k) && G.t - q.t < 1.5;
     if (isHumanCtrl(p)) {
       if (humanHeads(p)) { header(p, wantShot); return; }
-      if (b.z <= 2.1) { giveBall(p, true); AU.touch(); return; }   // mit der Brust annehmen, weiterlaufen
+      if (b.z <= 2.1) { giveBall(p, true); AU.touch(); firstTouch(p); return; }   // mit der Brust annehmen, weiterlaufen
       return;
     }
     if (wantShot || hq || attackBox || defend || (overHim && b.z < 2.3)) { header(p, wantShot); return; }
@@ -565,8 +576,19 @@ function tryCollect() {
     if (q.k === 'through') return through(p, choosePass(p, q.x, q.y, 'through'));
     if (q.k === 'cross') return cross(p, 0);
   }
+  firstTouch(p);
   // CPU: Direktschuss nach Flanke oder Querpass im Strafraum
   if (!isHumanCtrl(p) && fromMate && inBox(1 - p.team, p.x, p.y) && shotQuality(p) > 0.35 && Math.random() < (wasCross ? 0.7 : 0.45)) shoot(p, rnd(0.5, 0.85), null, { volley: wasCross });
+}
+// Erste Berührung mit Richtung (wie FIFA): Stick gedrückt = den Ball gleich in diese Richtung mitnehmen, ohne abzubremsen,
+// mit Sprint ein Stück weiter vorlegen; ohne Stick = den Ball stoppen (der Spieler bremst ab)
+function firstTouch(p) {
+  if (!isHumanCtrl(p) || isGK(p) || G.phase !== 'play' || G.ball.owner !== p) return;
+  const I = inOf(p), m = Math.hypot(I.x, I.y);
+  if (m < 0.3) { p.vx *= 0.45; p.vy *= 0.45; return; }
+  const ux = I.x / m, uy = I.y / m, v = Math.max(maxSpeed(p, I.s) * (I.s ? 0.95 : 0.7), p.vx * ux + p.vy * uy);
+  p.vx = ux * v; p.vy = uy * v; p.hx = ux; p.hy = uy;
+  if (I.s) p.pushT = G.t;
 }
 function offside(p) {
   const b = G.ball; AU.whistle(1); G.stats.offs[p.team]++; G.flagT = 2.2; G.flagX = p.x;
