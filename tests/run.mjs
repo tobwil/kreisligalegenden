@@ -597,6 +597,77 @@ test('FIFA-Gefühl: erste Berührung in Stickrichtung (mit Sprint weiter vorgele
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespielt-Banner, Landepunkt beim Aufladen, Freistoß vom Flügel mit Zielvisier', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true;
+    const s = atkDir(0), gx = goalX(0), c = teamP(0).find(x => grpOf(x) === 'MF'), st = teamP(0).find(x => grpOf(x) === 'ST'), [o1, o2] = teamP(1).filter(x => grpOf(x) === 'AB');
+    const frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    const away = keep => { G.phase = 'play'; G.sp = null; G.offs = null; G.banner = null; for (const x of G.players) if (!isGK(x) && !keep.includes(x)) place(x, CW / 2 + (x.team ? 38 : -30) * s, x.team ? 2 : CH - 2); for (const k in KEY) KEY[k] = false; };
+    // Wendekreis: 90°-Haken aus vollem Lauf vs. aus vollem Sprint (0,1 s)
+    const turn = sprint => { away([c]); place(c, CW / 2, MY); giveBall(c, true); c.gotT = G.t - 1; G.ctrl = c; const v = maxSpeed(c, sprint) * (sprint ? 0.93 : 0.85); c.vx = v * s; c.vy = 0;
+      KEY.ArrowUp = true; KEY.KeyW = sprint; readInput(1 / 60); for (let i = 0; i < 6; i++) { movePlayer(c, 1 / 60); G.t += 1 / 60; } KEY.ArrowUp = KEY.KeyW = false;
+      return Math.round(Math.abs(Math.atan2(c.vy, c.vx * s)) * 180 / Math.PI); };
+    out.turnWalk = turn(false); out.turnSprint = turn(true);
+    // Körpertäuschung: Haken, Verteidiger dicht vor dir (Zufall festgesetzt: gelingt)
+    const feint = cut => { away([c, o1]); place(c, CW / 2, MY); giveBall(c, true); G.ctrl = c; c.feintT = -9; c.vx = 5 * s; c.vy = 0; place(o1, CW / 2 + s * 1.6, MY); o1.stun = 0;
+      const r0 = Math.random; Math.random = () => 0; KEY[cut ? 'ArrowUp' : (s > 0 ? 'ArrowRight' : 'ArrowLeft')] = true; frame(); Math.random = r0; for (const k in KEY) KEY[k] = false; return o1.stun > 0.3; };
+    out.feint = feint(true); out.straight = feint(false);
+    // Ausgespielt: zwei Gegner eben noch vor dir, jetzt hinter dir
+    away([c, o1, o2]); place(c, CW / 2, MY); giveBall(c, true); G.ctrl = c; c.feintT = G.t;
+    place(o1, CW / 2 + s * 1.5, MY + 1); place(o2, CW / 2 + s * 2.2, MY - 1.2); o1.stun = o2.stun = 0; frame();
+    place(o1, CW / 2 - s * 2, MY + 1); frame(); out.beat1 = c.beatN === 1 && o1.stun > 0.1;
+    place(o2, CW / 2 - s * 2, MY - 1.2); frame(); out.banner = G.banner && G.banner.txt;
+    // Landepunkt: Flanke vom Flügel halten, kurz = kurzer Pfosten, lang = langer Pfosten
+    away([st]); place(st, gx - s * 22, MY + 20); giveBall(st, true); G.ctrl = st; st.cd = 0; frame();
+    KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < 16; i++) frame(); const p1 = crossPreview(st); render();
+    for (let i = 0; i < 30; i++) frame(); const p2 = crossPreview(st); KEY.KeyA = false; frame();
+    out.prev = p1 && p2 ? { near: +Math.abs(p1.ty - MY).toFixed(1), far: +Math.abs(p2.ty - MY).toFixed(1), side: Math.sign(p1.ty - MY) === Math.sign(st.y - MY) && Math.sign(p2.ty - MY) !== Math.sign(st.y - MY) } : null;
+    out.crossed = G.ball.kind === 'cross';
+    // Seitenwechsel: von links auf rechts (Richtung zur anderen Seite halten), Ring zeigt die Landestelle beim Mitspieler drüben
+    const [w1, w2] = teamP(0).filter(x => grpOf(x) === 'MF'); away([w1, w2]); place(w1, CW / 2 - s * 5, 6); place(w2, CW / 2 + s * 6, CH - 7); giveBall(w1, true); G.ctrl = w1; w1.cd = 0; frame();
+    KEY.ArrowDown = true; KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < 25; i++) frame(); const sw = crossPreview(w1); KEY.KeyA = false; frame(); KEY.ArrowDown = false;
+    out.switch = { prev: !!sw && sw.tgt === w2 && Math.abs(sw.ty - w2.y) < 6, flew: G.ball.kind === 'lob' && G.ball.passTo === w2 };
+    // Gamepad: rechter Stick schiebt den Ring frei (0,5 s nach rechts = gut 13 m), der Ball fliegt dorthin
+    away([w1, w2]); place(w1, CW / 2 - s * 5, 6); place(w2, CW / 2 + s * 6, CH - 7); giveBall(w1, true); G.ctrl = w1; w1.cd = 0; LASTIN = 'pad'; frame();
+    const pf = () => { readInput(1 / 60); IN.rs = { x: s, y: 0 }; G.t += 1 / 60; humanControl(1 / 60); };
+    KEY.KeyA = KEYP.KeyA = true; frame(); for (let i = 0; i < 30; i++) pf(); const g1 = crossPreview(w1), g0 = w1.lobBase && { tx: w1.lobBase.tx };
+    KEY.KeyA = false; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); LASTIN = 'key';
+    const GB = { ...G.ball }; let gl = null; for (let i = 0; i < 300 && !gl; i++) { ballPhys(GB, 1 / 60); if (GB.z < 2 && GB.vz < 0 && i > 10) gl = { x: GB.x, y: GB.y }; }
+    out.pad = { moved: g0 && g1 ? +((g1.tx - g0.tx) * s).toFixed(1) : null, err: gl && g1 ? +Math.hypot(gl.x - g1.tx, gl.y - g1.ty).toFixed(1) : 99 };
+    // Kopfball und Schuss: Ecke per rechtem Daumen (SCHUSS ziehen, Touch) oder rechtem Stick (Gamepad), der linke Stick bleibt frei
+    const hd = (mode, dy) => { away([st]); place(st, gx - s * 8, MY); st.cd = 0; G.ctrl = st; const b = G.ball; b.owner = null; b.state = 'free'; b.x = st.x; b.y = st.y; b.z = 1.8; b.vx = 0; b.vy = 0; b.vz = -1; b.kind = 'cross'; b.shot = null;
+      for (const k in KEY) KEY[k] = false; readInput(1 / 60); LASTIN = mode; TOUCH.aim = mode === 'touch' ? { dx: 0, dy } : null; IN.rs = mode === 'pad' ? { x: 0, y: dy / 40 } : null;
+      header(st, true); const v = G.ball.vy; TOUCH.aim = null; IN.rs = null; LASTIN = 'key'; return Math.sign(Math.round(v * 10)); };
+    out.head = [hd('touch', -40), hd('touch', 40), hd('pad', -40), hd('pad', 40)];
+    away([st]); place(st, gx - s * 17, MY); giveBall(st, true); G.ctrl = st; st.cd = 0; LASTIN = 'pad'; frame();
+    const shotPad = dy => { G.ball.shot = null; giveBall(st, true); st.chargeArm = false; st.charge = 0; KEY.Space = KEYP.Space = true; readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); for (let i = 0; i < 10; i++) { readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); }
+      KEY.Space = false; readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); return G.ball.shot ? Math.sign(Math.round(G.ball.vy * 10)) : 'kein Schuss'; };
+    out.padShot = [shotPad(-1), shotPad(1)]; LASTIN = 'key';
+    // Freistoß vom Flügel: Zielvisier statt Schussansicht, Flanke landet dort
+    const fk = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('free', 0, gx - s * 19, MY + 23); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
+    fk(); out.fkAim = !aimWanted() && !!G.sp.caim; render();
+    const A = { ...G.sp.caim }; KEY.KeyA = KEYP.KeyA = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyA = false; readInput(1 / 60); stepSetPiece(1 / 60);
+    out.fkCross = G.ball.kind === 'cross';
+    const B = { ...G.ball }; let land = null; for (let i = 0; i < 200 && !land; i++) { ballPhys(B, 1 / 60); if (B.z < 2 && B.vz < 0 && i > 10) land = { x: B.x, y: B.y }; }
+    out.fkErr = land ? +Math.hypot(land.x - A.x, land.y - A.y).toFixed(1) : 99;
+    // zentral vor dem Tor bleibt es die Schussansicht
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('free', 0, gx - s * 22, MY + 3); G.phase = 'setpiece'; out.central = aimWanted();
+    return out;
+  });
+  ok(r.turnWalk > 45 && r.turnSprint < 35, 'Wendekreis nach Tempo: ' + JSON.stringify(r));
+  ok(r.feint && !r.straight, 'Körpertäuschung: ' + JSON.stringify(r));
+  ok(r.beat1 && r.banner === 'AUSGESPIELT!', 'Ausgespielt: ' + JSON.stringify(r));
+  ok(r.prev && r.prev.side && r.crossed, 'Landepunkt beim Aufladen (kurz = kurzer Pfosten, lang = langer Pfosten): ' + JSON.stringify(r));
+  ok(r.switch.prev && r.switch.flew, 'Seitenwechsel mit Landestelle: ' + JSON.stringify(r.switch));
+  ok(r.pad.moved > 10 && r.pad.err < 5, 'Gamepad: rechter Stick schiebt den Ring, Ball fliegt dorthin: ' + JSON.stringify(r.pad));
+  ok(JSON.stringify(r.head) === '[-1,1,-1,1]' && JSON.stringify(r.padShot) === '[-1,1]', 'Kopfball/Schuss zielen mit rechtem Daumen bzw. rechtem Stick: ' + JSON.stringify([r.head, r.padShot]));
+  ok(r.fkAim && r.fkCross && r.fkErr < 4.5 && r.central, 'Freistoß vom Flügel mit Zielvisier: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang, Großstadt-Reserven mit Vereinskennung, eindeutig je Liga', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
@@ -1160,7 +1231,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Erste Berührung') && r.txt.includes('Lange Bälle') && r.txt.includes('LEERTASTE') && r.txt.includes('Sprint (W)'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Flanke mit Landepunkt') && r.txt.includes('A halten') && r.txt.includes('Freistoß vom Flügel'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
@@ -1209,14 +1280,20 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await page.touchscreen.tap(bb.x, bb.y);
   const passed = await page.waitForFunction(p0 => G.stats.passes[0] > p0, p0, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'PASS-Knopf passt nicht');
+  // Stick: im Kreis laufen (55 px = volles Lauftempo, kein Sprint), über den Kreis hinaus (85 px) = Sprint
+  const stickAt = async d => { const x0 = 140, y0 = 260; await page.mouse.move(x0, y0); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x0 + d * i / 6, y0); await page.waitForTimeout(60);
+    const v = await page.evaluate(() => ({ x: +TOUCH.x.toFixed(2), s: TOUCH.s, ring: getComputedStyle(document.getElementById('stick'), '::after').opacity })); await page.mouse.up(); await page.waitForTimeout(60); return v; };
+  const walk = await stickAt(55), run = await stickAt(85);
+  ok(walk.x === 1 && !walk.s && run.s && +walk.ring > 0.5, 'Stick: Sprint erst außerhalb des Kreises: ' + JSON.stringify([walk, run]));
   // größere Trefferfläche: knapp neben dem Kreis (12 px außerhalb, zur Bildschirmmitte hin) zählt als PASS
-  await page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; p.cd = 0; });
+  await page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; p.cd = 0; });   // Gegner weg: sonst nimmt einer im Live-Spiel manchmal vorher den Ball ab
   await page.waitForTimeout(150);
   const nearPt = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, d = r.width / 2 + 12; return { x: cx - d * 0.8, y: cy - d * 0.6, hit: (document.elementFromPoint(cx - d * 0.8, cy - d * 0.6) || {}).id }; });
   const p1 = await page.evaluate(() => G.stats.passes[0]);
   await page.touchscreen.tap(nearPt.x, nearPt.y);
   const nearOk = await page.waitForFunction(p1 => G.stats.passes[0] > p1, p1, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
-  ok(nearPt.hit === 'zone' && nearOk, 'Tipp knapp neben PASS zählt nicht: ' + JSON.stringify(nearPt));
+  const dbg = await page.evaluate(() => ({ own: G.ball.owner && G.ball.owner.team, ph: G.phase, li: LASTIN }));
+  ok(nearPt.hit === 'zone' && nearOk, 'Tipp knapp neben PASS zählt nicht: ' + JSON.stringify([nearPt, dbg]));
   // Pause-Knopf oben rechts: sichtbar, antippen pausiert, WEITER spielt weiter
   const pz = await page.evaluate(() => { const r = document.getElementById('tbPause').getBoundingClientRect(); return { w: r.width, x: r.right, y: r.top, vw: innerWidth }; });
   ok(pz.w > 30 && pz.x > pz.vw - 80 && pz.y < 80, 'Pause-Knopf oben rechts fehlt: ' + JSON.stringify(pz));
@@ -1235,6 +1312,18 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await drag('.tb-a', 4, -55);
   const hi = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
   ok(hi, 'PASS nach oben wischen spielt keinen hohen Ball');
+  // nach oben ziehen und halten: Ring mit der Landestelle, der Ball fliegt erst beim Loslassen
+  await setup(); await page.waitForTimeout(80);
+  { const c = await ctr('.tb-a'); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.move(c.x + 2, c.y - 30); await page.mouse.move(c.x + 4, c.y - 55); await page.waitForTimeout(450);
+    const held = await page.evaluate(() => { const P = crossPreview(G.ctrl); return { prev: !!P, x: P && P.tx, own: !!G.ball.owner, lbl: document.querySelector('.tb-a span').textContent }; });
+    // rechter Daumen schiebt den Ring: 60 px nach rechts = 15 m
+    await page.mouse.move(c.x + 34, c.y - 55); await page.mouse.move(c.x + 64, c.y - 55); await page.waitForTimeout(120);
+    const ring = await page.evaluate(() => { const P = crossPreview(G.ctrl); return P && { x: P.tx, y: P.ty }; });
+    await page.mouse.up();
+    const flew0 = await page.waitForFunction(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner, null, { timeout: 1500, polling: 'raf' }).then(() => true, () => false);
+    const fl = await page.evaluate(([ring, flew]) => { const B = { ...G.ball }; let land = null; for (let i = 0; i < 300 && !land; i++) { ballPhys(B, 1 / 60); if (B.z < 2 && B.vz < 0) land = { x: B.x, y: B.y }; }
+      return { flew, err: land && ring ? +Math.hypot(land.x - ring.x, land.y - ring.y).toFixed(1) : 99 }; }, [ring, flew0]);
+    ok(held.prev && held.own && held.lbl === 'HOCH' && ring && Math.abs(ring.x - held.x - 15) < 1 && fl.flew && fl.err < 5, 'PASS nach oben ziehen und halten: Ring, rechter Daumen schiebt ihn, Ball fliegt beim Loslassen dorthin: ' + JSON.stringify([held, ring, fl])); }
   await setup(); await page.waitForTimeout(80);
   await drag('.tb-a', 55, 5);
   const th = await page.evaluate(() => G.ball.kind === 'through' && !G.ball.owner);
@@ -1247,13 +1336,14 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const aimShot = async dy => { await page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; }); await page.waitForTimeout(80); await drag('.tb-b', 0, dy, 150); return page.evaluate(() => G.ball.shot ? G.ball.vy : null); };
   const vUp = await aimShot(-60), vDown = await aimShot(60);
   ok(vUp != null && vDown != null && vUp < 0 && vDown > 0, 'Zielen mit dem Daumen: ' + vUp + ' / ' + vDown);
-  const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
+  const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; SETTINGS.autoswitch = false;   // Live-Spiel: kein Auto-Wechsel weg vom Verteidiger, wenn der Test länger braucht
+    const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
   await def(); await page.waitForTimeout(80);
   const lb = await page.evaluate(() => document.querySelector('.tb-b span').textContent);
   ok(lb === 'TACKLING', 'Abwehr-Beschriftung: ' + lb);
   await drag('.tb-b', 0, -40);
-  const sl = await page.evaluate(() => __d.act && __d.act.type === 'slide' || __d.cd > 0.5);
-  ok(sl, 'TACKLING ziehen grätscht nicht');
+  const sl = await page.evaluate(() => ({ ok: !!(__d.act && __d.act.type === 'slide' || __d.cd > 0.5), ctrl: G.ctrl === __d, act: __d.act && __d.act.type, cd: +__d.cd.toFixed(2), own: G.ball.owner && G.ball.owner.team, ph: G.phase }));
+  ok(sl.ok, 'TACKLING ziehen grätscht nicht: ' + JSON.stringify(sl));
   await def(); await page.waitForTimeout(80);
   const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y); await page.waitForTimeout(80);
   const tk = await page.evaluate(() => ({ ok: __d.d.ms.tk > 0 || (__d.act && ['tackle', 'stumble'].includes(__d.act.type)) || __d.cd > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));

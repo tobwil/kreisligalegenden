@@ -63,10 +63,14 @@ function stickGesture(x, y, now) {
   const R = () => 46;
   const rest = () => { st.style.left = ''; st.style.top = ''; st.classList.remove('act', 'sprint'); kn.style.transform = ''; TOUCH.x = TOUCH.y = 0; TOUCH.s = false; };
   const move = e => {
-    const r = R(); let dx = e.clientX - sx0, dy = e.clientY - sy0, m = Math.hypot(dx, dy);
-    if (m > r * 2) { const f = (m - r * 2) / m; sx0 += dx * f; sy0 += dy * f; dx -= dx * f; dy -= dy * f; m = r * 2; st.style.left = sx0 + 'px'; st.style.top = sy0 + 'px'; }
-    const k = Math.min(1, r / (m || 1)); TOUCH.x = dx * k / r; TOUCH.y = dy * k / r; TOUCH.s = m > r * 1.15;
-    st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * k}px,${dy * k}px)`;
+    // im Kreis = laufen (volles Tempo am Rand des Knopfwegs), über den gezeichneten Kreis hinaus ziehen = sprinten
+    // (Kreis 60 px, Sprint ab 72 px, aus erst unter 64 px, damit es an der Kante nicht flackert); weiter weg zieht der Stick mit
+    const r = R(), far = 104; let dx = e.clientX - sx0, dy = e.clientY - sy0, m = Math.hypot(dx, dy);
+    if (m > far) { const f = (m - far) / m; sx0 += dx * f; sy0 += dy * f; dx -= dx * f; dy -= dy * f; m = far; st.style.left = sx0 + 'px'; st.style.top = sy0 + 'px'; }
+    const k = Math.min(1, r / (m || 1)), was = TOUCH.s; TOUCH.x = dx * k / r; TOUCH.y = dy * k / r; TOUCH.s = m > (was ? 64 : 72);
+    if (TOUCH.s && !was) buzz(8);
+    const kk = Math.min(1, (TOUCH.s ? 62 : r) / (m || 1));
+    st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * kk}px,${dy * kk}px)`;
     stickGesture(TOUCH.x, TOUCH.y, performance.now());
   };
   // größere Trefferfläche: ein Daumen knapp neben PASS/SCHUSS (bis 22 px außerhalb des Kreises) zählt als Druck auf den Knopf
@@ -80,9 +84,12 @@ function stickGesture(x, y, now) {
     }
     return best;
   };
+  // der Hintergrund behält den Finger und reicht Drücken, Ziehen und Loslassen selbst an den Knopf weiter
+  // (ein Umhängen der Zeigererfassung auf den Knopf greift je nach Timing nicht)
+  const fwd = new Map();
   zone.addEventListener('pointerdown', e => {
     const nb = nearBtn(e.clientX, e.clientY);
-    if (nb) { nb.dispatchEvent(new PointerEvent('pointerdown', { pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true })); return; }
+    if (nb && nb._tb) { e.preventDefault(); fwd.set(e.pointerId, nb); try { zone.setPointerCapture(e.pointerId); } catch (_) {} nb._tb.down(e, true); return; }
     AU.init(); setInput('touch'); try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     const now = performance.now(), left = e.clientX < innerWidth * 0.5, dbl = left && sid === null && now - STG.lastTap < 330 && canTrick();
     pend.set(e.pointerId, { x: e.clientX, y: e.clientY, t: now, left, dbl });
@@ -91,11 +98,13 @@ function stickGesture(x, y, now) {
     if (dbl) { STG.lastTap = 0; clearTimeout(dblT); dblT = setTimeout(() => { dblT = null; const mm = Math.hypot(TOUCH.x, TOUCH.y); touchTrick(mm > 0.45 ? TOUCH.x : 0, mm > 0.45 ? TOUCH.y : 0); }, 140); }
   });
   zone.addEventListener('pointermove', e => {
+    const f = fwd.get(e.pointerId); if (f) return f._tb.move(e);
     if (e.pointerId === sid) return move(e);
     const p = pend.get(e.pointerId); if (!p) return;
     if (p.left && sid === null && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) { sid = e.pointerId; sx0 = p.x; sy0 = p.y; st.style.left = p.x + 'px'; st.style.top = p.y + 'px'; st.classList.add('act'); pend.delete(e.pointerId); move(e); }
   });
   const end = e => {
+    const f = fwd.get(e.pointerId); if (f) { fwd.delete(e.pointerId); return f._tb.rel(); }
     if (e.pointerId === sid) { sid = null; rest(); return; }
     const p = pend.get(e.pointerId); pend.delete(e.pointerId);
     if (e.type !== 'pointerup' || !p) return;
@@ -105,7 +114,7 @@ function stickGesture(x, y, now) {
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
-  //   Angriff  PASS:   tippen = kurzer Pass · halten = fester und weiter (Balken) · wischen = Steilpass · nach oben wischen = hoch/Flanke
+  //   Angriff  PASS:   tippen = kurzer Pass · halten = fester und weiter (Balken) · wischen = Steilpass · nach oben ziehen = hoch/Flanke (halten = Ring mit Landestelle, loslassen = Ball fliegt)
   //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Zielkreuz im Tor schieben (wie bei Padel-Legenden),
   //                    das Spiel läuft dabei kurz in Zeitlupe; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber
   //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
@@ -115,32 +124,40 @@ function stickGesture(x, y, now) {
   document.querySelectorAll('.tb[data-k]').forEach(b => {
     const k = b.dataset.k; let holdT = null, st = null;
     const alt = lbl => { b.classList.add('alt'); b.querySelector('span').textContent = lbl; buzz(15); };
-    b.addEventListener('pointerdown', e => {
-      e.preventDefault(); b.setPointerCapture(e.pointerId); AU.init(); setInput('touch'); b.classList.add('on');
+    const down = (e, viaZone) => {
+      if (!viaZone) { e.preventDefault(); b.setPointerCapture(e.pointerId); }
+      AU.init(); setInput('touch'); b.classList.add('on');
       if (G && (G.phase === 'intro' || G.phase === 'replay')) { KEYP.Enter = true; st = null; return; }
       const att = attacking() || !!(G && G.sp && isHumanTeam(G.sp.team));
       st = { x: e.clientX, y: e.clientY, att, done: false };
       if (k === 'a') {
-        if (att) TOUCH.passT = performance.now();
+        if (att) TOUCH.passT = TOUCH.passT0 = performance.now();
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
-      } else if (att) TOUCH.b = true;
+      } else if (att) { TOUCH.b = true; TOUCH.aimLast = null; }   // altes Zielen vom letzten Schuss nicht für den Kopfball übernehmen
       else holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.held = true; TOUCH.b = true; alt('STELLEN'); } }, 200);   // TACKLING halten = Stellen, loslassen = Tackling
-    });
-    b.addEventListener('pointermove', e => {
+    };
+    b.addEventListener('pointerdown', e => down(e));
+    const move = e => {
+      if (st && st.lob) { TOUCH.lobAim = { dx: e.clientX - st.lx, dy: e.clientY - st.ly }; return; }   // hoher Ball: der rechte Daumen schiebt den Ring
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
-      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.cpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
+      // nach oben ziehen = Flanke/hoher Ball: der Ring erscheint beim besten Mitspieler, weiter ziehen schiebt ihn frei übers Feld,
+      // halten = schärfer, loslassen = Ball fliegt genau dorthin (der linke Daumen läuft weiter)
+      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; const pre = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null, up = dy < -Math.abs(dx) * 0.8; TOUCH.passT = 0;
+        if (up) { TOUCH.cpre = TOUCH.passT0 ? Math.max(0, (performance.now() - TOUCH.passT0) / 1000) : 0; TOUCH.pulseC = 1; TOUCH.c = true; st.lob = true; st.lx = e.clientX; st.ly = e.clientY; TOUCH.lobAim = { dx: 0, dy: 0 }; } else { TOUCH.kpow = pre; TOUCH.pulseK = 1; } alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; if (st.held) { st.held = false; TOUCH.b = false; } TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
-    });
+    };
+    b.addEventListener('pointermove', move);
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
       if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att && !st.held) TOUCH.pulseB = 1; }
-      if (k === 'a') TOUCH.passT = 0;
+      if (k === 'a') { TOUCH.passT = 0; TOUCH.c = false; }
       if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
       st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
+    b._tb = { down, move, rel };   // für Daumen knapp neben dem Knopf (über den Hintergrund weitergereicht)
   });
 })();
 const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb-b') }; let tbMode = '';
@@ -199,7 +216,7 @@ function touchTip() {
   const lab = (k, h, t) => `<div class="lab" data-k="${k}"><b>${h}</b>${t}</div>`;
   // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
   const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
-  const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
+  const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben ziehen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
   const B = att ? ['SCHUSS', 'halten = Kraft<br>dabei ziehen = zielen'] : ['TACKLING', 'tippen = Tackling<br>halten = stellen<br>ziehen = Grätsche'];
   const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
     : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';

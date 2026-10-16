@@ -64,7 +64,7 @@ function render() {
   const b = G.ball;
   let by = b.y; if (b.owner && !isGK(b.owner)) by = b.owner.y + (b.owner.hy > 0 ? 0.05 : -0.05); if (b.owner && isGK(b.owner)) by = b.owner.y + 0.05;
   items.push({ y: by, draw: () => drawBall(b) });
-  if (!G.demo && G.human >= 0 && !G.watch && G.phase === 'play') drawLanding();
+  if (!G.demo && G.human >= 0 && !G.watch && G.phase === 'play') { drawLanding(); drawCrossPreview(); }
   items.sort((a, c) => a.y - c.y).forEach(i => i.draw());
   drawParts();
   if (PITCH.wet) drawRain(t);
@@ -75,7 +75,7 @@ function render() {
 // hoher Ball: gelber Ring dort, wo er in Kopfhöhe ankommt (Flanke, Ecke, Abschlag), damit man hinlaufen und köpfen kann
 // Ecke: Zielvisier im Strafraum, gestrichelte Flugbahn und Markierung am Mitspieler, der hingeht
 function drawCornerAim() {
-  const sp = G.sp; if (!sp || !sp.caim || sp.type !== 'corner' || G.phase !== 'setpiece' || !isHumanTeam(sp.team)) return;
+  const sp = G.sp; if (!sp || !sp.caim || (sp.type !== 'corner' && sp.type !== 'free') || G.phase !== 'setpiece' || !isHumanTeam(sp.team)) return;
   const b = G.ball, A = sp.caim, x = sx(A.x, A.y), y = sy(A.y), bx = sx(b.x, b.y), by = sy(b.y), col = (Math.floor(G.t * 6) % 2) ? '#ffc83a' : '#fff1a8';
   const n = Math.max(6, Math.round(Math.hypot(x - bx, y - by) / 8)), ph = (G.t * 8) % 1, peak = 4.5 * PX * 0.6;
   for (let i = 1; i < n; i++) { const k = (i + ph) / n, px = Math.round(lerp(bx, x, k)), py = Math.round(lerp(by, y, k) - Math.sin(k * Math.PI) * peak); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 3, 3); ctx.fillStyle = col; ctx.fillRect(px, py, 1, 1); }
@@ -92,6 +92,17 @@ function drawLanding() {
   const x = sx(q.x, q.y), y = sy(q.y), r = 5 + Math.round(Math.min(q.t, 1) * 4), k = (Math.floor(G.t * 6) % 2) ? '#ffc83a' : '#fff1a8';
   ctx.globalAlpha = 0.85; ctx.strokeStyle = k; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r * 1.6, r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+}
+// Flanke oder hoher Ball aufladen: Ring mit Fadenkreuz, wo der Ball mit der jetzigen Kraft landet, Pfeil über dem Mitspieler, der hingeht
+function drawCrossPreview() {
+  const P = !G.pl && crossPreview(G.ctrl); if (!P) return;
+  const x = sx(P.tx, P.ty), y = sy(P.ty), col = (Math.floor(G.t * 6) % 2) ? '#7cf2ff' : '#d8fbff', b = G.ball, bx = sx(b.x, b.y), by = sy(b.y);
+  // gepunktete Flugbahn wie bei der Ecke
+  const n = Math.max(6, Math.round(Math.hypot(x - bx, y - by) / 9)), ph = (G.t * 6) % 1, peak = Math.min(40, Math.hypot(x - bx, y - by) * 0.25);
+  for (let i = 1; i < n; i++) { const k = (i + ph) / n, px = Math.round(lerp(bx, x, k)), py = Math.round(lerp(by, y, k) - Math.sin(k * Math.PI) * peak); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 3, 3); ctx.fillStyle = col; ctx.fillRect(px, py, 1, 1); }
+  for (const [c, w] of [['#000', 3], [col, 1]]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 15, 6, 0, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.fillStyle = '#000'; ctx.fillRect(x - 8, y - 1, 17, 3); ctx.fillRect(x - 1, y - 4, 3, 9); ctx.fillStyle = col; ctx.fillRect(x - 7, y, 15, 1); ctx.fillRect(x, y - 3, 1, 7);
+  if (P.tgt) { const q = P.tgt, qx = sx(q.x, q.y), qy = sy(q.y, q.z) - 40; ctx.fillStyle = '#000'; ctx.fillRect(qx - 4, qy - 1, 9, 4); ctx.fillStyle = col; ctx.fillRect(qx - 3, qy, 7, 2); ctx.fillRect(qx - 1, qy + 2, 3, 1); }
 }
 function drawRain(t) {
   ctx.fillStyle = 'rgba(205,222,255,0.5)';
@@ -140,8 +151,10 @@ function drawCtrlHUD(c, col, num) {
     if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
   }
   // Kopfball: Pfeil in Stickrichtung zeigt, wohin er köpft (der Spieler läuft von selbst zum Treffpunkt)
-  if (c && c.headAim && !G.watch && !c.off && Math.hypot(IN.x, IN.y) > 0.3) {
-    const m = Math.hypot(IN.x, IN.y), ux = IN.x / m, uy = IN.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
+  // Kopfball-Zielpfeil: Stick, oder rechter Daumen auf SCHUSS (Touch) bzw. rechter Stick (Gamepad) für die Ecke
+  const ay = c && c.headAim && !G.pl ? aimY(c) : null, hv = ay != null && (LASTIN === 'touch' || LASTIN === 'pad') && Math.hypot(IN.x, IN.y) <= 0.3 ? { x: atkDir(c.team) * 0.7, y: ay } : IN;
+  if (c && c.headAim && !G.watch && !c.off && Math.hypot(hv.x, hv.y) > 0.3) {
+    const m = Math.hypot(hv.x, hv.y), ux = hv.x / m, uy = hv.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
     for (let i = 0; i < 5; i++) { const px = Math.round(x0 + ux * (10 + i * 4) * 1.4), py = Math.round(y0 + uy * (10 + i * 4) * 0.7); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 4, 4); ctx.fillStyle = i === 4 ? '#ffc83a' : '#7cf2ff'; ctx.fillRect(px, py, 2, 2); }
   }
   // Abwehr: kleiner Pfeil über dem Spieler, den du beim nächsten Wechsel bekommst
@@ -232,9 +245,9 @@ function drawSetPieceHint() {
     return;
   }
   const K = KEYN(), m = {
-    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: LASTIN === 'touch' ? 'ECKE · STICK: ZIEL · SCHUSS HALTEN: FLANKE (KURZ = HOCH, LANG = SCHARF) · PASS: KURZ' : `ECKE · RICHTUNG: ZIEL · ${K.c}/${K.b} HALTEN: FLANKE (KURZ = HOCH, LANG = SCHARF) · ${K.a}: KURZ`,
+    kick: `ANSTOSS · ${K.a}: PASS`, throw: `EINWURF · RICHTUNG + ${K.a}`, corner: (wingFK(sp) ? 'FREISTOSS' : 'ECKE') + (LASTIN === 'touch' ? ' · STICK: ZIEL · SCHUSS HALTEN: FLANKE (LANG = SCHARF) · PASS: KURZ' : ` · RICHTUNG: ZIEL · ${K.c} HALTEN: FLANKE (LANG = SCHARF) · ${K.a}: KURZ`),
     goal: `ABSTOSS · ${K.a}: KURZ · ${K.c}: WEIT`, free: `FREISTOSS · ${K.b} HALTEN: SCHUSS · ${K.a}: PASS · ${K.c}: FLANKE`, pen: `ELFMETER · ${K.b} HALTEN, RICHTUNG = ECKE`,
-  }[sp.type];
+  }[wingFK(sp) ? 'corner' : sp.type];
   if (m && (G.phase === 'setpiece' || G.phase === 'kickoff' || G.phase === 'penalty')) hint(m);
 }
 function hint(s) { const y = touchPad() ? 30 : H - 36; ctx.font = `8px ${FONT}`; const w = ctx.measureText(s).width + 16; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(W / 2 - w / 2, y, w, 14); text(s, W / 2, y + 3, '#ffc83a', 8, 'center', false); }   // Handy: oben, nicht über Stick und Knöpfen
