@@ -495,6 +495,65 @@ test('Spielerwechsel in der Abwehr: Verteidiger vor dem Gegner statt des überla
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, Doppelpass auf Knopfdruck, perfekter Schuss, Abschirmen', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const s = atkDir(0), ox = ownX(0), frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    const clear = () => { for (const k in KEY) KEY[k] = false; frame(); };
+    const away = (keep) => { G.phase = 'play'; G.sp = null; G.offs = null; G.banner = null; G.oneTwo = null; G.ball.passer = null; G.ball.passTo = null; for (const q of G.players) if (!isGK(q) && !keep.includes(q)) place(q, CW / 2 + (q.team ? 38 : -30) * s, q.team ? 2 : CH - 2); };   // Gegner hinten (kein Abseits), eigene weit weg
+    // Stellen: D halten, der Verteidiger bleibt zwischen Gegner und Tor statt reinzurutschen; Loslassen nah dran = Tackling
+    const o = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB');
+    away([o, d]); const cx = ox + s * 30; place(o, cx, MY); giveBall(o, true); place(d, cx - s * 2, MY - 6); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; clear();
+    KEY.KeyD = KEYP.KeyD = true; let tk0 = d.act;
+    for (let i = 0; i < 60; i++) { place(o, cx, MY); o.think = 9; G.ball.owner = o; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); movePlayer(d, 1 / 60); }
+    out.contain = d.contain === o && !tk0 && G.ball.owner === o;
+    out.goalSide = Math.abs(d.x - ox) < Math.abs(o.x - ox) - 0.5 && dist(d.x, d.y, o.x, o.y) < 2.6 && Math.abs(d.y - MY) < 1.5;
+    d.cd = 0; place(d, cx - s * 1.2, MY); KEY.KeyD = false; frame(); out.release = !!(d.act && d.act.type === 'tackle') && !d.contain;
+    // Schwung: der neue Spieler läuft nach dem Wechsel weiter und dreht dann auf den Stick, statt abrupt abzuknicken
+    const m = teamP(0).find(q => grpOf(q) === 'MF'); away([m]); place(m, CW / 2, MY); giveBall(o, true); place(o, CW / 2 + 20, 3);
+    const run = sw => { m.vx = 7; m.vy = 0; G.ctrl = m; G.swT = sw ? G.t : null; KEY.ArrowLeft = true; KEY.ArrowRight = false; readInput(1 / 60); const v = []; for (let i = 0; i < 30; i++) { movePlayer(m, 1 / 60); G.t += 1 / 60; v.push(m.vx); } KEY.ArrowLeft = false; return v; };
+    const sw = run(true), no = run(false);
+    out.swing = { early: sw[3], hard: no[3], late: sw[29] };
+    // Doppelpass: Pass, Mitspieler nimmt an, sofort nochmal Pass (ohne Richtung) = Rückpass in den Lauf
+    const [p, q] = teamP(0).filter(x => grpOf(x) === 'MF');
+    const one = (wait, dir) => {
+      away([p, q]); place(p, CW / 2, MY); place(q, CW / 2 + s * 9, MY); p.cd = 0; q.cd = 0; G.ctrl = p; G.ball.shot = null; giveBall(p, true); G.banner = null; clear();
+      KEY[s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; KEY.KeyS = KEYP.KeyS = true; frame(); KEY.KeyS = false; frame(); KEY.ArrowRight = KEY.ArrowLeft = false;
+      for (let i = 0; i < 120 && G.ball.owner !== q; i++) { readInput(1 / 60); step(1 / 60); }
+      if (G.ball.owner !== q) return 'nicht angenommen (' + G.phase + ')';
+      for (let i = 0; i < wait; i++) { readInput(1 / 60); step(1 / 60); }
+      if (dir) KEY.ArrowUp = true;
+      KEY.KeyS = KEYP.KeyS = true; frame(); KEY.KeyS = false; frame(); KEY.ArrowUp = false;
+      return G.ball.kind + (G.ball.passTo === p ? '>p' : '') + (G.banner && G.banner.txt === 'DOPPELPASS' ? '!' : '') + (p.run && p.run.gg ? '+lauf' : '');
+    };
+    out.oneTwo = one(2, false); out.late = one(45, false); out.side = one(2, true);
+    away([]); giveBall(o, true); place(o, CW / 2 + 20, 3); G.oneTwo = { from: p, to: q, t: G.t }; out.stale = oneTwoOk(q, 0, 0);
+    // perfekter Schuss: Loslassen in der hellen Zone
+    const c = teamP(0).find(x => grpOf(x) === 'ST'), gx = goalX(0);
+    const shot = n => { away([c]); G.ball.shot = null; G.banner = null; place(c, gx - s * 17, MY + 4); c.cd = 0; c.charge = 0; c.chargeArm = false; G.ctrl = c; giveBall(c, true); clear();
+      KEY.Space = KEYP.Space = true; for (let i = 0; i < n; i++) frame(); if (n === 25) render(); KEY.Space = false; frame(); return (G.ball.shot ? 'shot' : '-') + (G.banner && G.banner.txt === 'PERFEKT!' ? '!' : ''); };
+    out.perfect = shot(25); out.over = shot(45); out.short = shot(8);
+    // Abschirmen: langsam, Gegner im Rücken = schwerer zu tackeln
+    const a = teamP(1).find(x => grpOf(x) === 'ST'), t = teamP(0).find(x => grpOf(x) === 'AB'); away([a, t]);
+    const trial = (vx, n) => { let won = 0; for (let i = 0; i < n; i++) { place(a, CW / 2, MY); a.hx = -s; a.hy = 0; a.vx = vx; a.vy = 0; giveBall(a, true); a.hx = -s; place(t, CW / 2 + s * 1, MY); t.cd = 0; t.stun = 0; t.act = null; tackle(t, a); if (G.ball.owner !== a) won++; } return won / n; };
+    place(a, CW / 2, MY); a.hx = -s; a.hy = 0; a.vx = 0; a.vy = 0; place(t, CW / 2 + s, MY); giveBall(a, true); a.hx = -s;
+    out.shieldGeo = [shields(a, t), (place(t, CW / 2 - s, MY), shields(a, t))];
+    out.rate = [trial(0, 600), trial(-s * 6, 600)];
+    return out;
+  });
+  ok(r.contain && r.goalSide, 'Stellen: Verteidiger bleibt nicht zwischen Gegner und Tor: ' + JSON.stringify(r));
+  ok(r.release, 'Stellen: Loslassen nah dran tackelt nicht: ' + JSON.stringify(r));
+  ok(r.swing.early > 6 && r.swing.hard < 5.5 && r.swing.late < -3, 'Schwung nach dem Wechsel: ' + JSON.stringify(r.swing));
+  ok(r.oneTwo === 'through>p!+lauf', 'Doppelpass auf Knopfdruck: ' + r.oneTwo);
+  ok(!r.late.includes('!') && !r.side.includes('!') && !r.stale, 'Doppelpass zu spät, quer oder ohne Annahme: ' + JSON.stringify([r.late, r.side, r.stale]));
+  ok(r.perfect === 'shot!' && r.over === 'shot' && r.short === 'shot', 'perfekter Schuss: ' + JSON.stringify([r.perfect, r.over, r.short]));
+  ok(r.shieldGeo[0] && !r.shieldGeo[1] && r.rate[0] < r.rate[1] - 0.06, 'Abschirmen: ' + JSON.stringify([r.shieldGeo, r.rate]));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang, Großstadt-Reserven mit Vereinskennung, eindeutig je Liga', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
@@ -1068,6 +1127,13 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y); await page.waitForTimeout(80);
   const tk = await page.evaluate(() => ({ ok: __d.d.ms.tk > 0 || (__d.act && ['tackle', 'stumble'].includes(__d.act.type)) || __d.cd > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));
   ok(tk.ok, 'TACKLING tippen tackelt nicht ' + JSON.stringify(tk));
+  // TACKLING halten = stellen: der Verteidiger hält Abstand zwischen Gegner und Tor und tackelt nicht sofort
+  await def(); await page.evaluate(() => { const a = G.ball.owner; place(__d, a.x + 5, a.y + 3); __d.d.ms.tk = 0; });
+  { const c = await ctr('.tb-b'); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(450);
+    const st = await page.evaluate(() => ({ contain: !!__d.contain && __d.contain === G.ball.owner, tk: !!(__d.act && __d.act.type === 'tackle'), lbl: document.querySelector('.tb-b span').textContent }));
+    await page.mouse.up(); await page.waitForTimeout(80);
+    const after = await page.evaluate(() => !__d.contain);
+    ok(st.contain && !st.tk && after, 'TACKLING halten stellt nicht: ' + JSON.stringify(st)); }
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 

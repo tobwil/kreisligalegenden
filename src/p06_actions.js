@@ -94,7 +94,21 @@ function pass(p, q, pow = null) {
   else { b.vx = Math.cos(a) * v0 * (1 + gauss() * err * 0.4); b.vy = Math.sin(a) * v0 * (1 + gauss() * err * 0.4); b.vz = 0; }
   b.passTo = q; noteRecv(q, tx, ty);
   G.stats.passes[p.team]++; p.d.ms.ps++;
+  if (isHumanCtrl(p) && !thr && !isGK(q)) G.oneTwo = { from: p, to: q, t: G.t };   // für den Doppelpass auf Knopfdruck
   if (isHumanTeam(p.team)) { giveAndGo(p, q); toCtrl(p.team, q, p); }
+}
+// Doppelpass auf Knopfdruck (wie ISS/FIFA): direkt nach dem Pass nochmal Pass – ohne Richtung oder Richtung zum Passgeber –
+// und der Angespielte legt sofort zurück in den Lauf des Passgebers, der dafür schon losläuft
+function oneTwoOk(c, x, y) {
+  const O = G.oneTwo, b = G.ball; if (!O || O.to !== c || G.t - O.t > 2.5 || O.from.off || O.from.stun > 0 || G.phase !== 'play') return false;
+  if (!(O.got && b.owner === c) && !(b.passer === O.from && b.passTo === c)) return false;   // Ball muss von genau diesem Pass kommen
+  const f = O.from, dx = f.x - c.x, dy = f.y - c.y, d = Math.hypot(dx, dy) || 1, m = Math.hypot(x, y);
+  return d > 3 && d < 30 && (m < 0.3 || (x * dx + y * dy) / d / m > 0.7);   // Stick neutral oder klar Richtung Passgeber (±45°)
+}
+function oneTwo(c) {
+  const f = G.oneTwo.from, s = atkDir(c.team); G.oneTwo = null;
+  if (!f.run || f.run.until < G.t) f.run = { until: G.t + 2, x: clamp(f.x + s * 11, 2, CW - 2), y: clamp(lerp(f.y, MY, 0.2), 3, CH - 3), gg: true };
+  through(c, f, 0.3); banner('DOPPELPASS', '#7cf2ff', '', 0.8);
 }
 // Doppelpass: wer den Ball abgibt, startet in den freien Raum nach vorne und bietet sich für den Rückpass an
 function giveAndGo(p, q) {
@@ -230,10 +244,11 @@ function shoot(p, power, aimY, o = {}) {
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
   if (isHumanTeam(p.team)) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
   if (!isHumanTeam(p.team) && G.human >= 0) err *= 1 - G.diff.cpu / 60;
-  if (o.finesse) err *= 0.62; if (o.chip) err *= 0.75;
+  if (o.finesse) err *= 0.62; if (o.chip) err *= 0.75; if (o.perfect) err *= 0.45;
   if (!o.target) { ty += gauss() * err * d; tz = Math.max(0.05, tz + gauss() * err * d * 0.5); }
   let v = o.target ? o.target.v : (o.header ? 11 + A_(p, 'kop') * 0.07 : 16 + power * 13 + sch * 0.05 + (p.d.trait === 'Freistoßkönig' && G.sp ? 1.5 : 0)) * (o.volley ? 1.05 : 1);
   if (o.finesse) v = 17 + Math.min(power, 0.8) * 7 + sch * 0.04;
+  if (o.perfect) v *= 1.06;
   const tx = gx + s * 0.4, dd = dist(b.x, b.y, tx, ty);
   let T = dd / v;
   if (o.chip) T = clamp(0.55 + dd * 0.045 - power * 0.15, 0.7, 1.6);   // hoher Bogen über den herauslaufenden Torwart
@@ -307,12 +322,19 @@ function header(p, wantShot) {
 
 // ---------- Zweikampf ----------
 // Tackling im Stehen: Erfolg nach Zweikampf gegen Technik, von hinten riskant
+// Abschirmen (automatisch, wie eFootball): Ballführer langsam unterwegs und der Gegner kommt von hinten oder der Seite
+function shields(c, d) {
+  if (!c || G.ball.owner !== c || isGK(c)) return false;
+  const sp = Math.hypot(c.vx, c.vy), dd = Math.max(0.1, dist(d.x, d.y, c.x, c.y)), dot = (c.hx * (d.x - c.x) + c.hy * (d.y - c.y)) / dd;
+  return sp < 4.2 && dot < 0.2;
+}
 function tackle(d, c) {
   if (d.cd > 0 || d.stun > 0) return;
   d.cd = 0.7; d.act = { type: 'tackle', t: 0, dur: 0.35 };
   if (!c || dist(d.x, d.y, c.x, c.y) > 1.6) { d.cd = 0.4; AU.tackle(); return; }
   const behind = (c.hx * (d.x - c.x) + c.hy * (d.y - c.y)) / Math.max(0.1, dist(d.x, d.y, c.x, c.y)) < -0.3;
   let pr = 0.38 + (A_(d, 'zwk') - A_(c, 'tec')) / 110 - (behind ? 0.15 : 0) + (c.d.energy < 0.4 ? 0.06 : 0);
+  if (shields(c, d)) pr -= 0.14 + A_(c, 'tec') / 1000;   // Ball abgeschirmt: Rücken zum Gegner, langsam – schwer dranzukommen
   if (G.human >= 0 && !isHumanTeam(d.team)) pr += (G.diff.tackle - 1) * 0.12;
   if (isHumanCtrl(d)) pr += G.diff.htk ?? 0.12;   // Arcade: dein Tackling sitzt öfter
   if (d.d.trait === 'Blutgrätsche' || d.d.trait === 'Dampfwalze') pr += 0.05;
