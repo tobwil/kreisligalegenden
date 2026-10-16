@@ -1054,6 +1054,28 @@ test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF 
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur Eingabe, danach Hauptmenü; Neue sehen es nie', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const out = {};
+    store.del(NEWS_KEY); PROF.games = 0; store.del(TUT_KEY); ACT.main(); out.fresh = !menu.querySelector('.news') && store.get(NEWS_KEY) === NEWS[0].id;
+    store.del(NEWS_KEY); PROF.games = 3; SETTINGS.keys = 'legenden'; LASTIN = 'key'; ACT.main();
+    out.shown = !!menu.querySelector('.news'); out.items = menu.querySelectorAll('.newsl li').length; out.txt = menu.querySelector('.news') ? menu.querySelector('.news').textContent : '';
+    out.focus = document.activeElement && document.activeElement.textContent;
+    menu.querySelector('[data-act="main"]').click(); out.menu = !menu.querySelector('.news') && !!menu.querySelector('[data-act="quick"]');
+    ACT.main(); out.once = !menu.querySelector('.news');
+    // unterbrochenes Spiel gespeichert: erst FORTSETZEN, die Neuigkeiten kommen beim nächsten Mal
+    store.del(NEWS_KEY); const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; startMatch(L[0], L[1], { human: 0 }); G.paused = true; G.clock = 30; saveMatch();
+    ACT.main(); out.resume = !!savedMatch() && !menu.querySelector('.news') && !!menu.querySelector('[data-act="resumeMatch"]') && store.get(NEWS_KEY) !== NEWS[0].id;
+    return out;
+  });
+  ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('D halten') && r.txt.includes('LEERTASTE'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
+  const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Menüs nur mit Pfeiltasten erreichbar: Hauptmenü, Freundschaftsspiel, Optionen, Saison-Reiter, Pause', async () => {
   const { page, ctx, errors } = await open();
   // Breitensuche: von jedem erreichten Element aus alle vier Richtungen probieren

@@ -25,6 +25,10 @@ body{margin:0;background:var(--bg) radial-gradient(ellipse at 50% 30%,#13301f 0%
 .panel.narrow{padding-inline:max(clamp(10px,2vw,20px),calc((100% - 600px) / 2))}
 .panel.narrow > :first-child{margin-top:auto}
 .panel.narrow > :last-child{margin-bottom:auto}
+.newsl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.newsl li{border-left:4px solid var(--cyan);background:rgba(124,242,255,.07);padding:8px 12px;display:flex;flex-direction:column;gap:3px}
+.newsl b{font-family:var(--pix);font-size:clamp(10px,1.4vw,12px);color:var(--cyan);letter-spacing:.04em}
+.newsl span{font-size:19px;line-height:1.25}
 .title{display:flex;flex-direction:column;align-items:center;gap:clamp(8px,2vw,18px);text-align:center}
 .logo{font-family:var(--pix);font-size:clamp(22px,6.4vw,64px);line-height:1.05;margin:0;color:var(--gold);letter-spacing:.02em;position:relative;
   text-shadow:0 4px 0 #c96a12,0 8px 0 #7a2c0c,0 12px 0 #000,0 0 40px rgba(255,200,58,.35);animation:bob 3s ease-in-out infinite}
