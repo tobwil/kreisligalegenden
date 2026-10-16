@@ -560,6 +560,43 @@ test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, D
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('FIFA-Gefühl: erste Berührung in Stickrichtung (mit Sprint weiter vorgelegt, ohne Stick gestoppt), Gnadenfrist nach Ballverlust', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true;
+    const s = atkDir(0), [p, q] = teamP(0).filter(x => grpOf(x) === 'MF'), o = teamP(1).find(x => grpOf(x) === 'ST');
+    const frame = () => { readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); };
+    const away = keep => { G.phase = 'play'; G.sp = null; G.offs = null; G.oneTwo = null; for (const x of G.players) if (!isGK(x) && !keep.includes(x)) place(x, CW / 2 + (x.team ? 38 : -30) * s, x.team ? 2 : CH - 2); for (const k in KEY) KEY[k] = false; };
+    // erste Berührung: Pass von p zu q, beim Ankommen Stick nach oben (quer zur Passrichtung)
+    const recv = (keys) => {
+      away([p, q]); place(p, CW / 2, MY); place(q, CW / 2 + s * 10, MY); p.cd = q.cd = 0; G.ctrl = p; giveBall(p, true); readInput(1 / 60);
+      pass(p, q); G.ctrl = q; let got = false;
+      for (let i = 0; i < 120 && !got; i++) { for (const k of keys) KEY[k] = true; readInput(1 / 60); step(1 / 60); got = G.ball.owner === q; }
+      const v = { got, vx: q.vx * s, vy: q.vy, sp: Math.hypot(q.vx, q.vy), lead: Math.hypot(G.ball.x - q.x, G.ball.y - q.y) };
+      for (let i = 0; i < 12; i++) { readInput(1 / 60); step(1 / 60); }
+      v.lead2 = +Math.hypot(G.ball.x - q.x, G.ball.y - q.y).toFixed(2); v.own = G.ball.owner === q; for (const k in KEY) KEY[k] = false; return v;
+    };
+    out.up = recv(['ArrowUp']); out.none = recv([]); out.sprint = recv(['ArrowUp', 'KeyW']);
+    // Gnadenfrist: Ball wird dir weggespitzelt, du drückst gleich danach Pass
+    const grace = wait => {
+      away([p, q, o]); place(p, CW / 2, MY); place(q, CW / 2 + s * 10, MY - 4); place(o, CW / 2 + s * 1.5, MY + 1); p.cd = 0; G.ctrl = p; giveBall(p, true); frame();
+      const b = G.ball; b.owner = null; b.state = 'free'; b.last = o; b.lastTeam = 1; b.kind = 'loose'; b.fid++; b.vx = 1; b.vy = 0.5; b.passer = null;
+      for (let i = 0; i < wait; i++) frame();
+      KEY.KeyS = KEYP.KeyS = true; frame(); KEY.KeyS = false; frame();
+      return b.kind === 'pass' && b.last === p;
+    };
+    out.grace = grace(4); out.late = grace(20);
+    return out;
+  });
+  ok(r.up.got && r.up.vy < -2.5 && r.up.sp > 3.5, 'erste Berührung geht nicht in Stickrichtung: ' + JSON.stringify(r));
+  ok(r.none.got && r.none.sp < r.up.sp * 0.6, 'ohne Stick wird der Ball nicht gestoppt: ' + JSON.stringify(r));
+  ok(r.sprint.got && r.sprint.sp > r.up.sp && r.sprint.lead2 > r.up.lead2 + 0.3 && r.sprint.own, 'mit Sprint nicht weiter vorgelegt: ' + JSON.stringify(r));
+  ok(r.grace && !r.late, 'Gnadenfrist: ' + JSON.stringify([r.grace, r.late]));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang, Großstadt-Reserven mit Vereinskennung, eindeutig je Liga', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
@@ -1123,8 +1160,8 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Lange Bälle') && r.txt.includes('D halten') && r.txt.includes('LEERTASTE'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
-  ok(r.next === 1, 'wer Stand 1 schon kennt, sieht nur das Neue: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Erste Berührung') && r.txt.includes('Lange Bälle') && r.txt.includes('LEERTASTE') && r.txt.includes('Sprint (W)'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
   ok(!errors.length, errors.join('; ')); await ctx.close();
@@ -1172,6 +1209,14 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await page.touchscreen.tap(bb.x, bb.y);
   const passed = await page.waitForFunction(p0 => G.stats.passes[0] > p0, p0, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'PASS-Knopf passt nicht');
+  // größere Trefferfläche: knapp neben dem Kreis (12 px außerhalb, zur Bildschirmmitte hin) zählt als PASS
+  await page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; p.cd = 0; });
+  await page.waitForTimeout(150);
+  const nearPt = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, d = r.width / 2 + 12; return { x: cx - d * 0.8, y: cy - d * 0.6, hit: (document.elementFromPoint(cx - d * 0.8, cy - d * 0.6) || {}).id }; });
+  const p1 = await page.evaluate(() => G.stats.passes[0]);
+  await page.touchscreen.tap(nearPt.x, nearPt.y);
+  const nearOk = await page.waitForFunction(p1 => G.stats.passes[0] > p1, p1, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
+  ok(nearPt.hit === 'zone' && nearOk, 'Tipp knapp neben PASS zählt nicht: ' + JSON.stringify(nearPt));
   // Pause-Knopf oben rechts: sichtbar, antippen pausiert, WEITER spielt weiter
   const pz = await page.evaluate(() => { const r = document.getElementById('tbPause').getBoundingClientRect(); return { w: r.width, x: r.right, y: r.top, vw: innerWidth }; });
   ok(pz.w > 30 && pz.x > pz.vw - 80 && pz.y < 80, 'Pause-Knopf oben rechts fehlt: ' + JSON.stringify(pz));
