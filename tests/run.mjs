@@ -416,7 +416,7 @@ test('Ecke mit Zielvisier: Richtung verschiebt das Ziel im Strafraum, Flanke lan
     const a1 = { ...G.sp.caim }; out.moved = a1.y - a0.y > 4; render(); out.drawn = true;
     KEY.KeyA = KEYP.KeyA = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.KeyA = false; out.wait = G.ball.kind !== 'cross'; readInput(1 / 60); stepSetPiece(1 / 60);   // Flanke beim Loslassen
     out.cross = G.ball.kind === 'cross'; const B = G.ball; let land = null; const v0 = Math.hypot(B.vx, B.vy);
-    for (let i = 0; i < 200 && land == null; i++) { step(1 / 60); if (B.z < 2.0 && B.vz < 0 && i > 10) land = { x: B.x, y: B.y }; }
+    const o = { ...B }; for (let i = 0; i < 200 && land == null; i++) { ballPhys(o, 1 / 60); if (o.z < 2.0 && o.vz < 0 && i > 10) land = { x: o.x, y: o.y }; }   // reine Flugbahn: Torwart oder Kopfball fangen sie sonst je nach Zufall vorher ab
     out.err = land ? Math.hypot(land.x - a1.x, land.y - a1.y) : 99;
     // gehalten = scharf: schneller und flacher als angetippt
     const kick = n => { corner(); KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < n; i++) { readInput(1 / 60); G.t += 1 / 60; stepSetPiece(1 / 60); } KEY.KeyA = false; readInput(1 / 60); stepSetPiece(1 / 60); return G.ball.kind === 'cross' ? G.ball.vz : 99; };
@@ -511,7 +511,8 @@ test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, D
     for (let i = 0; i < 60; i++) { place(o, cx, MY); o.think = 9; G.ball.owner = o; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); movePlayer(d, 1 / 60); }
     out.contain = d.contain === o && !tk0 && G.ball.owner === o;
     out.goalSide = Math.abs(d.x - ox) < Math.abs(o.x - ox) - 0.5 && dist(d.x, d.y, o.x, o.y) < 2.6 && Math.abs(d.y - MY) < 1.5;
-    d.cd = 0; place(d, cx - s * 1.2, MY); KEY.KeyD = false; frame(); out.release = !!(d.act && d.act.type === 'tackle') && !d.contain;
+    // 1,5 m: nah genug fürs Tackling, aber nicht so nah, dass zufällig gespitzelt wird (ein Spitzeln beim Stellen davor zurücksetzen)
+    const tk1 = d.d.ms.tk; d.cd = 0; d.stun = 0; d.act = null; place(d, cx - s * 1.5, MY); KEY.KeyD = false; frame(); out.release = (d.d.ms.tk > tk1 || !!(d.act && ['tackle', 'stumble'].includes(d.act.type))) && !d.contain;   // Tackling ausgelöst (gelungen oder gestolpert)
     // Schwung: der neue Spieler läuft nach dem Wechsel weiter und dreht dann auf den Stick, statt abrupt abzuknicken
     const m = teamP(0).find(q => grpOf(q) === 'MF'); away([m]); place(m, CW / 2, MY); giveBall(o, true); place(o, CW / 2 + 20, 3);
     const run = sw => { m.vx = 7; m.vy = 0; G.ctrl = m; G.swT = sw ? G.t : null; KEY.ArrowLeft = true; KEY.ArrowRight = false; readInput(1 / 60); const v = []; for (let i = 0; i < 30; i++) { movePlayer(m, 1 / 60); G.t += 1 / 60; v.push(m.vx); } KEY.ArrowLeft = false; return v; };
@@ -1118,6 +1119,16 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await page.touchscreen.tap(bb.x, bb.y);
   const passed = await page.waitForFunction(p0 => G.stats.passes[0] > p0, p0, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
   ok(passed, 'PASS-Knopf passt nicht');
+  // Pause-Knopf oben rechts: sichtbar, antippen pausiert, WEITER spielt weiter
+  const pz = await page.evaluate(() => { const r = document.getElementById('tbPause').getBoundingClientRect(); return { w: r.width, x: r.right, y: r.top, vw: innerWidth }; });
+  ok(pz.w > 30 && pz.x > pz.vw - 80 && pz.y < 80, 'Pause-Knopf oben rechts fehlt: ' + JSON.stringify(pz));
+  await page.touchscreen.tap(pz.x - pz.w / 2, pz.y + pz.w / 2); await page.waitForTimeout(120);
+  const pzOn = await page.evaluate(() => G.paused && !menu.hidden);
+  await page.evaluate(() => menu.querySelector('[data-act="resume"]').click()); await page.waitForTimeout(120);
+  const pzOff = await page.evaluate(() => !G.paused && menu.hidden);
+  ok(pzOn && pzOff, 'Pause-Knopf pausiert nicht oder WEITER geht nicht: ' + pzOn + '/' + pzOff);
+  const nv = await page.evaluate(() => { const e = document.createElement('div'); e.id = 'newver'; document.body.appendChild(e); const p = getComputedStyle(e).position; e.remove(); return p; });
+  ok(nv === 'fixed', 'Hinweis „neue Version“ ohne Gestaltung: ' + nv);
   // gedrückt halten und ziehen: Angriff PASS ziehen = Flanke/hoher Ball, SCHUSS aufladen und ziehen = Schlenzer; Abwehr TACKLING ziehen = Grätsche, tippen = Tackling
   const ctr = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, sel);
   const drag = async (sel, dx, dy, hold = 60) => { const c = await ctr(sel); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(hold); await page.mouse.move(c.x + dx / 2, c.y + dy / 2); await page.mouse.move(c.x + dx, c.y + dy); await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(60); };
