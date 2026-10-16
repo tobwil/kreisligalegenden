@@ -898,6 +898,7 @@ test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF 
     ACT.main(); ACT.quick(); out.quick = inView('[data-act="qstart"]');
     pop(); out.back = !!menu.querySelector('[data-act="quick"]');
     ACT.career(); out.newc = inView('[data-act="ncGo"]'); ACT.ncGo(); out.hub = inView('[data-act="cpre"]');
+    menu.scrollTop = 200; stickyGap(); out.fold = getComputedStyle(menu.querySelector('.chead')).display === 'none' && inView('.ctabs');   // Kopfzeile klappt beim Scrollen ein, Reiter bleiben
     ACT.main(); ACT.qstart(); G.phase = 'play'; G.sp = null; pop(); out.pause = !menu.hidden && G.paused && INGAME_MENU;
     pop(); out.resume = menu.hidden && !G.paused;
     const L = ORD_LOOK(0), s = sprite(L, 'run', 2), d = s.getContext('2d').getImageData(0, 0, SW, SH).data;
@@ -905,7 +906,7 @@ test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF 
     out.pants = pants > 3;
     return out;
   });
-  for (const k of ['quick', 'back', 'newc', 'hub', 'pause', 'resume', 'pants']) ok(r[k], k + ': ' + JSON.stringify(r));
+  for (const k of ['quick', 'back', 'newc', 'hub', 'fold', 'pause', 'resume', 'pants']) ok(r[k], k + ': ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
