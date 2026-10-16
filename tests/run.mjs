@@ -551,6 +551,30 @@ test('Ecken-Balance: Torwart kommt bei Flanken in den Fünfer heraus (fängt ode
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Parade (#8): abgewehrter Ball („über die Latte“, „um den Pfosten“, ins Feld) geht nie direkt ins Tor', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = { n: 0, goals: 0, bad: [] };
+    startMatch(L[0], L[1], { human: -1, flitzer: 0 }); G.paused = true;
+    for (let i = 0; i < 400; i++) {
+      G.phase = 'play'; G.sp = null; G.score = [0, 0];
+      const g = G.gk[1], lx = ownX(1), s = atkDir(1), sh = teamP(0).find(q => grpOf(q) === 'ST'), b = G.ball;
+      for (const p of G.players) if (p !== g) place(p, CW / 2, p.team ? 4 : CH - 4);
+      const y = MY + rnd(-5, 5), dl = rnd(0.4, 3.5);
+      place(g, lx + s * dl, y); g.act = null; g.stun = 0;
+      Object.assign(b, { owner: null, x: lx + s * dl, y, z: rnd(1.0, 2.4), vx: -s * rnd(12, 22), vy: rnd(-2, 2), vz: rnd(-1, 2), passTo: null, kind: 'shot' }); b.fid++;
+      b.shot = { by: sh, team: 0, t0: G.t, d: 15 }; b.plan = { g, ok: true, catchIt: false, done: false, fid: b.fid, at: G.t, y };
+      resolveSave(g); out.n++;
+      const z0 = b.z, vz0 = b.vz;
+      for (let k = 0; k < 60 * 3 && G.phase === 'play'; k++) step(1 / 60);
+      if (G.score[0] > 0) { out.goals++; if (out.bad.length < 3) out.bad.push({ z0: +z0.toFixed(2), vz0: +vz0.toFixed(2), dl: +dl.toFixed(2), y: +(y - MY).toFixed(2) }); }
+    }
+    return out;
+  });
+  ok(r.goals === 0, `${r.goals} von ${r.n} Paraden gingen trotzdem ins Tor: ` + JSON.stringify(r.bad));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
