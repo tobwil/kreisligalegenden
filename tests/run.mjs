@@ -995,7 +995,11 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
   const tip = await page.evaluate(() => { localStorage.removeItem('krl_touchtip'); tipG = null; G.phase = 'kickoff'; updateTouchLabels(); touchTip(); const el = document.getElementById('ttip'), on = !!el && G.paused;
-    const labs = el ? [...el.querySelectorAll('.lab b')].map(b => b.textContent).join(',') : ''; closeTouchTip(); G.phase = 'play'; return { ok: on && !G.paused, labs }; });
+    const labs = el ? [...el.querySelectorAll('.lab b')].map(b => b.textContent).join(',') : '';
+    const boxes = [...document.querySelectorAll('#ttip .cmtop, #ttip .lab, #stick, .tb-a, .tb-b')].map(e => e.getBoundingClientRect()); let overlap = 0;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], c = boxes[j]; if (a.left < c.right && a.right > c.left && a.top < c.bottom && a.bottom > c.top) overlap++; }
+    closeTouchTip(); G.phase = 'play'; return { ok: on && !G.paused, labs, overlap }; });
+  ok(tip.overlap === 0, 'Touch-Tipp: Kästen überlappen sich oder die Knöpfe: ' + tip.overlap);
   ok(tip.ok, 'Touch-Tipp im ersten Spiel fehlt oder schließt nicht');
   ok(tip.labs === 'LAUFEN – LINKER DAUMEN,PASS,SCHUSS', 'Touch-Tipp: Beschriftungen an Stick und Knöpfen passen nicht: ' + tip.labs);
   // Anstoß-Vorschau: keine Knöpfe über den Aufstellungen
