@@ -455,11 +455,12 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), claim = gk && p.claim && p.claim.go && p.claim.fid === b.fid, maxZ = gk ? 2.7 : 2.3, mine = passIncoming(p);
+    const r = gk ? (claim ? 1.3 : 1.05) : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
     if (d < r && !mine && missesPass(p)) continue;
-    const w = mine ? d * 0.6 : b.z > 1.0 && inBox(p.team, b.x, b.y) ? d * 0.7 : d;   // Kopfballduell im Strafraum: Verteidiger ebenbürtig
+    const w = claim ? d * 0.4 : mine ? d * 0.6 : b.z > 1.0 && inBox(p.team, b.x, b.y) ? d * 0.7 : d;   // Kopfballduell im Strafraum: Verteidiger ebenbürtig; herauskommender Torwart mit den Händen vorn
     if (d < r && w < bd) { bd = w; best = p; }
   }
   if (!best) return;
@@ -472,6 +473,11 @@ function tryCollect() {
   if (G.offs && (G.offs.team !== p.team || !G.offs.set.has(p))) G.offs = null;
   const rel = Math.hypot(b.vx - p.vx, b.vy - p.vy, b.vz);
   if (gk) {
+    // hoher Ball im Gewühl: nicht immer festhalten, oft wegfausten
+    if (b.z > 1.2 && !b.shot && opps(p).some(o => !isGK(o) && dist(o.x, o.y, b.x, b.y) < 1.4) && Math.random() > 0.5 + A_(p, 'tw') / 400) {
+      const s = atkDir(p.team); b.vx = s * rnd(9, 13); b.vy = (b.y < MY ? -1 : 1) * rnd(2, 6); b.vz = rnd(4, 6); b.last = p; b.lastTeam = p.team; b.fid++; b.kind = 'parry'; b.passTo = null; b.nc = p; b.ncT = 0.3;
+      p.act = { type: 'head', t: 0, dur: 0.35 }; AU.catch(); say(`${p.d.name} faustet den Ball weg.`); return;
+    }
     if (rel < 21 || Math.random() < A_(p, 'tw') / 140) { giveBall(p); AU.catch(); if (b.z > 1.4) say(`${p.d.name} pflückt den Ball runter.`); }
     else { b.vx = -b.vx * 0.3; b.vy += rnd(-4, 4); b.vz = rnd(1, 3); b.last = p; b.lastTeam = p.team; b.fid++; b.shot = null; b.nc = p; b.ncT = 0.3; AU.catch(); }
     return;

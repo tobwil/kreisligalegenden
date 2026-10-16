@@ -387,7 +387,7 @@ test('Flanke halten = kurzer bis langer Pfosten; Kopfball: Spieler läuft selbst
     out.short = crossHold(3); out.long = crossHold(55);
     // Kopfball: Stick die ganze Zeit gedrückt, der Spieler läuft trotzdem zum Ball und köpft in die Ecke, in die der Stick zeigt
     const head = key => {
-      const P = setup(); for (const q of [P.far]) place(q, CW / 2, CH - 3);
+      const P = setup(); for (const q of [P.far]) place(q, CW / 2, CH - 3); place(P.near, P.gx - P.s * 9.5, MY - 2);   // außerhalb des Fünfers, wo der Torwart nicht herauskommt
       cross(P.w, 0); G.ctrl = G.ball.passTo || P.near; const c = G.ctrl;
       for (let i = 0; i < 150; i++) { KEY[key] = true; if (G.ball.z > 0.9 && dist(G.ball.x, G.ball.y, c.x, c.y) < 5) KEYP.Space = KEY.Space = true; else KEY.Space = false; readInput(1 / 60); step(1 / 60); if (G.ball.shot && G.ball.shot.header) break; }
       const B = G.ball; if (!(B.shot && B.shot.header && B.shot.by === c)) return null;
@@ -468,6 +468,26 @@ test('App: Manifest mit Icons, Offline-Cache – nach dem ersten Besuch startet 
     ok(await page.evaluate(() => typeof G !== 'undefined' && !!G && !!menu.querySelector('.logo')), 'offline startet das Spiel nicht');
     ok(!errors.length, errors.join('; '));
   } finally { await ctx.close(); srv.close(); }
+});
+
+test('Ecken-Balance: Torwart kommt bei Flanken in den Fünfer heraus (fängt oder faustet), Ecken sind keine sicheren Tore mehr', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = { goals: 0, gk: 0, n: 40 };
+    for (let n = 0; n < out.n; n++) {
+      startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('corner', 0, goalX(0) === CW ? CW - 0.3 : 0.3, n % 2 ? 0.3 : CH - 0.3); G.phase = 'setpiece'; G.sp.t = 2;
+      for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60);
+      KEY.Space = KEYP.Space = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.Space = false; readInput(1 / 60); stepSetPiece(1 / 60); G.phase = 'play'; G.sp = null;
+      const g0 = G.score[0], gk = G.gk[1]; let touched = false;
+      for (let i = 0; i < 60 * 4; i++) { KEY.Space = !!(G.ball.passTo && G.ball.passTo.team === 0 && G.ball.z > 0.8); if (KEY.Space) KEYP.Space = true; readInput(1 / 60); step(1 / 60); if (G.ball.last === gk || G.ball.owner === gk) touched = true; if (G.phase !== 'play') break; }
+      out.goals += G.score[0] > g0; out.gk += touched;
+    }
+    return out;
+  });
+  ok(r.gk >= 4, 'Torwart greift bei Ecken nie ein: ' + JSON.stringify(r));
+  ok(r.goals / r.n < 0.4, 'zu viele Tore aus Ecken: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
