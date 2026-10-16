@@ -14,6 +14,8 @@ BUILD=$(cat $JS head.html | cksum | cut -d' ' -f1)
   echo '<!doctype html>'
   echo '<html lang="de"><head><meta charset="utf-8"><meta name="viewport" id="vp" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">'
   echo "<meta name=\"description\" content=\"$DESC\"><meta name=\"theme-color\" content=\"#07060b\">"
+  # installierbare App: Manifest, Icons, Vollbild vom Homescreen (iOS über die apple-Angaben)
+  echo '<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Kreisliga">'
   echo "<link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>\">"
   sed -n '1,/^<\/style>/p' head.html | sed -e "s#^<title>.*#<title>$TITLE</title>#" -e 's#href="fonts/fonts.css"#href="../fonts/fonts.css"#'
   [ -n "$UMAMI_ID" ] && echo "<script defer src=\"https://cloud.umami.is/script.js\" data-website-id=\"$UMAMI_ID\" data-domains=\"kreisliga-legenden.de,www.kreisliga-legenden.de\" data-do-not-track=\"true\"></script>"

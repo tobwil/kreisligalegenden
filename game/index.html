@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" id="vp" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="description" content="Fußball im Browser: Kreisliga im Retro-Pixel-Look mit allen Kreisliga-Vereinen Deutschlands, Saison mit Kreispokal, Meisterschaft und Playoffs um die deutsche Kreisliga-Krone. Kostenlos, am Computer und am Handy."><meta name="theme-color" content="#07060b">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Kreisliga">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
 <title>Kreisliga-Legenden spielen – Fußball 11 gegen 11 im Retro-Pixel-Look</title>
 <link rel="stylesheet" href="../fonts/fonts.css">
@@ -341,6 +342,9 @@ body.touch.ingame #pad{display:block}
   .nextbar button{padding:7px 9px;font-size:9px}
   .nextbar h3{font-size:8px}
   .nextbar .np-vs img{width:22px;height:22px}
+  /* Saison: beim Scrollen klappt die Zeile mit Verein und Kasse ein, nur die Reiter bleiben oben (mehr Platz fürs Kreisblatt) */
+  .csticky.stuck .chead{display:none}
+  .csticky.stuck{padding-bottom:4px}
 }
 /* Anstoß-Vorschau und Wiederholung: keine Knöpfe über den Aufstellungen, Tippen irgendwo geht weiter */
 body.cut #pad .tb[data-k],body.cut #stick{opacity:0;pointer-events:none}
@@ -348,6 +352,11 @@ body.cut #pad .tb[data-k],body.cut #stick{opacity:0;pointer-events:none}
 #ttip.cm{left:0;top:0;transform:none;width:auto;inset:0;background:rgba(7,6,11,.58);border:none;box-shadow:none;padding:0;display:block}
 #ttip .cmtop{position:absolute;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(520px,calc(100% - 140px));background:rgba(13,11,20,.96);border:3px solid var(--gold);box-shadow:5px 5px 0 #000;padding:8px 12px;display:grid;gap:6px;font-size:17px;line-height:1.15}
 #ttip .cmtop button{justify-self:end}
+#ttip .cmtop span b{font-family:var(--term);font-size:inherit;color:var(--gold)}   /* PASS, SCHUSS im Fließtext nicht größer als die Schrift */
+#ttip.low .cmtop{grid-template-columns:1fr auto;align-items:center;padding:6px 10px;font-size:15px;gap:4px 10px;width:min(560px,calc(100% - 120px))}
+#ttip.low .cmtop > b{grid-column:1/-1}
+#ttip.low .cmtop button{grid-row:2;grid-column:2;min-height:32px;font-size:9px;padding:6px 8px}
+#ttip.low .lab{font-size:14px;padding:4px 7px}
 #ttip .lab{position:absolute;background:rgba(13,11,20,.96);border:2px solid var(--cyan);box-shadow:4px 4px 0 #000;padding:6px 9px;font-size:16px;line-height:1.15;max-width:250px;color:var(--ink)}
 #ttip .lab b{display:block;font-family:var(--pix);font-weight:normal;font-size:9px;color:var(--cyan);margin-bottom:3px}
 body.tipon #stick{opacity:.9}
@@ -414,7 +423,7 @@ table.cmp td{width:35%}table.cmp td.c{width:30%;font-family:var(--pix);font-size
 </div>
 <script>
 'use strict';
-const BUILD = '3607023227';
+const BUILD = '982312152';
 // Deutschlandkarte als Pixelgitter: je Feld ein Buchstabe = Landesverband (Reihenfolge order), Punkt = Ausland/Meer. Lauflängen je Zeile.
 // Erzeugt mit tools/karte_raster.py aus Natural-Earth-Daten (gemeinfrei).
 const KARTE = {"w":100,"h":136,"order":["01","02","03","04","21","22","23","31","32","33","34","35","41","42","43","61","62","63","64","65","66"],"rows":[".100",".100",".100",".27D.4D.67",".31D6.3D.59",".31D12.D.55",".28D2.D14.55",".27D.5D13.34Q2.18",".32D14.34Q2.18",".34D11.33Q2.Q.Q2.15",".33D.D9.2D.9D3.21Q2.Q.16",".34D13.D.8D2.13Q6.2Q4.16",".30D21.4D2.16Q2.Q2.Q6.15",".30D23.D3.13Q.Q10.18",".33D24.12Q11.Q.18",".32D25.11Q13.19",".34D21.8Q19.2Q.15",".35D19.9Q25.12",".33D20.9Q24.2Q.11",".33D22Q4.2Q27.Q.10",".34D20Q36.10",".30A2.3A3D15Q35.12",".22A.6A9.D14Q35.12",".25A.3A10D15Q37.9",".16A8.5A11D6CD8Q36.9",".10A.3A10.5A11.D3C3D8Q36.9",".14A11.A3.A12.C4D7Q37.9",".13A11.3A16C5D6Q32PQ5.8",".13A12.2A16C6D3Q32P3Q5.8",".13A37D2Q31P8Q.8",".16A37Q14P3Q13P7Q2.8",".15A39Q11P6Q9P10QP2.7",".15A14BA25Q7P13Q3P14.8",".15A15B3A25Q4P30.8",".15A16B3A25P33.8",".15A17B2A28SP29.8",".15A46S3P26.10",".15A46S4P25.10",".14A41S14P21.10",".14A39S16P22.9",".13A41S15P23.8",".13A41S15P24.7",".10A45S13P12UPUP11.6",".10A45S13P11U4P12.5",".10A20EA25S12P11U5P11.5",".10A9EA9E2A3E2A19S15P9U6P10.5",".13A6E2A6E4A2E3A20S13P12UPU2P9.6",".13A5E5A5E7A21S13P25.6",".13A3E7A6E5A22S13P26.5",".13F2E8A6E6A22S12P27.4",".12F3E9A5E5A23S12P27.4",".10F5E8A3E10A20S14P26.4",".9F6E8AE12A18S17P25.4",".11F4E21A15S21P24.4",".10F5E22A15S24P20.4",".3F.4F7E23A14S25P18.5",".F14E24A12S28P15.6",".2F13E24A13S27P16.5",".2F13E24A13S27P16.5",".3F12E23AKA13S23RSP18.4",".3F12E23K4A7TA2T3S16R8P17.4",".4F11E23K3A8T6S14R11P10RP2R3.4",".4F11E18K2E2K4A6T9S13R10P10R9.2",".4F11E19K7A4T11S12R11P2RP6R10.2",".4F11E16K9A2K2T16S9R16PR12.2",".4F11E15K15T15S8R31.",".3F12E17K14T14S8R31.",".4F11E17K16T12S8R31.",".3F12E16K16T13S9R30.",".2F13E14K18T16S6T3R26.2",".G20E8K18T19S4T2R19.3R4.2",".2G19E8K17T22ST4R18.3R4.2",".3G18ME6K18T27R19.3R2.3",".2G19M2E3K19T26R19.5R2.3",".2G18M3E2K19T26R17.13",".2G16M6EK19T26R15.15",".4G13M8K19TKT24R13.17",".5G9M11K21T22R13.19",".4G8M13K21HT19R14.20",".6G6M12K21H4T10HT6R12.22",".6G5M13K21H4T10H2T5R8.2R.23",".6MGMG2M13K18H8T3H3T3H7R6.28",".5M20K17H10TH4T2H9R3.29",".4M20K17H11T2H14.R.30",".4M19K17H28.32",".4M19K13H2K2H29.31",".3M19K12H35.31",".3M18NK2N2K9H35.30",".4M17N6K8H37.28",".4M17N6K8H37.28",".5M16N7K7H37.28",".8M13N7K8H3IH32.28",".7M14N7K8H2I3H30.29",".7M14N7K8H3I4H29.28",".6N6ON15K2IK4H3I6H28.28",".6N4O6N12IKIK4I8H30.27",".6O10N12I5KI10H29.27",".7O9N13I18H27.26",".8O9N12I18H28.25",".8O9N12I18H30.23",".9O7N12I5L14H31.22",".10O.O4N12I5L14H31.22",".13O4.N10I5L15H31.21",".18N9I6L15H33.19",".23N4I6L16H32.19",".25NI7L17H32.18",".25I8L17H34.16",".25I8L17H35.15",".24I9L17H36.14",".23I10L17H36.14",".23I10L15H38.14",".22J10L17H37.14",".22J10L17H33.2H2.14",".21J11L16H34.18",".21J11L14H36.18",".21J11L13H37.18",".21J11L13H36.19",".20J12L14H32.22",".20J12L14H31.23",".19J13L14H29.25",".19J13L15H28.25",".19J13L15H28.25",".20J12L14H30.24",".19J13L14H31.23",".19J13L14H31.23",".19J22L5H31.23",".19J10.2J10L5H31.23",".18J10.5J8L6H31.22",".19J11.8J3L2H26.3H.2H3.22",".20J2.J2.14J2H.H19.13H3.22",".45H5.3H.H7.14H2.22",".46H4.5H5.40",".46H4.5H2.H.41",".47H2.51",".47H.52",".100"]};
@@ -2381,6 +2390,21 @@ function gkAI(g, dt) {
   if (b.owner === g) { if (G.human !== t || G.watch || G.ctrl !== g) gkHold(g, dt); return; }
   // geplante Parade
   if (b.plan && b.plan.g === g && !b.owner && !b.plan.done && b.plan.fid === b.fid) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
+  // hohe Flanke oder Ecke Richtung Fünfer: rauskommen und pflücken. Der Torwart nimmt die Hände und kommt höher als jeder Kopf.
+  // Pro Flanke wird einmal entschieden, ob er geht (je besser der Torwart, desto öfter).
+  if (!b.owner && !b.shot && b.z > 0.6 && b.lastTeam !== t && ['cross', 'lob', 'clear', 'head', 'punt'].includes(b.kind)) {
+    if (!g.claim || g.claim.fid !== b.fid) {
+      g.claim = { fid: b.fid, go: Math.random() < 0.3 + (A_(g, 'tw') - 64) / 80, x: null, y: null };
+      if (g.claim.go) {
+        const v = maxSpeed(g, true);
+        for (const q of ballPath()) {
+          if (q.t > 2.4) break; if (q.z > 2.7 || q.z < 0.5 || Math.abs(q.x - gx) > 6.5 || Math.abs(q.y - MY) > 8) continue;   // Torraum und etwas davor
+          if (dist(g.x, g.y, q.x, q.y) / v + 0.12 <= q.t) { g.claim.x = q.x; g.claim.y = q.y; break; }
+        }
+      }
+    }
+    if (g.claim.go && g.claim.x != null) { g.tx = g.claim.x; g.ty = g.claim.y; g.urg = 1; return; }
+  }
   // freier Ball im Strafraum: rauslaufen, wenn er klar zuerst dran ist
   if (!b.owner && inBox(t, b.x, b.y)) {
     const q = interceptOf(g, { maxZ: 2.6, react: 0.1 });
@@ -2906,11 +2930,12 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
-    const gk = isGK(p) && inBox(p.team, b.x, b.y), maxZ = gk ? 2.6 : 2.3, mine = passIncoming(p), r = gk ? 1.05 : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
+    const gk = isGK(p) && inBox(p.team, b.x, b.y), claim = gk && p.claim && p.claim.go && p.claim.fid === b.fid, maxZ = gk ? 2.7 : 2.3, mine = passIncoming(p);
+    const r = gk ? (claim ? 1.3 : 1.05) : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
     if (b.z > maxZ + p.z) continue;
     const d = dist(p.x, p.y, b.x, b.y);
     if (d < r && !mine && missesPass(p)) continue;
-    const w = mine ? d * 0.6 : b.z > 1.0 && inBox(p.team, b.x, b.y) ? d * 0.7 : d;   // Kopfballduell im Strafraum: Verteidiger ebenbürtig
+    const w = claim ? d * 0.4 : mine ? d * 0.6 : b.z > 1.0 && inBox(p.team, b.x, b.y) ? d * 0.7 : d;   // Kopfballduell im Strafraum: Verteidiger ebenbürtig; herauskommender Torwart mit den Händen vorn
     if (d < r && w < bd) { bd = w; best = p; }
   }
   if (!best) return;
@@ -2923,6 +2948,11 @@ function tryCollect() {
   if (G.offs && (G.offs.team !== p.team || !G.offs.set.has(p))) G.offs = null;
   const rel = Math.hypot(b.vx - p.vx, b.vy - p.vy, b.vz);
   if (gk) {
+    // hoher Ball im Gewühl: nicht immer festhalten, oft wegfausten
+    if (b.z > 1.2 && !b.shot && opps(p).some(o => !isGK(o) && dist(o.x, o.y, b.x, b.y) < 1.4) && Math.random() > 0.5 + A_(p, 'tw') / 400) {
+      const s = atkDir(p.team); b.vx = s * rnd(9, 13); b.vy = (b.y < MY ? -1 : 1) * rnd(2, 6); b.vz = rnd(4, 6); b.last = p; b.lastTeam = p.team; b.fid++; b.kind = 'parry'; b.passTo = null; b.nc = p; b.ncT = 0.3;
+      p.act = { type: 'head', t: 0, dur: 0.35 }; AU.catch(); say(`${p.d.name} faustet den Ball weg.`); return;
+    }
     if (rel < 21 || Math.random() < A_(p, 'tw') / 140) { giveBall(p); AU.catch(); if (b.z > 1.4) say(`${p.d.name} pflückt den Ball runter.`); }
     else { b.vx = -b.vx * 0.3; b.vy += rnd(-4, 4); b.vz = rnd(1, 3); b.last = p; b.lastTeam = p.team; b.fid++; b.shot = null; b.nc = p; b.ncT = 0.3; AU.catch(); }
     return;
@@ -3738,6 +3768,7 @@ const ACT = {
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Steuerung, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
+        ${typeof canInstall === 'function' && canInstall() ? '<button data-act="install">ALS APP INSTALLIEREN <i>Vollbild, auch offline</i></button>' : ''}
         ${PLATFORM.quit ? '<button data-act="exitGame">BEENDEN</button>' : ''}
       </div>
       <p class="legal" style="text-align:center;margin-inline:auto">${LEGAL}</p></div>`, { back: ACT.title, clear: true });
@@ -4986,31 +5017,66 @@ function aimShot(c, pw, sp) {
   spShot(c, pw, 0, target);
 }
 // ---------- Pixelfiguren von vorn und von hinten ----------
-const FRONT = new Map();
+// In der Zielansicht stehen die Figuren nah an der Kamera und werden groß gezeichnet. Deshalb in doppelter Auflösung
+// (44 × 58 Pixel, Figur 56 Pixel hoch) mit Gesicht, Haaren, Trikotmuster, Kragen, Rückennummer, Stutzen und Schuhen.
+const FRONT = new Map(), FIG_H = 56;
 function frontFig(L, pose, back) {
-  const key = L.key + '|' + pose + '|' + +back;
+  const key = L.key + '|' + pose + '|' + +back + '|2';
   let cv0 = FRONT.get(key); if (cv0) return cv0;
-  const w = 22, h = 28, ox = 5, c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'), R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(ox + x, y, ww, hh); };
-  const jer = (x, y, ww, hh) => {
-    R(x, y, ww, hh, L.c1);
-    if (L.pat === 1) for (let i = x + 1; i < x + ww; i += 2) R(i, y, 1, hh, L.c2);
-    if (L.pat === 2) for (let j = y + 1; j < y + hh; j += 3) R(x, j, ww, 1, L.c2);
-    if (L.pat === 3) R(x, y + 3, ww, 2, L.c2);
+  const w = 44, h = 58, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y + 1, ww, hh); };
+  const pants = L.pants, sock = L.so || L.c1, shoe = L.shoe || '#1a1a1e', gl = L.gk ? '#ececec' : null;
+  const belly = L.belly ? 1 : 0, t0 = 14, t1 = 31;   // Rumpf von t0 bis t1
+  // Trikotfläche mit Muster, Licht rechts, Schatten links
+  const jer = (x, y, ww, hh, edge = true) => {
+    for (let j = 0; j < hh; j++) for (let i = 0; i < ww; i++) {
+      const X = x + i, Y = y + j; let col = L.c1;
+      if (L.pat === 1 && (X % 4) < 2) col = L.c2;
+      else if (L.pat === 2 && ((Y - t0) % 6) < 3) col = L.c2;
+      else if (L.pat === 3 && Y >= t0 + 5 && Y <= t0 + 7) col = L.c2;
+      if (edge && i === 0) col = shade(col, 0.72); else if (edge && i === ww - 1) col = mix(col, '#ffffff', 0.22);
+      R(X, Y, 1, 1, col);
+    }
   };
-  // Beine, Stutzen, Schuhe
-  R(3, 18, 2, 2, L.skin); R(7, 18, 2, 2, L.skin); R(3, 20, 2, 5, L.so || L.c1); R(7, 20, 2, 5, L.so || L.c1); R(2, 25, 3, 2, L.shoe || '#1a1a1e'); R(7, 25, 3, 2, L.shoe || '#1a1a1e');
-  R(2, 14, 8, 4, L.sh); R(5, 16, 2, 2, shade(L.sh, 0.7));
-  jer(2, 6, 8, 8); R(2, 6, 1, 8, L.jerS);
-  // Arme je nach Haltung
-  if (pose === 'gk') { jer(-3, 7, 5, 2); jer(10, 7, 5, 2); R(-5, 6, 2, 3, L.gk ? '#ececec' : L.skin); R(15, 6, 2, 3, L.gk ? '#ececec' : L.skin); }
-  else if (pose === 'wall') { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(1, 9, 2, 4, L.skin); R(9, 9, 2, 4, L.skin); R(3, 13, 6, 2, L.skin); }
-  else if (pose === 'up') { jer(0, 4, 2, 3); jer(10, 4, 2, 3); R(0, 0, 2, 4, L.skin); R(10, 0, 2, 4, L.skin); }
-  else { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(0, 9, 2, 5, L.skin); R(10, 9, 2, 5, L.skin); }
-  // Kopf
-  R(4, 5, 4, 1, L.skinS); R(3, 0, 6, 5, L.skin);
-  if (back) { R(3, 0, 6, 4, L.hair); R(4, 4, 4, 1, L.hair); if (L.num) { g.fillStyle = lum(L.c1) > 0.6 ? '#1a1a1e' : '#ffffff'; g.fillRect(ox + 5, 8, 2, 4); } }
-  else { R(3, 0, 6, 1, L.hair); R(3, 1, 1, 2, L.hair); R(8, 1, 1, 2, L.hair); R(4, 2, 1, 1, '#1a1010'); R(7, 2, 1, 1, '#1a1010'); if (L.beard) R(4, 4, 4, 1, shade(L.hair, 0.9)); }
+  // Beine: Haut, Stutzen mit Streifen, Schuhe (lange Hose: durchgehend Hosenfarbe)
+  for (const [lx, d] of [[15, 0.82], [24, 1]]) {
+    if (pants) { R(lx, 37, 6, 15, shade(pants, d)); }
+    else { R(lx, 37, 6, 4, shade(L.skin, d)); R(lx, 41, 6, 11, shade(sock, d)); R(lx, 42, 6, 1, shade(L.c2, d)); R(lx, 41, 1, 11, shade(sock, d * 0.8)); }
+    R(lx - 1, 52, 7, 4, shade(shoe, d)); R(lx - 1, 55, 7, 1, '#000000'); R(lx + 3, 52, 2, 1, mix(shoe, '#ffffff', 0.35));
+  }
+  // Hose
+  R(14, 31, 16, 7, L.sh); R(14, 31, 2, 7, shade(L.sh, 0.75)); R(28, 31, 2, 7, mix(L.sh, '#ffffff', 0.15)); R(21, 35, 2, 3, shade(L.sh, 0.6));
+  // Rumpf (Bauch: unten breiter)
+  for (let y = t0; y < t1; y++) { const wide = belly && y > t0 + 7 ? 1 : 0; jer(13 - wide, y, 18 + 2 * wide, 1); }
+  if (!back) { R(19, t0, 6, 2, L.c2); R(20, t0 + 2, 4, 1, L.c2); R(21, t0, 2, 1, L.skin); }   // Kragen mit V
+  else { R(17, t0, 10, 1, L.c2); if (L.num) { const n = L.num, sc = 2, dw = digitsW(n, sc), col = lum(L.c1) > 0.6 ? '#1a1a1e' : '#ffffff'; drawDigits(g, n, 22 - (dw >> 1), t0 + 5, col, sc); } }
+  // Arme je nach Haltung (Ärmel in Trikotfarbe, dann Haut, Torwart mit Handschuhen)
+  const hand = (x, y) => { if (gl) { R(x - 1, y, 5, 4, gl); R(x - 1, y + 3, 5, 1, '#b8b8bc'); } else R(x, y, 3, 3, L.skin); };
+  if (pose === 'gk') {
+    jer(5, t0 + 1, 8, 4, false); jer(31, t0 + 1, 8, 4, false); R(1, t0 + 1, 4, 4, L.skin); R(39, t0 + 1, 4, 4, L.skin); hand(0, t0 - 2); hand(41, t0 - 2);
+  } else if (pose === 'up') {
+    jer(9, t0 - 3, 4, 5, false); jer(31, t0 - 3, 4, 5, false); R(9, 2, 4, 10, L.skin); R(31, 2, 4, 10, L.skin); hand(9, 0); hand(31, 0);
+  } else if (pose === 'wall') {
+    jer(9, t0 + 1, 4, 6, false); jer(31, t0 + 1, 4, 6, false); R(9, t0 + 7, 4, 7, L.skin); R(31, t0 + 7, 4, 7, L.skin); R(13, 28, 18, 3, L.skin); R(13, 30, 18, 1, L.skinS);   // Hände vor der Hose
+  } else {
+    jer(9, t0 + 1, 4, 6, false); jer(31, t0 + 1, 4, 6, false); R(9, t0 + 7, 4, 9, L.skin); R(31, t0 + 7, 4, 9, L.skin); R(9, t0 + 7, 1, 9, L.skinS); hand(9, t0 + 16); hand(31, t0 + 16);
+  }
+  // Hals und Kopf
+  R(20, 11, 4, 3, L.skinS); R(17, 1, 10, 11, L.skin); R(17, 1, 2, 11, L.skinS); R(16, 5, 1, 3, L.skin); R(27, 5, 1, 3, L.skin);
+  const Hc = L.hair, HL = mix(Hc, '#ffffff', 0.25), style = L.style ?? 1;
+  if (back) {
+    if (style !== 3) { R(17, 0, 10, 9, Hc); R(18, 0, 6, 1, HL); if (style === 2 || style === 4) R(16, 2, 12, 8, Hc); if (style === 5) R(20, 9, 4, 5, Hc); }
+    else R(19, 2, 4, 2, mix(L.skin, '#ffffff', 0.35));   // Glatze glänzt
+  } else {
+    R(19, 6, 2, 2, '#1a1010'); R(24, 6, 2, 2, '#1a1010'); R(19, 6, 1, 1, '#f4f4f0'); R(24, 6, 1, 1, '#f4f4f0');   // Augen
+    R(22, 7, 1, 2, L.skinS); R(20, 10, 4, 1, shade(L.skin, 0.72));                                              // Nase, Mund
+    if (style !== 3) { R(17, 0, 10, 3, Hc); R(18, 0, 5, 1, HL); R(19, 5, 2, 1, Hc); R(24, 5, 2, 1, Hc); }
+    if (style === 0) R(18, 3, 5, 1, Hc);                                  // Pony
+    if (style === 2) { R(16, 1, 2, 9, Hc); R(26, 1, 2, 9, Hc); }        // länger
+    if (style === 4) { R(16, -1, 12, 3, Hc); R(16, 2, 1, 5, Hc); R(27, 2, 1, 5, Hc); R(18, -1, 2, 1, HL); R(23, -1, 2, 1, HL); }   // Locken
+    if (style === 3) R(20, 1, 4, 1, mix(L.skin, '#ffffff', 0.35));
+    if (L.beard) { R(17, 9, 10, 3, shade(Hc, 0.9)); R(20, 10, 4, 1, shade(L.skin, 0.72)); }
+  }
   // Umriss
   const src = g.getImageData(0, 0, w, h), out = g.createImageData(w, h), sd = src.data, od = out.data;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -5091,7 +5157,7 @@ function drawAimView() {
     const taker = G.sp && p === G.sp.taker && !G.aimFly;
     if (taker) {   // Schütze steht zum Anlauf links hinter dem Ball, von hinten zu sehen
       const tq = aimProj(A, A.bx - A.dx * 0.4 - A.rx * 1.5, A.by - A.dy * 0.4 - A.ry * 1.5, 0);
-      if (tq) items.push({ f: tq.f, draw: () => { const img = frontFig(p.look, 'idle', true), sc = tq.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+      if (tq) items.push({ f: tq.f, draw: () => { const img = frontFig(p.look, 'idle', true), sc = tq.k * 1.85 / FIG_H, w = img.width * sc, h = img.height * sc;
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(tq.x, tq.y, 0.35 * tq.k, 0.08 * tq.k, 0, 0, Math.PI * 2); ctx.fill();
         ctx.imageSmoothingEnabled = false; ctx.drawImage(img, tq.x - w / 2, tq.y - h, w, h); } });
       continue;
@@ -5099,7 +5165,7 @@ function drawAimView() {
     if (q.f < (G.aimFly ? 12 : 5)) continue;   // zu nah an der Kamera (nach dem Schuss laufen die Spieler sonst riesig durchs Bild)
     items.push({ f: q.f, draw: () => {
       const keeper = isGK(p), mine = p.team === A.team, pose = keeper ? 'gk' : p.wall ? (p.z > 0.2 ? 'up' : 'wall') : 'idle';
-      const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+      const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / FIG_H, w = img.width * sc, h = img.height * sc;
       const sh = aimProj(A, p.x, p.y, 0); if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.35 * sh.k, 0.08 * sh.k, 0, 0, Math.PI * 2); ctx.fill(); }
       ctx.save(); ctx.translate(q.x, q.y - h / 2);
       if (keeper && p.act && p.act.type === 'dive') { const side = Math.sign((p.vx * A.rx + p.vy * A.ry) || 1); ctx.rotate(side * Math.min(1.35, p.act.t * 5)); }
@@ -6209,7 +6275,7 @@ function touchTip() {
   const n = store.get('krl_touchtip', 0); if (n >= 2) return; store.set('krl_touchtip', n + 1);
   const el = document.createElement('div'); el.id = 'ttip'; el.className = 'cm'; el.setAttribute('role', 'dialog');
   const R = s => { const e = document.querySelector(s); return e && e.getBoundingClientRect(); }, st = R('#stick'), ra = R('.tb-a'), rb = R('.tb-b'), vw = innerWidth, vh = innerHeight;
-  const lab = (css, h, t) => `<div class="lab" style="${css}"><b>${h}</b>${t}</div>`;
+  const lab = (k, h, t) => `<div class="lab" data-k="${k}"><b>${h}</b>${t}</div>`;
   // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
   const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
   const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
@@ -6217,12 +6283,30 @@ function touchTip() {
   const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
     : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';
   el.innerHTML = `<div class="cmtop"><b>SO SPIELST DU AUF DEM HANDY</b><span>${top}</span><button>LOS GEHT'S</button></div>`
-    + (st ? lab(`left:${Math.max(8, st.left)}px;bottom:${vh - st.top + 10}px`, 'LAUFEN – LINKER DAUMEN', 'irgendwo links aufsetzen und ziehen<br>weit ziehen = Sprint<br>mit Ball: Stick kreisen = Trick') : '')
-    + (ra ? lab(`right:${vw - ra.left + 10}px;bottom:${vh - ra.bottom + 4}px`, A[0], A[1]) : '')
-    + (rb ? lab(`right:${vw - rb.right}px;bottom:${vh - rb.top + 10}px`, B[0], B[1]) : '');
+    + (st ? lab('st', 'LAUFEN – LINKER DAUMEN', 'irgendwo links aufsetzen und ziehen<br>weit ziehen = Sprint<br>mit Ball: Stick kreisen = Trick') : '')
+    + (ra ? lab('a', A[0], A[1]) : '') + (rb ? lab('b', B[0], B[1]) : '');
   const t0 = performance.now();
   el.addEventListener('pointerdown', e => { e.preventDefault(); if (performance.now() - t0 > 450) closeTouchTip(); });   // tippen irgendwo = weiter
   document.body.appendChild(el); document.body.classList.add('tipon'); TTIP = el; G.paused = true;
+  if (vh < 480) el.classList.add('low');   // niedriger Bildschirm (Handy quer mit Browserleiste): Kasten oben kompakter
+  // Beschriftungen an Stick und Knöpfen: je Kasten mehrere Plätze probieren, der erste, der nichts verdeckt und im Bild liegt, gewinnt
+  const pos = {
+    st: st && [{ left: Math.max(8, st.left), bottom: vh - st.top + 10 }, { left: st.right + 10, bottom: vh - st.bottom }, { left: st.right + 10, top: st.top - 40 }],
+    a: ra && [{ right: vw - ra.left + 10, bottom: vh - ra.bottom + 4 }, { right: vw - ra.left + 10, top: ra.top - 60 }, { right: vw - ra.right, bottom: vh - ra.top + 10 }],
+    b: rb && [{ right: vw - rb.right, bottom: vh - rb.top + 10 }, { right: vw - rb.left + 10, top: rb.top }, { right: vw - rb.left + 10, bottom: vh - rb.bottom }, { right: vw - rb.left + 10, top: rb.top - 70 }],
+  };
+  const placed = [el.querySelector('.cmtop').getBoundingClientRect(), ...['#stick', '.tb-a', '.tb-b'].map(R).filter(Boolean)];
+  const hit = (q, o) => q.left < o.right + 4 && q.right > o.left - 4 && q.top < o.bottom + 4 && q.bottom > o.top - 4;
+  for (const box of el.querySelectorAll('.lab')) {
+    const cands = pos[box.dataset.k] || []; let best = null, bestHits = 1e9;
+    for (const c of cands) {
+      Object.assign(box.style, { left: '', right: '', top: '', bottom: '' }); for (const [k, v] of Object.entries(c)) box.style[k] = Math.round(v) + 'px';
+      const q = box.getBoundingClientRect(), out = q.left < 0 || q.top < 0 || q.right > vw || q.bottom > vh, n = placed.filter(o => hit(q, o)).length + (out ? 5 : 0);
+      if (n < bestHits) { bestHits = n; best = c; } if (!n) break;
+    }
+    if (best) { Object.assign(box.style, { left: '', right: '', top: '', bottom: '' }); for (const [k, v] of Object.entries(best)) box.style[k] = Math.round(v) + 'px'; }
+    placed.push(box.getBoundingClientRect());
+  }
 }
 const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
 function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
@@ -6243,6 +6327,25 @@ function checkVersion() {
   }).catch(() => { });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+// Installierbare App (Manifest in game/manifest.webmanifest): Offline-Cache registrieren und das Installieren anbieten.
+// Android/Chrome liefert ein Installations-Angebot, iPhone/iPad braucht „Teilen → Zum Home-Bildschirm“ (dafür ein Hinweis).
+let INSTALL = null;
+const IS_APP = (() => { try { return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } })();
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canInstall = () => ON_WEB && !IS_APP && (!!INSTALL || (IOS && TOUCHDEV));
+if (ON_WEB && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { }); });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL = e; if (!menu.hidden && menu.querySelector('[data-act="quick"]')) ACT.main(); });
+addEventListener('appinstalled', () => { INSTALL = null; track('app-installiert'); });
+Object.assign(ACT, {
+  install() {
+    if (INSTALL) { const p = INSTALL; INSTALL = null; p.prompt(); (p.userChoice || Promise.resolve({})).then(r => { track('app-installieren', { antwort: r.outcome || '?' }); ACT.main(); }).catch(() => { }); return; }
+    track('app-installieren', { antwort: 'ios-hinweis' });
+    show(`<div class="panel narrow"><h2>ALS APP INSTALLIEREN</h2>
+      <p>So liegt Kreisliga-Legenden wie eine App auf deinem Home-Bildschirm: Vollbild ohne Browserleiste, startet quer und läuft auch ohne Netz.</p>
+      <p>1. Unten in Safari auf <b>Teilen</b> tippen (Quadrat mit Pfeil nach oben).<br>2. <b>Zum Home-Bildschirm</b> wählen.<br>3. Auf <b>Hinzufügen</b> tippen.</p>
+      <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
+  },
+});
 // Zurück-Geste und Zurück-Taste (Android, Browser): im Spiel = Pause, im Menü = eine Ebene zurück, statt die Seite zu verlassen.
 // Nur auf dem Titelbild verlässt Zurück das Spiel. Der Merker im Verlauf wird erst bei einer Eingabe gesetzt (sonst überspringt Chrome ihn).
 if (ON_WEB && history.pushState) {

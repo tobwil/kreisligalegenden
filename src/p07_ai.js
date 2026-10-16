@@ -242,6 +242,21 @@ function gkAI(g, dt) {
   if (b.owner === g) { if (G.human !== t || G.watch || G.ctrl !== g) gkHold(g, dt); return; }
   // geplante Parade
   if (b.plan && b.plan.g === g && !b.owner && !b.plan.done && b.plan.fid === b.fid) { g.tx = gx + s * 0.4; g.ty = clamp(b.plan.y, GY1 - 1, GY2 + 1); g.urg = 1; if (G.t >= b.plan.at - 0.32 && !g.act) startDive(g); return; }
+  // hohe Flanke oder Ecke Richtung Fünfer: rauskommen und pflücken. Der Torwart nimmt die Hände und kommt höher als jeder Kopf.
+  // Pro Flanke wird einmal entschieden, ob er geht (je besser der Torwart, desto öfter).
+  if (!b.owner && !b.shot && b.z > 0.6 && b.lastTeam !== t && ['cross', 'lob', 'clear', 'head', 'punt'].includes(b.kind)) {
+    if (!g.claim || g.claim.fid !== b.fid) {
+      g.claim = { fid: b.fid, go: Math.random() < 0.3 + (A_(g, 'tw') - 64) / 80, x: null, y: null };
+      if (g.claim.go) {
+        const v = maxSpeed(g, true);
+        for (const q of ballPath()) {
+          if (q.t > 2.4) break; if (q.z > 2.7 || q.z < 0.5 || Math.abs(q.x - gx) > 6.5 || Math.abs(q.y - MY) > 8) continue;   // Torraum und etwas davor
+          if (dist(g.x, g.y, q.x, q.y) / v + 0.12 <= q.t) { g.claim.x = q.x; g.claim.y = q.y; break; }
+        }
+      }
+    }
+    if (g.claim.go && g.claim.x != null) { g.tx = g.claim.x; g.ty = g.claim.y; g.urg = 1; return; }
+  }
   // freier Ball im Strafraum: rauslaufen, wenn er klar zuerst dran ist
   if (!b.owner && inBox(t, b.x, b.y)) {
     const q = interceptOf(g, { maxZ: 2.6, react: 0.1 });

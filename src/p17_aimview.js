@@ -65,31 +65,66 @@ function aimShot(c, pw, sp) {
   spShot(c, pw, 0, target);
 }
 // ---------- Pixelfiguren von vorn und von hinten ----------
-const FRONT = new Map();
+// In der Zielansicht stehen die Figuren nah an der Kamera und werden groß gezeichnet. Deshalb in doppelter Auflösung
+// (44 × 58 Pixel, Figur 56 Pixel hoch) mit Gesicht, Haaren, Trikotmuster, Kragen, Rückennummer, Stutzen und Schuhen.
+const FRONT = new Map(), FIG_H = 56;
 function frontFig(L, pose, back) {
-  const key = L.key + '|' + pose + '|' + +back;
+  const key = L.key + '|' + pose + '|' + +back + '|2';
   let cv0 = FRONT.get(key); if (cv0) return cv0;
-  const w = 22, h = 28, ox = 5, c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'), R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(ox + x, y, ww, hh); };
-  const jer = (x, y, ww, hh) => {
-    R(x, y, ww, hh, L.c1);
-    if (L.pat === 1) for (let i = x + 1; i < x + ww; i += 2) R(i, y, 1, hh, L.c2);
-    if (L.pat === 2) for (let j = y + 1; j < y + hh; j += 3) R(x, j, ww, 1, L.c2);
-    if (L.pat === 3) R(x, y + 3, ww, 2, L.c2);
+  const w = 44, h = 58, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y + 1, ww, hh); };
+  const pants = L.pants, sock = L.so || L.c1, shoe = L.shoe || '#1a1a1e', gl = L.gk ? '#ececec' : null;
+  const belly = L.belly ? 1 : 0, t0 = 14, t1 = 31;   // Rumpf von t0 bis t1
+  // Trikotfläche mit Muster, Licht rechts, Schatten links
+  const jer = (x, y, ww, hh, edge = true) => {
+    for (let j = 0; j < hh; j++) for (let i = 0; i < ww; i++) {
+      const X = x + i, Y = y + j; let col = L.c1;
+      if (L.pat === 1 && (X % 4) < 2) col = L.c2;
+      else if (L.pat === 2 && ((Y - t0) % 6) < 3) col = L.c2;
+      else if (L.pat === 3 && Y >= t0 + 5 && Y <= t0 + 7) col = L.c2;
+      if (edge && i === 0) col = shade(col, 0.72); else if (edge && i === ww - 1) col = mix(col, '#ffffff', 0.22);
+      R(X, Y, 1, 1, col);
+    }
   };
-  // Beine, Stutzen, Schuhe
-  R(3, 18, 2, 2, L.skin); R(7, 18, 2, 2, L.skin); R(3, 20, 2, 5, L.so || L.c1); R(7, 20, 2, 5, L.so || L.c1); R(2, 25, 3, 2, L.shoe || '#1a1a1e'); R(7, 25, 3, 2, L.shoe || '#1a1a1e');
-  R(2, 14, 8, 4, L.sh); R(5, 16, 2, 2, shade(L.sh, 0.7));
-  jer(2, 6, 8, 8); R(2, 6, 1, 8, L.jerS);
-  // Arme je nach Haltung
-  if (pose === 'gk') { jer(-3, 7, 5, 2); jer(10, 7, 5, 2); R(-5, 6, 2, 3, L.gk ? '#ececec' : L.skin); R(15, 6, 2, 3, L.gk ? '#ececec' : L.skin); }
-  else if (pose === 'wall') { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(1, 9, 2, 4, L.skin); R(9, 9, 2, 4, L.skin); R(3, 13, 6, 2, L.skin); }
-  else if (pose === 'up') { jer(0, 4, 2, 3); jer(10, 4, 2, 3); R(0, 0, 2, 4, L.skin); R(10, 0, 2, 4, L.skin); }
-  else { jer(0, 6, 2, 3); jer(10, 6, 2, 3); R(0, 9, 2, 5, L.skin); R(10, 9, 2, 5, L.skin); }
-  // Kopf
-  R(4, 5, 4, 1, L.skinS); R(3, 0, 6, 5, L.skin);
-  if (back) { R(3, 0, 6, 4, L.hair); R(4, 4, 4, 1, L.hair); if (L.num) { g.fillStyle = lum(L.c1) > 0.6 ? '#1a1a1e' : '#ffffff'; g.fillRect(ox + 5, 8, 2, 4); } }
-  else { R(3, 0, 6, 1, L.hair); R(3, 1, 1, 2, L.hair); R(8, 1, 1, 2, L.hair); R(4, 2, 1, 1, '#1a1010'); R(7, 2, 1, 1, '#1a1010'); if (L.beard) R(4, 4, 4, 1, shade(L.hair, 0.9)); }
+  // Beine: Haut, Stutzen mit Streifen, Schuhe (lange Hose: durchgehend Hosenfarbe)
+  for (const [lx, d] of [[15, 0.82], [24, 1]]) {
+    if (pants) { R(lx, 37, 6, 15, shade(pants, d)); }
+    else { R(lx, 37, 6, 4, shade(L.skin, d)); R(lx, 41, 6, 11, shade(sock, d)); R(lx, 42, 6, 1, shade(L.c2, d)); R(lx, 41, 1, 11, shade(sock, d * 0.8)); }
+    R(lx - 1, 52, 7, 4, shade(shoe, d)); R(lx - 1, 55, 7, 1, '#000000'); R(lx + 3, 52, 2, 1, mix(shoe, '#ffffff', 0.35));
+  }
+  // Hose
+  R(14, 31, 16, 7, L.sh); R(14, 31, 2, 7, shade(L.sh, 0.75)); R(28, 31, 2, 7, mix(L.sh, '#ffffff', 0.15)); R(21, 35, 2, 3, shade(L.sh, 0.6));
+  // Rumpf (Bauch: unten breiter)
+  for (let y = t0; y < t1; y++) { const wide = belly && y > t0 + 7 ? 1 : 0; jer(13 - wide, y, 18 + 2 * wide, 1); }
+  if (!back) { R(19, t0, 6, 2, L.c2); R(20, t0 + 2, 4, 1, L.c2); R(21, t0, 2, 1, L.skin); }   // Kragen mit V
+  else { R(17, t0, 10, 1, L.c2); if (L.num) { const n = L.num, sc = 2, dw = digitsW(n, sc), col = lum(L.c1) > 0.6 ? '#1a1a1e' : '#ffffff'; drawDigits(g, n, 22 - (dw >> 1), t0 + 5, col, sc); } }
+  // Arme je nach Haltung (Ärmel in Trikotfarbe, dann Haut, Torwart mit Handschuhen)
+  const hand = (x, y) => { if (gl) { R(x - 1, y, 5, 4, gl); R(x - 1, y + 3, 5, 1, '#b8b8bc'); } else R(x, y, 3, 3, L.skin); };
+  if (pose === 'gk') {
+    jer(5, t0 + 1, 8, 4, false); jer(31, t0 + 1, 8, 4, false); R(1, t0 + 1, 4, 4, L.skin); R(39, t0 + 1, 4, 4, L.skin); hand(0, t0 - 2); hand(41, t0 - 2);
+  } else if (pose === 'up') {
+    jer(9, t0 - 3, 4, 5, false); jer(31, t0 - 3, 4, 5, false); R(9, 2, 4, 10, L.skin); R(31, 2, 4, 10, L.skin); hand(9, 0); hand(31, 0);
+  } else if (pose === 'wall') {
+    jer(9, t0 + 1, 4, 6, false); jer(31, t0 + 1, 4, 6, false); R(9, t0 + 7, 4, 7, L.skin); R(31, t0 + 7, 4, 7, L.skin); R(13, 28, 18, 3, L.skin); R(13, 30, 18, 1, L.skinS);   // Hände vor der Hose
+  } else {
+    jer(9, t0 + 1, 4, 6, false); jer(31, t0 + 1, 4, 6, false); R(9, t0 + 7, 4, 9, L.skin); R(31, t0 + 7, 4, 9, L.skin); R(9, t0 + 7, 1, 9, L.skinS); hand(9, t0 + 16); hand(31, t0 + 16);
+  }
+  // Hals und Kopf
+  R(20, 11, 4, 3, L.skinS); R(17, 1, 10, 11, L.skin); R(17, 1, 2, 11, L.skinS); R(16, 5, 1, 3, L.skin); R(27, 5, 1, 3, L.skin);
+  const Hc = L.hair, HL = mix(Hc, '#ffffff', 0.25), style = L.style ?? 1;
+  if (back) {
+    if (style !== 3) { R(17, 0, 10, 9, Hc); R(18, 0, 6, 1, HL); if (style === 2 || style === 4) R(16, 2, 12, 8, Hc); if (style === 5) R(20, 9, 4, 5, Hc); }
+    else R(19, 2, 4, 2, mix(L.skin, '#ffffff', 0.35));   // Glatze glänzt
+  } else {
+    R(19, 6, 2, 2, '#1a1010'); R(24, 6, 2, 2, '#1a1010'); R(19, 6, 1, 1, '#f4f4f0'); R(24, 6, 1, 1, '#f4f4f0');   // Augen
+    R(22, 7, 1, 2, L.skinS); R(20, 10, 4, 1, shade(L.skin, 0.72));                                              // Nase, Mund
+    if (style !== 3) { R(17, 0, 10, 3, Hc); R(18, 0, 5, 1, HL); R(19, 5, 2, 1, Hc); R(24, 5, 2, 1, Hc); }
+    if (style === 0) R(18, 3, 5, 1, Hc);                                  // Pony
+    if (style === 2) { R(16, 1, 2, 9, Hc); R(26, 1, 2, 9, Hc); }        // länger
+    if (style === 4) { R(16, -1, 12, 3, Hc); R(16, 2, 1, 5, Hc); R(27, 2, 1, 5, Hc); R(18, -1, 2, 1, HL); R(23, -1, 2, 1, HL); }   // Locken
+    if (style === 3) R(20, 1, 4, 1, mix(L.skin, '#ffffff', 0.35));
+    if (L.beard) { R(17, 9, 10, 3, shade(Hc, 0.9)); R(20, 10, 4, 1, shade(L.skin, 0.72)); }
+  }
   // Umriss
   const src = g.getImageData(0, 0, w, h), out = g.createImageData(w, h), sd = src.data, od = out.data;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -170,7 +205,7 @@ function drawAimView() {
     const taker = G.sp && p === G.sp.taker && !G.aimFly;
     if (taker) {   // Schütze steht zum Anlauf links hinter dem Ball, von hinten zu sehen
       const tq = aimProj(A, A.bx - A.dx * 0.4 - A.rx * 1.5, A.by - A.dy * 0.4 - A.ry * 1.5, 0);
-      if (tq) items.push({ f: tq.f, draw: () => { const img = frontFig(p.look, 'idle', true), sc = tq.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+      if (tq) items.push({ f: tq.f, draw: () => { const img = frontFig(p.look, 'idle', true), sc = tq.k * 1.85 / FIG_H, w = img.width * sc, h = img.height * sc;
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(tq.x, tq.y, 0.35 * tq.k, 0.08 * tq.k, 0, 0, Math.PI * 2); ctx.fill();
         ctx.imageSmoothingEnabled = false; ctx.drawImage(img, tq.x - w / 2, tq.y - h, w, h); } });
       continue;
@@ -178,7 +213,7 @@ function drawAimView() {
     if (q.f < (G.aimFly ? 12 : 5)) continue;   // zu nah an der Kamera (nach dem Schuss laufen die Spieler sonst riesig durchs Bild)
     items.push({ f: q.f, draw: () => {
       const keeper = isGK(p), mine = p.team === A.team, pose = keeper ? 'gk' : p.wall ? (p.z > 0.2 ? 'up' : 'wall') : 'idle';
-      const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / 26, w = img.width * sc, h = img.height * sc;
+      const img = frontFig(p.look, pose, mine), sc = q.k * 1.85 / FIG_H, w = img.width * sc, h = img.height * sc;
       const sh = aimProj(A, p.x, p.y, 0); if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.35 * sh.k, 0.08 * sh.k, 0, 0, Math.PI * 2); ctx.fill(); }
       ctx.save(); ctx.translate(q.x, q.y - h / 2);
       if (keeper && p.act && p.act.type === 'dive') { const side = Math.sign((p.vx * A.rx + p.vy * A.ry) || 1); ctx.rotate(side * Math.min(1.35, p.act.t * 5)); }

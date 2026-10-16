@@ -182,7 +182,7 @@ function touchTip() {
   const n = store.get('krl_touchtip', 0); if (n >= 2) return; store.set('krl_touchtip', n + 1);
   const el = document.createElement('div'); el.id = 'ttip'; el.className = 'cm'; el.setAttribute('role', 'dialog');
   const R = s => { const e = document.querySelector(s); return e && e.getBoundingClientRect(); }, st = R('#stick'), ra = R('.tb-a'), rb = R('.tb-b'), vw = innerWidth, vh = innerHeight;
-  const lab = (css, h, t) => `<div class="lab" style="${css}"><b>${h}</b>${t}</div>`;
+  const lab = (k, h, t) => `<div class="lab" data-k="${k}"><b>${h}</b>${t}</div>`;
   // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
   const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
   const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
@@ -190,12 +190,30 @@ function touchTip() {
   const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
     : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';
   el.innerHTML = `<div class="cmtop"><b>SO SPIELST DU AUF DEM HANDY</b><span>${top}</span><button>LOS GEHT'S</button></div>`
-    + (st ? lab(`left:${Math.max(8, st.left)}px;bottom:${vh - st.top + 10}px`, 'LAUFEN – LINKER DAUMEN', 'irgendwo links aufsetzen und ziehen<br>weit ziehen = Sprint<br>mit Ball: Stick kreisen = Trick') : '')
-    + (ra ? lab(`right:${vw - ra.left + 10}px;bottom:${vh - ra.bottom + 4}px`, A[0], A[1]) : '')
-    + (rb ? lab(`right:${vw - rb.right}px;bottom:${vh - rb.top + 10}px`, B[0], B[1]) : '');
+    + (st ? lab('st', 'LAUFEN – LINKER DAUMEN', 'irgendwo links aufsetzen und ziehen<br>weit ziehen = Sprint<br>mit Ball: Stick kreisen = Trick') : '')
+    + (ra ? lab('a', A[0], A[1]) : '') + (rb ? lab('b', B[0], B[1]) : '');
   const t0 = performance.now();
   el.addEventListener('pointerdown', e => { e.preventDefault(); if (performance.now() - t0 > 450) closeTouchTip(); });   // tippen irgendwo = weiter
   document.body.appendChild(el); document.body.classList.add('tipon'); TTIP = el; G.paused = true;
+  if (vh < 480) el.classList.add('low');   // niedriger Bildschirm (Handy quer mit Browserleiste): Kasten oben kompakter
+  // Beschriftungen an Stick und Knöpfen: je Kasten mehrere Plätze probieren, der erste, der nichts verdeckt und im Bild liegt, gewinnt
+  const pos = {
+    st: st && [{ left: Math.max(8, st.left), bottom: vh - st.top + 10 }, { left: st.right + 10, bottom: vh - st.bottom }, { left: st.right + 10, top: st.top - 40 }],
+    a: ra && [{ right: vw - ra.left + 10, bottom: vh - ra.bottom + 4 }, { right: vw - ra.left + 10, top: ra.top - 60 }, { right: vw - ra.right, bottom: vh - ra.top + 10 }],
+    b: rb && [{ right: vw - rb.right, bottom: vh - rb.top + 10 }, { right: vw - rb.left + 10, top: rb.top }, { right: vw - rb.left + 10, bottom: vh - rb.bottom }, { right: vw - rb.left + 10, top: rb.top - 70 }],
+  };
+  const placed = [el.querySelector('.cmtop').getBoundingClientRect(), ...['#stick', '.tb-a', '.tb-b'].map(R).filter(Boolean)];
+  const hit = (q, o) => q.left < o.right + 4 && q.right > o.left - 4 && q.top < o.bottom + 4 && q.bottom > o.top - 4;
+  for (const box of el.querySelectorAll('.lab')) {
+    const cands = pos[box.dataset.k] || []; let best = null, bestHits = 1e9;
+    for (const c of cands) {
+      Object.assign(box.style, { left: '', right: '', top: '', bottom: '' }); for (const [k, v] of Object.entries(c)) box.style[k] = Math.round(v) + 'px';
+      const q = box.getBoundingClientRect(), out = q.left < 0 || q.top < 0 || q.right > vw || q.bottom > vh, n = placed.filter(o => hit(q, o)).length + (out ? 5 : 0);
+      if (n < bestHits) { bestHits = n; best = c; } if (!n) break;
+    }
+    if (best) { Object.assign(box.style, { left: '', right: '', top: '', bottom: '' }); for (const [k, v] of Object.entries(best)) box.style[k] = Math.round(v) + 'px'; }
+    placed.push(box.getBoundingClientRect());
+  }
 }
 const BTN_SCALE = { s: 0.82, m: 1, l: 1.18 };
 function applyBtnSize() { document.getElementById('pad').style.setProperty('--tbs', BTN_SCALE[SETTINGS.btn] || 1); }
@@ -216,6 +234,25 @@ function checkVersion() {
   }).catch(() => { });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+// Installierbare App (Manifest in game/manifest.webmanifest): Offline-Cache registrieren und das Installieren anbieten.
+// Android/Chrome liefert ein Installations-Angebot, iPhone/iPad braucht „Teilen → Zum Home-Bildschirm“ (dafür ein Hinweis).
+let INSTALL = null;
+const IS_APP = (() => { try { return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } })();
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canInstall = () => ON_WEB && !IS_APP && (!!INSTALL || (IOS && TOUCHDEV));
+if (ON_WEB && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { }); });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL = e; if (!menu.hidden && menu.querySelector('[data-act="quick"]')) ACT.main(); });
+addEventListener('appinstalled', () => { INSTALL = null; track('app-installiert'); });
+Object.assign(ACT, {
+  install() {
+    if (INSTALL) { const p = INSTALL; INSTALL = null; p.prompt(); (p.userChoice || Promise.resolve({})).then(r => { track('app-installieren', { antwort: r.outcome || '?' }); ACT.main(); }).catch(() => { }); return; }
+    track('app-installieren', { antwort: 'ios-hinweis' });
+    show(`<div class="panel narrow"><h2>ALS APP INSTALLIEREN</h2>
+      <p>So liegt Kreisliga-Legenden wie eine App auf deinem Home-Bildschirm: Vollbild ohne Browserleiste, startet quer und läuft auch ohne Netz.</p>
+      <p>1. Unten in Safari auf <b>Teilen</b> tippen (Quadrat mit Pfeil nach oben).<br>2. <b>Zum Home-Bildschirm</b> wählen.<br>3. Auf <b>Hinzufügen</b> tippen.</p>
+      <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
+  },
+});
 // Zurück-Geste und Zurück-Taste (Android, Browser): im Spiel = Pause, im Menü = eine Ebene zurück, statt die Seite zu verlassen.
 // Nur auf dem Titelbild verlässt Zurück das Spiel. Der Merker im Verlauf wird erst bei einer Eingabe gesetzt (sonst überspringt Chrome ihn).
 if (ON_WEB && history.pushState) {

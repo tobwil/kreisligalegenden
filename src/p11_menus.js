@@ -66,6 +66,7 @@ const ACT = {
         <button data-act="controls">STEUERUNG <i>Tasten, Gamepad, Touch</i></button>
         <button data-act="options">OPTIONEN <i>Ton, Steuerung, Tempo</i></button>
         <button data-act="about">ÜBER DAS SPIEL <i>Hobby-Projekt</i></button>
+        ${typeof canInstall === 'function' && canInstall() ? '<button data-act="install">ALS APP INSTALLIEREN <i>Vollbild, auch offline</i></button>' : ''}
         ${PLATFORM.quit ? '<button data-act="exitGame">BEENDEN</button>' : ''}
       </div>
       <p class="legal" style="text-align:center;margin-inline:auto">${LEGAL}</p></div>`, { back: ACT.title, clear: true });

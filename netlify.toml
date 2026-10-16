@@ -29,3 +29,14 @@
   for = "/tools/*"
   [headers.values]
     X-Robots-Tag = "noindex"
+
+# Offline-Cache der App: immer die neueste Fassung holen, sonst bliebe ein alter Service Worker hängen
+[[headers]]
+  for = "/game/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/game/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"

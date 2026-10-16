@@ -117,6 +117,67 @@ test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüs
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+// Bot spielt ein ganzes Spiel nur über Tasten (wie ein Mensch an der Tastatur): prüft, dass Laufen, Pass (kurz und gehalten),
+// Steilpass, Schuss, Flanke, Tackling, Spielerwechsel, Standards und Halbzeit im Zusammenspiel funktionieren.
+test('Bot spielt ein ganzes Spiel mit der Tastatur: Pässe, Schüsse, Ballgewinne, Standards, Halbzeit, Abpfiff ohne Hänger', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids;
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; hideMenu();
+    const KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyS', 'KeyA', 'KeyD', 'Space', 'KeyW', 'Enter'], H = {};
+    const press = (k, n) => { if (!H[k]) H[k] = n; };   // H > 0: Taste gedrückt, H < 0: kurz losgelassen, bevor sie wieder geht
+    const busy = () => ['KeyS', 'KeyA', 'KeyD', 'Space'].some(k => H[k]);
+    const out = { regain: 0, keys: { S: 0, A: 0, D: 0, Space: 0 }, frames: 0, half: 0 };
+    let lastOwnerTeam = null, tackleT = -9, crossed = null, n = 0;
+    const s = () => atkDir(0);
+    while (G.phase !== 'end' && n < 60 * 60 * 9) {
+      n++;
+      const b = G.ball, c = G.ctrl, ph = G.phase;
+      let ax = 0, ay = 0;
+      if (ph === 'pause') { nextHalf(); out.half++; continue; }
+      if (ph === 'intro' || ph === 'replay' || ph === 'goal') { if (n % 30 === 0) press('Enter', 2); }
+      else if ((ph === 'setpiece' || ph === 'kickoff' || ph === 'penalty') && G.sp && isHumanTeam(G.sp.team) && G.sp.t > 0.6 && !busy()) {
+        if (aimViewOn()) press('Space', 30); else if (G.sp.type === 'corner') press('KeyA', 8); else press('KeyS', 4);
+      } else if (ph === 'play' && c) {
+        const gx = goalX(0), mine = b.owner === c, ours = b.owner && b.owner.team === 0;
+        if (mine) {
+          ax = s(); ay = (MY - c.y) * 0.08;
+          const dg = dist(c.x, c.y, gx, MY), front = opps(c).some(o => !isGK(o) && (o.x - c.x) * s() > 0 && dist(o.x, o.y, c.x, c.y) < 2.6);
+          if (!busy()) {
+            if (Math.abs(c.y - MY) > 12 && Math.abs(c.x - gx) < 30 && crossed !== c) { crossed = c; press('KeyA', 20); out.keys.A++; ax = 0; ay = 0; }
+            else if (dg < 27) { press('Space', 20); out.keys.Space++; }
+            else if (front) { press('KeyS', n % 3 ? 3 : 35); out.keys.S++; }
+            else if (n % 97 === 0) { press('KeyD', n % 2 ? 3 : 25); out.keys.D++; }
+          }
+        } else if (ours) { ax = Math.sign(b.owner.x + s() * 12 - c.x) * 0.6; ay = Math.sign(c.y - MY) * 0.2; }
+        else {
+          const tx = b.owner ? b.owner.x : b.x, ty = b.owner ? b.owner.y : b.y, d = dist(c.x, c.y, tx, ty);
+          if (d > 0.4) { ax = (tx - c.x) / d; ay = (ty - c.y) / d; }
+          if (b.owner && b.owner.team === 1 && d < 1.3 && G.t - tackleT > 0.8 && !busy()) { press('KeyD', 3); out.keys.D++; tackleT = G.t; }
+          else if (d > 15 && n % 60 === 0 && !busy()) { press('KeyS', 3); out.keys.S++; }
+        }
+      }
+      KEY.ArrowRight = ax > 0.3; KEY.ArrowLeft = ax < -0.3; KEY.ArrowDown = ay > 0.3; KEY.ArrowUp = ay < -0.3;
+      for (const k of ['KeyS', 'KeyA', 'KeyD', 'Space', 'Enter']) { const on = H[k] > 0; if (on && !KEY[k]) KEYP[k] = true; KEY[k] = on; if (H[k] > 0) { if (--H[k] === 0) H[k] = -6; } else if (H[k] < 0) H[k]++; }
+      readInput(1 / 60); step(1 / 60);
+      const ot = G.ball.owner ? G.ball.owner.team : null;
+      if (ot === 0 && lastOwnerTeam === 1) out.regain++;
+      if (ot != null) lastOwnerTeam = ot;
+    }
+    for (const k of KEYS) KEY[k] = false;
+    out.frames = n; out.phase = G.phase; out.score = G.score.slice(); out.passes = G.stats.passes[0]; out.passOk = G.stats.passOk[0]; out.shots = G.stats.shots[0]; out.corners = G.stats.corners[0];
+    return out;
+  });
+  ok(r.phase === 'end', 'Spiel endet nicht: ' + JSON.stringify(r));
+  ok(r.half >= 1, 'keine Halbzeit: ' + JSON.stringify(r));
+  ok(r.passes >= 12 && r.passOk / r.passes > 0.4, 'zu wenige oder zu schlechte Pässe: ' + JSON.stringify(r));
+  ok(r.shots >= 4, 'zu wenige Schüsse: ' + JSON.stringify(r));
+  ok(r.regain >= 3, 'kaum Ballgewinne: ' + JSON.stringify(r));
+  console.log('    Bot:', JSON.stringify({ score: r.score, passes: `${r.passOk}/${r.passes}`, shots: r.shots, regain: r.regain, keys: r.keys }));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Tastatur (Standard Legenden): Enter, Intro, Anstoß mit S, Pfeile laufen, Leertaste lädt und schießt, Esc pausiert', async () => {
   const { page, ctx, errors } = await open();
   await page.keyboard.press('Enter'); await page.waitForTimeout(150);
@@ -387,7 +448,7 @@ test('Flanke halten = kurzer bis langer Pfosten; Kopfball: Spieler läuft selbst
     out.short = crossHold(3); out.long = crossHold(55);
     // Kopfball: Stick die ganze Zeit gedrückt, der Spieler läuft trotzdem zum Ball und köpft in die Ecke, in die der Stick zeigt
     const head = key => {
-      const P = setup(); for (const q of [P.far]) place(q, CW / 2, CH - 3);
+      const P = setup(); for (const q of [P.far]) place(q, CW / 2, CH - 3); place(P.near, P.gx - P.s * 9.5, MY - 2);   // außerhalb des Fünfers, wo der Torwart nicht herauskommt
       cross(P.w, 0); G.ctrl = G.ball.passTo || P.near; const c = G.ctrl;
       for (let i = 0; i < 150; i++) { KEY[key] = true; if (G.ball.z > 0.9 && dist(G.ball.x, G.ball.y, c.x, c.y) < 5) KEYP.Space = KEY.Space = true; else KEY.Space = false; readInput(1 / 60); step(1 / 60); if (G.ball.shot && G.ball.shot.header) break; }
       const B = G.ball; if (!(B.shot && B.shot.header && B.shot.by === c)) return null;
@@ -448,6 +509,45 @@ test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang
   ok(!r.bad.length, 'kaputte Kurznamen: ' + r.bad.join(', '));
   ok(!r.dup.length, 'doppelte Kurznamen in einer Liga: ' + r.dup.join(', '));
   ok(!r.wrong.length, r.wrong.join('; '));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('App: Manifest mit Icons, Offline-Cache – nach dem ersten Besuch startet das Spiel auch ohne Netz', async () => {
+  const { createServer } = await import('node:http'); const { readFileSync, existsSync: ex } = await import('node:fs');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
+  const srv = createServer((q, r) => { let f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (f.endsWith('/')) f += 'index.html'; if (!ex(f)) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' }); r.end(readFileSync(f)); });
+  await new Promise(res => srv.listen(0, 'localhost', res)); const port = srv.address().port;
+  const ctx = await browser.newContext(MOBILE), page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
+  try {
+    const man = JSON.parse(readFileSync(path.join(root, 'game', 'manifest.webmanifest'), 'utf8'));
+    ok(man.start_url && man.display && man.icons.length >= 3 && man.icons.every(i => ex(path.join(root, 'game', i.src))), 'Manifest oder Icons fehlen');
+    await page.goto(`http://localhost:${port}/game/`); 
+    const sw = await page.evaluate(async () => { const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 8000))]); return !!(reg && reg.active); });
+    ok(sw, 'Service Worker nicht aktiv');
+    await page.waitForTimeout(500); await ctx.setOffline(true);
+    await page.reload(); await page.waitForTimeout(800);
+    ok(await page.evaluate(() => typeof G !== 'undefined' && !!G && !!menu.querySelector('.logo')), 'offline startet das Spiel nicht');
+    ok(!errors.length, errors.join('; '));
+  } finally { await ctx.close(); srv.close(); }
+});
+
+test('Ecken-Balance: Torwart kommt bei Flanken in den Fünfer heraus (fängt oder faustet), Ecken sind keine sicheren Tore mehr', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = { goals: 0, gk: 0, n: 40 };
+    for (let n = 0; n < out.n; n++) {
+      startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('corner', 0, goalX(0) === CW ? CW - 0.3 : 0.3, n % 2 ? 0.3 : CH - 0.3); G.phase = 'setpiece'; G.sp.t = 2;
+      for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60);
+      KEY.Space = KEYP.Space = true; readInput(1 / 60); stepSetPiece(1 / 60); KEY.Space = false; readInput(1 / 60); stepSetPiece(1 / 60); G.phase = 'play'; G.sp = null;
+      const g0 = G.score[0], gk = G.gk[1]; let touched = false;
+      for (let i = 0; i < 60 * 4; i++) { KEY.Space = !!(G.ball.passTo && G.ball.passTo.team === 0 && G.ball.z > 0.8); if (KEY.Space) KEYP.Space = true; readInput(1 / 60); step(1 / 60); if (G.ball.last === gk || G.ball.owner === gk) touched = true; if (G.phase !== 'play') break; }
+      out.goals += G.score[0] > g0; out.gk += touched;
+    }
+    return out;
+  });
+  ok(r.gk >= 4, 'Torwart greift bei Ecken nie ein: ' + JSON.stringify(r));
+  ok(r.goals / r.n < 0.4, 'zu viele Tore aus Ecken: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -859,6 +959,7 @@ test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF 
     ACT.main(); ACT.quick(); out.quick = inView('[data-act="qstart"]');
     pop(); out.back = !!menu.querySelector('[data-act="quick"]');
     ACT.career(); out.newc = inView('[data-act="ncGo"]'); ACT.ncGo(); out.hub = inView('[data-act="cpre"]');
+    menu.scrollTop = 200; stickyGap(); out.fold = getComputedStyle(menu.querySelector('.chead')).display === 'none' && inView('.ctabs');   // Kopfzeile klappt beim Scrollen ein, Reiter bleiben
     ACT.main(); ACT.qstart(); G.phase = 'play'; G.sp = null; pop(); out.pause = !menu.hidden && G.paused && INGAME_MENU;
     pop(); out.resume = menu.hidden && !G.paused;
     const L = ORD_LOOK(0), s = sprite(L, 'run', 2), d = s.getContext('2d').getImageData(0, 0, SW, SH).data;
@@ -866,7 +967,7 @@ test('Handy: Zurück-Geste (Spiel = Pause, Menü = eine Ebene zurück), ANPFIFF 
     out.pants = pants > 3;
     return out;
   });
-  for (const k of ['quick', 'back', 'newc', 'hub', 'pause', 'resume', 'pants']) ok(r[k], k + ': ' + JSON.stringify(r));
+  for (const k of ['quick', 'back', 'newc', 'hub', 'fold', 'pause', 'resume', 'pants']) ok(r[k], k + ': ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -894,7 +995,11 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await page.evaluate(() => { startMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[0], LIGEN[TEAMS[HOME_TEAM].lg].ids[4], { human: 0 }); G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; });
   await page.waitForTimeout(150);
   const tip = await page.evaluate(() => { localStorage.removeItem('krl_touchtip'); tipG = null; G.phase = 'kickoff'; updateTouchLabels(); touchTip(); const el = document.getElementById('ttip'), on = !!el && G.paused;
-    const labs = el ? [...el.querySelectorAll('.lab b')].map(b => b.textContent).join(',') : ''; closeTouchTip(); G.phase = 'play'; return { ok: on && !G.paused, labs }; });
+    const labs = el ? [...el.querySelectorAll('.lab b')].map(b => b.textContent).join(',') : '';
+    const boxes = [...document.querySelectorAll('#ttip .cmtop, #ttip .lab, #stick, .tb-a, .tb-b')].map(e => e.getBoundingClientRect()); let overlap = 0;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], c = boxes[j]; if (a.left < c.right && a.right > c.left && a.top < c.bottom && a.bottom > c.top) overlap++; }
+    closeTouchTip(); G.phase = 'play'; return { ok: on && !G.paused, labs, overlap }; });
+  ok(tip.overlap === 0, 'Touch-Tipp: Kästen überlappen sich oder die Knöpfe: ' + tip.overlap);
   ok(tip.ok, 'Touch-Tipp im ersten Spiel fehlt oder schließt nicht');
   ok(tip.labs === 'LAUFEN – LINKER DAUMEN,PASS,SCHUSS', 'Touch-Tipp: Beschriftungen an Stick und Knöpfen passen nicht: ' + tip.labs);
   // Anstoß-Vorschau: keine Knöpfe über den Aufstellungen
