@@ -1,0 +1,42 @@
+# Große Testreihe gegen die Netlify-Vorschau jedes Pull Requests: wartet, bis deploy-preview-<Nr> genau den Stand
+# des PRs ausliefert, prüft dann die echte Seite übers Netz (Umleitungen, Kopfzeilen, Manifest, Offline-Cache,
+# keine kaputten Dateien), alle Spieltests gegen die Vorschau und die zufallsabhängigen Tests mit anderem Zufall.
+name: Vorschau-Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Seite, z. B. https://deploy-preview-12--kreisligalegenden.netlify.app oder https://kreisliga-legenden.de'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vorschau-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  vorschau:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # Netlify baut den Kopf des PRs (nicht den Probe-Merge mit main) – nur dann passt die BUILD-Kennung zum Warten
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright installieren
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright-core install --with-deps chromium
+      - name: Große Testreihe
+        working-directory: tests
+        env:
+          URL: ${{ github.event.inputs.url || format('https://deploy-preview-{0}--kreisligalegenden.netlify.app', github.event.pull_request.number) }}
+        run: node preview.mjs "$URL" ${{ github.event_name == 'pull_request' && '--wait' || '' }}

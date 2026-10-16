@@ -23,12 +23,17 @@ const test = (name, fn) => tests.push({ name, fn });
 class Fail extends Error {}
 const ok = (cond, msg) => { if (!cond) throw new Fail(msg); };
 let browser;
-async function open(opts = DESKTOP, seed = 7) {
+// Netlify blendet in Vorschauen eine eigene Leiste (iframe) ein – für Klicks und Tipps im Test entfernen
+const hideNetlify = () => new MutationObserver(() => document.querySelectorAll('iframe[src*="app.netlify.com"]').forEach(f => (f.parentElement !== document.body && f.parentElement || f).remove())).observe(document, { childList: true, subtree: true });
+async function open(opts = DESKTOP, seed = +process.env.SEED || 7) {   // SEED=… spielt dieselben Tests mit anderem Zufall (große Testreihe)
   const ctx = await browser.newContext(opts);
   if (seed) await ctx.addInitScript(s => { let x = s; Math.random = () => (x = (x * 16807) % 2147483647) / 2147483647; }, seed);
+  if (/^https?:/.test(GAME)) await ctx.addInitScript(hideNetlify);   // Vorschau: Netlifys Leiste liegt sonst über den Touch-Knöpfen
   const page = await ctx.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(GAME, { timeout: 60000 }); await page.waitForTimeout(600);
+  // Zufall neu ansetzen: wie viele Bilder das Titelspiel bis hier lief, hängt von der Ladezeit ab (Datei oder Netz)
+  if (seed) await page.evaluate(s => { let x = s; Math.random = () => (x = (x * 16807) % 2147483647) / 2147483647; }, seed);
   return { page, ctx, errors };
 }
 // ganzes Spiel ohne Menschen Bild für Bild durchspielen
@@ -1143,8 +1148,8 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   ok(th, 'PASS zur Seite wischen spielt keinen Steilpass');
   await setup(); await page.waitForTimeout(80);
   await drag('.tb-a', 10, 12, 60);   // kleines Verrutschen beim Tippen: flacher Pass, kein hoher Ball
-  const flat = await page.evaluate(() => G.ball.kind === 'pass');
-  ok(flat, 'leichtes Verrutschen beim Tippen wird zum hohen Ball');
+  const flat = await page.evaluate(() => ({ k: G.ball.kind, own: !!G.ball.owner, z: G.ball.z }));
+  ok(flat.k === 'pass', 'leichtes Verrutschen beim Tippen wird zum hohen Ball: ' + JSON.stringify(flat));
   // SCHUSS halten und Daumen ziehen = zielen (wie Padel-Legenden): nach oben = Ecke oben im Bild, nach unten = Ecke unten
   const aimShot = async dy => { await page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; }); await page.waitForTimeout(80); await drag('.tb-b', 0, dy, 150); return page.evaluate(() => G.ball.shot ? G.ball.vy : null); };
   const vUp = await aimShot(-60), vDown = await aimShot(60);
@@ -1224,8 +1229,8 @@ test('Startseite: Story läuft durch alle sieben Szenen ohne Fehler, Links zu Sp
   for (const o of [DESKTOP, MOBILE]) {
     const ctx = await browser.newContext({ ...o, reducedMotion: 'reduce' }), page = await ctx.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    page.on('requestfailed', r => errors.push('fehlt: ' + r.url()));
-    await page.goto(GAME.replace(/game\/index\.html$/, 'index.html'), { timeout: 60000 }); await page.waitForTimeout(500);
+    page.on('requestfailed', r => { if (!/^https:\/\/app\.netlify\.com\//.test(r.url())) errors.push('fehlt: ' + r.url()); });   // Netlify-Vorschauleiste lädt eigene Videos
+    await page.goto(GAME.replace(/game\/(index\.html)?$/, 'index.html'), { timeout: 60000 }); await page.waitForTimeout(500);   // Datei oder Vorschau-Seite
     const kinds = [];
     const n = await page.evaluate(() => __story.TL.length);
     for (let i = 0; i < n; i++) {
@@ -1235,13 +1240,13 @@ test('Startseite: Story läuft durch alle sieben Szenen ohne Fehler, Links zu Sp
     }
     const links = await page.evaluate(() => [...document.querySelectorAll('a')].map(a => a.getAttribute('href')));
     ok(['intro', 'tor', 'karte', 'kreisblatt', 'pokal', 'bus', 'finale'].every(k => kinds.includes(k)), 'Szenen: ' + kinds);
-    ok(links.includes('game/') && links.includes('impressum.html') && links.includes('datenschutz.html'), 'Links fehlen');
+    ok(links.includes('game/') && links.some(l => /^\/?impressum(\.html)?$/.test(l)) && links.some(l => /^\/?datenschutz(\.html)?$/.test(l)), 'Links fehlen: ' + links.join(' '));   // Netlify macht aus impressum.html → /impressum
     ok(!errors.length, errors.join('; ')); await ctx.close();
   }
   for (const f of ['impressum.html', 'datenschutz.html']) {
     const ctx = await browser.newContext(DESKTOP), page = await ctx.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.goto(GAME.replace(/game\/index\.html$/, f)); await page.click('.card .reveal');
+    await page.goto(GAME.replace(/game\/(index\.html)?$/, f)); await page.click('.card .reveal');
     const mail = await page.evaluate(() => document.querySelector('[data-k="mail"]').textContent);
     ok(/@/.test(mail), f + ': Kontakt wird nicht angezeigt');
     ok(!errors.length, errors.join('; ')); await ctx.close();
