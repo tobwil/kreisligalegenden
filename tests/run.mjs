@@ -518,6 +518,11 @@ test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, D
     out.goalSide = Math.abs(d.x - ox) < Math.abs(o.x - ox) - 0.5 && dist(d.x, d.y, o.x, o.y) < 2.6 && Math.abs(d.y - MY) < 1.5;
     // 1,5 m: nah genug fürs Tackling, aber nicht so nah, dass zufällig gespitzelt wird (ein Spitzeln beim Stellen davor zurücksetzen)
     const tk1 = d.d.ms.tk; d.cd = 0; d.stun = 0; d.act = null; place(d, cx - s * 1.5, MY); KEY.KeyD = false; frame(); out.release = (d.d.ms.tk > tk1 || !!(d.act && ['tackle', 'stumble'].includes(d.act.type))) && !d.contain;   // Tackling ausgelöst (gelungen oder gestolpert)
+    // Anlauf-Tackling: aus 3 m nur kurz antippen (wie am Handy) – dein Spieler sprintet hin und tackelt
+    away([o, d]); place(o, cx, MY); giveBall(o, true); o.think = 9; place(d, cx - s * 3, MY + 0.4); d.cd = 0; d.stun = 0; d.act = null; d.lunge = null; d.containT = null; G.ctrl = d; G.manT = G.t; clear();
+    const tk2 = d.d.ms.tk; KEY.KeyD = KEYP.KeyD = true; frame(); KEY.KeyD = false; let lunged = false;
+    for (let i = 0; i < 50 && !lunged; i++) { place(o, cx, MY); G.ball.owner = o; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); movePlayer(d, 1 / 60); lunged = d.d.ms.tk > tk2 || !!(d.act && ['tackle', 'stumble'].includes(d.act.type)); }
+    out.lunge = lunged;
     // Schwung: der neue Spieler läuft nach dem Wechsel weiter und dreht dann auf den Stick, statt abrupt abzuknicken
     const m = teamP(0).find(q => grpOf(q) === 'MF'); away([m]); place(m, CW / 2, MY); giveBall(o, true); place(o, CW / 2 + 20, 3);
     const run = sw => { m.vx = 7; m.vy = 0; G.ctrl = m; G.swT = sw ? G.t : null; KEY.ArrowLeft = true; KEY.ArrowRight = false; readInput(1 / 60); const v = []; for (let i = 0; i < 30; i++) { movePlayer(m, 1 / 60); G.t += 1 / 60; v.push(m.vx); } KEY.ArrowLeft = false; return v; };
@@ -552,6 +557,7 @@ test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, D
   });
   ok(r.contain && r.goalSide, 'Stellen: Verteidiger bleibt nicht zwischen Gegner und Tor: ' + JSON.stringify(r));
   ok(r.release, 'Stellen: Loslassen nah dran tackelt nicht: ' + JSON.stringify(r));
+  ok(r.lunge, 'Anlauf-Tackling: kurz antippen aus 3 m tackelt nicht: ' + JSON.stringify(r));
   ok(r.swing.early > 6 && r.swing.hard < 5.5 && r.swing.late < -3, 'Schwung nach dem Wechsel: ' + JSON.stringify(r.swing));
   ok(r.oneTwo === 'through>p!+lauf', 'Doppelpass auf Knopfdruck: ' + r.oneTwo);
   ok(!r.late.includes('!') && !r.side.includes('!') && !r.stale, 'Doppelpass zu spät, quer oder ohne Annahme: ' + JSON.stringify([r.late, r.side, r.stale]));
@@ -1231,7 +1237,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Flanke mit Landepunkt') && r.txt.includes('A halten') && r.txt.includes('Freistoß vom Flügel'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Tackling mit Anlauf') && r.txt.includes('D kurz antippen') && r.txt.includes('Flanke mit Landepunkt'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
