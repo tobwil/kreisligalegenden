@@ -1263,13 +1263,14 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const walk = await stickAt(55), run = await stickAt(85);
   ok(walk.x === 1 && !walk.s && run.s && +walk.ring > 0.5, 'Stick: Sprint erst außerhalb des Kreises: ' + JSON.stringify([walk, run]));
   // größere Trefferfläche: knapp neben dem Kreis (12 px außerhalb, zur Bildschirmmitte hin) zählt als PASS
-  await page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; p.cd = 0; });
+  await page.evaluate(() => { G.phase = 'play'; G.sp = null; const p = teamP(0).find(q => grpOf(q) === 'MF'); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); place(p, CW / 2, MY); giveBall(p, true); G.ctrl = p; p.cd = 0; });   // Gegner weg: sonst nimmt einer im Live-Spiel manchmal vorher den Ball ab
   await page.waitForTimeout(150);
   const nearPt = await page.evaluate(() => { const r = document.querySelector('.tb-a').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, d = r.width / 2 + 12; return { x: cx - d * 0.8, y: cy - d * 0.6, hit: (document.elementFromPoint(cx - d * 0.8, cy - d * 0.6) || {}).id }; });
   const p1 = await page.evaluate(() => G.stats.passes[0]);
   await page.touchscreen.tap(nearPt.x, nearPt.y);
   const nearOk = await page.waitForFunction(p1 => G.stats.passes[0] > p1, p1, { timeout: 2000, polling: 'raf' }).then(() => true, () => false);
-  ok(nearPt.hit === 'zone' && nearOk, 'Tipp knapp neben PASS zählt nicht: ' + JSON.stringify(nearPt));
+  const dbg = await page.evaluate(() => ({ own: G.ball.owner && G.ball.owner.team, ph: G.phase, li: LASTIN }));
+  ok(nearPt.hit === 'zone' && nearOk, 'Tipp knapp neben PASS zählt nicht: ' + JSON.stringify([nearPt, dbg]));
   // Pause-Knopf oben rechts: sichtbar, antippen pausiert, WEITER spielt weiter
   const pz = await page.evaluate(() => { const r = document.getElementById('tbPause').getBoundingClientRect(); return { w: r.width, x: r.right, y: r.top, vw: innerWidth }; });
   ok(pz.w > 30 && pz.x > pz.vw - 80 && pz.y < 80, 'Pause-Knopf oben rechts fehlt: ' + JSON.stringify(pz));

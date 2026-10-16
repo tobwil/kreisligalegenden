@@ -84,9 +84,12 @@ function stickGesture(x, y, now) {
     }
     return best;
   };
+  // der Hintergrund behält den Finger und reicht Drücken, Ziehen und Loslassen selbst an den Knopf weiter
+  // (ein Umhängen der Zeigererfassung auf den Knopf greift je nach Timing nicht)
+  const fwd = new Map();
   zone.addEventListener('pointerdown', e => {
     const nb = nearBtn(e.clientX, e.clientY);
-    if (nb) { nb.dispatchEvent(new PointerEvent('pointerdown', { pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true })); return; }
+    if (nb && nb._tb) { e.preventDefault(); fwd.set(e.pointerId, nb); try { zone.setPointerCapture(e.pointerId); } catch (_) {} nb._tb.down(e, true); return; }
     AU.init(); setInput('touch'); try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     const now = performance.now(), left = e.clientX < innerWidth * 0.5, dbl = left && sid === null && now - STG.lastTap < 330 && canTrick();
     pend.set(e.pointerId, { x: e.clientX, y: e.clientY, t: now, left, dbl });
@@ -95,11 +98,13 @@ function stickGesture(x, y, now) {
     if (dbl) { STG.lastTap = 0; clearTimeout(dblT); dblT = setTimeout(() => { dblT = null; const mm = Math.hypot(TOUCH.x, TOUCH.y); touchTrick(mm > 0.45 ? TOUCH.x : 0, mm > 0.45 ? TOUCH.y : 0); }, 140); }
   });
   zone.addEventListener('pointermove', e => {
+    const f = fwd.get(e.pointerId); if (f) return f._tb.move(e);
     if (e.pointerId === sid) return move(e);
     const p = pend.get(e.pointerId); if (!p) return;
     if (p.left && sid === null && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) { sid = e.pointerId; sx0 = p.x; sy0 = p.y; st.style.left = p.x + 'px'; st.style.top = p.y + 'px'; st.classList.add('act'); pend.delete(e.pointerId); move(e); }
   });
   const end = e => {
+    const f = fwd.get(e.pointerId); if (f) { fwd.delete(e.pointerId); return f._tb.rel(); }
     if (e.pointerId === sid) { sid = null; rest(); return; }
     const p = pend.get(e.pointerId); pend.delete(e.pointerId);
     if (e.type !== 'pointerup' || !p) return;
@@ -119,8 +124,9 @@ function stickGesture(x, y, now) {
   document.querySelectorAll('.tb[data-k]').forEach(b => {
     const k = b.dataset.k; let holdT = null, st = null;
     const alt = lbl => { b.classList.add('alt'); b.querySelector('span').textContent = lbl; buzz(15); };
-    b.addEventListener('pointerdown', e => {
-      e.preventDefault(); b.setPointerCapture(e.pointerId); AU.init(); setInput('touch'); b.classList.add('on');
+    const down = (e, viaZone) => {
+      if (!viaZone) { e.preventDefault(); b.setPointerCapture(e.pointerId); }
+      AU.init(); setInput('touch'); b.classList.add('on');
       if (G && (G.phase === 'intro' || G.phase === 'replay')) { KEYP.Enter = true; st = null; return; }
       const att = attacking() || !!(G && G.sp && isHumanTeam(G.sp.team));
       st = { x: e.clientX, y: e.clientY, att, done: false };
@@ -129,14 +135,16 @@ function stickGesture(x, y, now) {
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
       } else if (att) TOUCH.b = true;
       else holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.held = true; TOUCH.b = true; alt('STELLEN'); } }, 200);   // TACKLING halten = Stellen, loslassen = Tackling
-    });
-    b.addEventListener('pointermove', e => {
+    };
+    b.addEventListener('pointerdown', e => down(e));
+    const move = e => {
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
       if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.cpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; if (st.held) { st.held = false; TOUCH.b = false; } TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
-    });
+    };
+    b.addEventListener('pointermove', move);
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
       if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att && !st.held) TOUCH.pulseB = 1; }
@@ -145,6 +153,7 @@ function stickGesture(x, y, now) {
       st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
     b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
+    b._tb = { down, move, rel };   // für Daumen knapp neben dem Knopf (über den Hintergrund weitergereicht)
   });
 })();
 const TBL = { a: document.querySelector('.tb-a'), b: document.querySelector('.tb-b') }; let tbMode = '';
