@@ -451,6 +451,25 @@ test('Kurznamen (#5): keine Abkürzung wie „Mün.“ und kein Strich am Anfang
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('App: Manifest mit Icons, Offline-Cache – nach dem ersten Besuch startet das Spiel auch ohne Netz', async () => {
+  const { createServer } = await import('node:http'); const { readFileSync, existsSync: ex } = await import('node:fs');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
+  const srv = createServer((q, r) => { let f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (f.endsWith('/')) f += 'index.html'; if (!ex(f)) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' }); r.end(readFileSync(f)); });
+  await new Promise(res => srv.listen(0, 'localhost', res)); const port = srv.address().port;
+  const ctx = await browser.newContext(MOBILE), page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
+  try {
+    const man = JSON.parse(readFileSync(path.join(root, 'game', 'manifest.webmanifest'), 'utf8'));
+    ok(man.start_url && man.display && man.icons.length >= 3 && man.icons.every(i => ex(path.join(root, 'game', i.src))), 'Manifest oder Icons fehlen');
+    await page.goto(`http://localhost:${port}/game/`); 
+    const sw = await page.evaluate(async () => { const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 8000))]); return !!(reg && reg.active); });
+    ok(sw, 'Service Worker nicht aktiv');
+    await page.waitForTimeout(500); await ctx.setOffline(true);
+    await page.reload(); await page.waitForTimeout(800);
+    ok(await page.evaluate(() => typeof G !== 'undefined' && !!G && !!menu.querySelector('.logo')), 'offline startet das Spiel nicht');
+    ok(!errors.length, errors.join('; '));
+  } finally { await ctx.close(); srv.close(); }
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

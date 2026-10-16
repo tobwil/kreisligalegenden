@@ -216,6 +216,25 @@ function checkVersion() {
   }).catch(() => { });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+// Installierbare App (Manifest in game/manifest.webmanifest): Offline-Cache registrieren und das Installieren anbieten.
+// Android/Chrome liefert ein Installations-Angebot, iPhone/iPad braucht „Teilen → Zum Home-Bildschirm“ (dafür ein Hinweis).
+let INSTALL = null;
+const IS_APP = (() => { try { return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } })();
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canInstall = () => ON_WEB && !IS_APP && (!!INSTALL || (IOS && TOUCHDEV));
+if (ON_WEB && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { }); });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL = e; if (!menu.hidden && menu.querySelector('[data-act="quick"]')) ACT.main(); });
+addEventListener('appinstalled', () => { INSTALL = null; track('app-installiert'); });
+Object.assign(ACT, {
+  install() {
+    if (INSTALL) { const p = INSTALL; INSTALL = null; p.prompt(); (p.userChoice || Promise.resolve({})).then(r => { track('app-installieren', { antwort: r.outcome || '?' }); ACT.main(); }).catch(() => { }); return; }
+    track('app-installieren', { antwort: 'ios-hinweis' });
+    show(`<div class="panel narrow"><h2>ALS APP INSTALLIEREN</h2>
+      <p>So liegt Kreisliga-Legenden wie eine App auf deinem Home-Bildschirm: Vollbild ohne Browserleiste, startet quer und läuft auch ohne Netz.</p>
+      <p>1. Unten in Safari auf <b>Teilen</b> tippen (Quadrat mit Pfeil nach oben).<br>2. <b>Zum Home-Bildschirm</b> wählen.<br>3. Auf <b>Hinzufügen</b> tippen.</p>
+      <div class="row"><button class="main" data-act="main" autofocus>ZURÜCK</button></div></div>`, { back: ACT.main });
+  },
+});
 // Zurück-Geste und Zurück-Taste (Android, Browser): im Spiel = Pause, im Menü = eine Ebene zurück, statt die Seite zu verlassen.
 // Nur auf dem Titelbild verlässt Zurück das Spiel. Der Merker im Verlauf wird erst bei einer Eingabe gesetzt (sonst überspringt Chrome ihn).
 if (ON_WEB && history.pushState) {
