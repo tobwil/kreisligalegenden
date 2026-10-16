@@ -197,8 +197,15 @@ function humanControl(dt) {
       if (tk) { if (near || !opp) tackle(c, near ? opp : null); else c.containT = G.t; }
       if (c.containT != null) {
         if (tkH && opp) c.contain = opp;
-        else { if (tkR && opp && G.t - c.containT > 0.12 && dist(c.x, c.y, opp.x, opp.y) < 1.8) tackle(c, opp); c.containT = null; c.contain = null; }
+        else {
+          const dd = opp ? dist(c.x, c.y, opp.x, opp.y) : 99;
+          if (tkR && opp && G.t - c.containT > 0.12 && dd < 1.8) tackle(c, opp);
+          // Anlauf-Tackling: nur kurz angetippt und der Gegner ist noch ein paar Meter weg – dein Spieler sprintet hin und tackelt, sobald er dran ist
+          else if (opp && G.t - c.containT <= 0.25 && dd < 5.5) c.lunge = { o: opp, until: G.t + 0.25 + dd * 0.15 };
+          c.containT = null; c.contain = null;
+        }
       }
+      if (c.lunge) { const Lg = c.lunge; if (G.t > Lg.until || b.owner !== Lg.o) c.lunge = null; else if (dist(c.x, c.y, Lg.o.x, Lg.o.y) < 1.5 && c.cd <= 0 && c.stun <= 0) { c.lunge = null; tackle(c, Lg.o); } }
       if (sl) slide(c, IN.x, IN.y);
     } else if (IN.pa && ours && b.owner !== c && !isGK(b.owner)) {
       // Ball fordern: der Ballführer (KI) spielt sofort zu dir
@@ -293,7 +300,8 @@ function movePlayer(p, dt) {
   // Arcade: der angespielte Spieler läuft dem Ball von selbst entgegen, auch wenn noch eine Richtung gedrückt ist
   const selfRun = G.ball.passTo === p || (!G.ball.owner && p.role === 'chase') || (G.ball.owner !== p && (G.idleT || 0) > 0.8);
   const hs = G.phase === 'play' && isHumanCtrl(p) ? headSpot(p) : null; p.headAim = !!hs;
-  const cs = G.phase === 'play' && isHumanCtrl(p) && p.contain && p.contain === G.ball.owner ? containSpot(p, p.contain) : null;
+  const ln = G.phase === 'play' && isHumanCtrl(p) && p.lunge && p.lunge.until > G.t && p.lunge.o === G.ball.owner ? p.lunge.o : null;   // Anlauf-Tackling
+  const cs = G.phase === 'play' && isHumanCtrl(p) && p.contain && p.contain === G.ball.owner ? containSpot(p, p.contain) : ln ? { x: ln.x + ln.vx * 0.2, y: ln.y + ln.vy * 0.2 } : null;
   // Schwung nach dem Wechsel: der neue Spieler bleibt nicht stehen und knickt nicht ab, er läuft weiter und dreht in 0,25 s auf den Stick
   const swing = G.phase === 'play' && p === G.ctrl && G.swT != null && G.t - G.swT < 0.25 && !G.pl ? (G.t - G.swT) / 0.25 : null;
   if (G.phase === 'play' && isHumanCtrl(p) && !hs && !cs && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !selfRun)) {
@@ -317,7 +325,7 @@ function movePlayer(p, dt) {
     const gx0 = cs ? cs.x : hs ? hs.x : p.tx, gy0 = cs ? cs.y : hs ? hs.y : p.ty;
     const dx = gx0 - p.x, dy = gy0 - p.y, d = Math.hypot(dx, dy);
     if (d > 0.25) {
-      sprint = (hs || cs || p.urg > 0.92) && d > 3;
+      sprint = !!ln || (hs || cs || p.urg > 0.92) && d > 3;
       const v = cs ? maxSpeed(p, sprint) * Math.min(1, d / 1.2) : maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1) * (passIncoming(p) && isHumanTeam(p.team) ? 1.15 : 1);
       dvx = dx / d * v; dvy = dy / d * v;
     }
