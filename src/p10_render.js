@@ -151,8 +151,10 @@ function drawCtrlHUD(c, col, num) {
     if (q) { const x = sx(q.x, q.y), y = sy(q.y, q.z) - 40 - (Math.floor(G.t * 4) % 2); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 4); ctx.fillRect(x - 2, y + 3, 5, 2); ctx.fillStyle = '#7cf2ff'; ctx.fillRect(x - 3, y, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); ctx.fillRect(x - 1, y + 3, 3, 1); }
   }
   // Kopfball: Pfeil in Stickrichtung zeigt, wohin er köpft (der Spieler läuft von selbst zum Treffpunkt)
-  if (c && c.headAim && !G.watch && !c.off && Math.hypot(IN.x, IN.y) > 0.3) {
-    const m = Math.hypot(IN.x, IN.y), ux = IN.x / m, uy = IN.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
+  // Kopfball-Zielpfeil: Stick, oder rechter Daumen auf SCHUSS (Touch) bzw. rechter Stick (Gamepad) für die Ecke
+  const ay = c && c.headAim && !G.pl ? aimY(c) : null, hv = ay != null && (LASTIN === 'touch' || LASTIN === 'pad') && Math.hypot(IN.x, IN.y) <= 0.3 ? { x: atkDir(c.team) * 0.7, y: ay } : IN;
+  if (c && c.headAim && !G.watch && !c.off && Math.hypot(hv.x, hv.y) > 0.3) {
+    const m = Math.hypot(hv.x, hv.y), ux = hv.x / m, uy = hv.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
     for (let i = 0; i < 5; i++) { const px = Math.round(x0 + ux * (10 + i * 4) * 1.4), py = Math.round(y0 + uy * (10 + i * 4) * 0.7); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 4, 4); ctx.fillStyle = i === 4 ? '#ffc83a' : '#7cf2ff'; ctx.fillRect(px, py, 2, 2); }
   }
   // Abwehr: kleiner Pfeil über dem Spieler, den du beim nächsten Wechsel bekommst

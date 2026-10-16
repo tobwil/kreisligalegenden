@@ -114,14 +114,14 @@ function humanControl(dt) {
     if (IN.b && c.chargeArm) { c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.8); }
     // während des Aufladens: Pass oder Trick = Schlenzer, Flanke/Hoch = Heber
     if (IN.b && c.chargeArm && c.charge > 0 && (IN.pa || IN.pf || IN.pc)) {
-      const pw = clamp(c.charge, 0.2, 1), aim = Math.abs(IN.y) > 0.25 ? IN.y : 0; c.chargeArm = false; c.charge = 0;
+      const pw = clamp(c.charge, 0.2, 1), aim = aimY(c) ?? 0; c.chargeArm = false; c.charge = 0;
       shoot(c, pw, aim, IN.pc ? { chip: true } : { finesse: true }); return;
     }
     if (IN.rb && c.chargeArm && c.charge > 0) {
       c.chargeArm = false; const pw = clamp(c.charge, 0.1, 1.05); c.charge = 0; TOUCH.aimLast = null;
       const perfect = pw >= PERFECT[0] && pw <= PERFECT[1];   // Loslassen in der hellen Zone auf dem Balken: genauer und etwas härter
       if (perfect) { banner('PERFEKT!', '#3ddc84', '', 0.6); G.hitStop = Math.max(G.hitStop || 0, 0.07); }
-      if (c.taim) { const y = c.taim.y; c.taim = null; shoot(c, pw, 0, { aimPt: { y }, auto: true, perfect }); } else shoot(c, pw, Math.abs(IN.y) > 0.25 ? IN.y : 0, { perfect });
+      if (c.taim) { const y = c.taim.y; c.taim = null; shoot(c, pw, 0, { aimPt: { y }, auto: true, perfect }); } else shoot(c, pw, aimY(c) ?? 0, { perfect });
       return;
     }
     const quickBack = G.t - (c.gotT || 0) < 0.5;   // gerade angenommen und gleich wieder Pass: Doppelpass
@@ -600,6 +600,15 @@ function wingFK(sp) {
 }
 // Flanke vom Flügel (sonst hoher Ball zum Mitspieler)
 function wingCross(c) { const gx = goalX(c.team); return Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0); }
+// Zielen hoch/runter (Ecke im Tor) für Schuss und Kopfball: Touch = rechter Daumen auf SCHUSS gezogen, Gamepad = rechter Stick,
+// sonst die Richtung (linker Stick/Pfeile). null = keine Richtung
+function aimY(p) {
+  if (isHumanCtrl(p) && !G.pl) {
+    if (LASTIN === 'touch') { const a = TOUCH.aim || TOUCH.aimLast; if (a && Math.abs(a.dy) > 8) return clamp(a.dy / 40, -1, 1); }
+    if (LASTIN === 'pad' && IN.rs && Math.abs(IN.rs.y) > 0.25) return IN.rs.y;
+  }
+  const I = inOf(p); return Math.abs(I.y) > 0.25 ? I.y : null;
+}
 // freies Zielen beim hohen Ball: rechter Daumen (Touch) oder rechter Stick (Gamepad)
 function freeAim(c) { return LASTIN === 'touch' ? TOUCH.lobAim : LASTIN === 'pad' ? c.padAim : null; }
 // Landepunkt beim Aufladen von Flanke oder hohem Ball (Tastatur, Gamepad, Touch): wohin der Ball mit der jetzigen Kraft fliegt

@@ -133,7 +133,7 @@ function stickGesture(x, y, now) {
       if (k === 'a') {
         if (att) TOUCH.passT = TOUCH.passT0 = performance.now();
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
-      } else if (att) TOUCH.b = true;
+      } else if (att) { TOUCH.b = true; TOUCH.aimLast = null; }   // altes Zielen vom letzten Schuss nicht für den Kopfball übernehmen
       else holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.held = true; TOUCH.b = true; alt('STELLEN'); } }, 200);   // TACKLING halten = Stellen, loslassen = Tackling
     };
     b.addEventListener('pointerdown', e => down(e));

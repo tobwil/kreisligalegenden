@@ -301,7 +301,7 @@ function header(p, wantShot) {
   // dein Spieler köpft im Strafraum von selbst aufs Tor (wie bei ISS), mit Pass vorgemerkt legt er stattdessen ab
   const mine = isHumanCtrl(p), layOff = mine && p.queue && p.queue.k === 'pass' && G.t - p.queue.t < 1.5;
   if (!layOff && (wantShot || mine || p.team !== G.human || G.ctrl !== p) && d < 17 && front && angOk && (wantShot || mine || Math.random() < 0.85)) {
-    shoot(p, 0.5, isHumanCtrl(p) && Math.abs(inOf(p).y) > 0.25 ? inOf(p).y : null, { header: true }); return;
+    shoot(p, 0.5, isHumanCtrl(p) ? aimY(p) : null, { header: true }); return;   // Ecke: Stick, rechter Daumen auf SCHUSS (Touch) oder rechter Stick (Gamepad)
   }
   AU.header();
   const q0 = mine && p.queue && G.t - p.queue.t < 1.5 ? p.queue : null;

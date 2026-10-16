@@ -637,6 +637,15 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
     KEY.KeyA = false; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); LASTIN = 'key';
     const GB = { ...G.ball }; let gl = null; for (let i = 0; i < 300 && !gl; i++) { ballPhys(GB, 1 / 60); if (GB.z < 2 && GB.vz < 0 && i > 10) gl = { x: GB.x, y: GB.y }; }
     out.pad = { moved: g0 && g1 ? +((g1.tx - g0.tx) * s).toFixed(1) : null, err: gl && g1 ? +Math.hypot(gl.x - g1.tx, gl.y - g1.ty).toFixed(1) : 99 };
+    // Kopfball und Schuss: Ecke per rechtem Daumen (SCHUSS ziehen, Touch) oder rechtem Stick (Gamepad), der linke Stick bleibt frei
+    const hd = (mode, dy) => { away([st]); place(st, gx - s * 8, MY); st.cd = 0; G.ctrl = st; const b = G.ball; b.owner = null; b.state = 'free'; b.x = st.x; b.y = st.y; b.z = 1.8; b.vx = 0; b.vy = 0; b.vz = -1; b.kind = 'cross'; b.shot = null;
+      for (const k in KEY) KEY[k] = false; readInput(1 / 60); LASTIN = mode; TOUCH.aim = mode === 'touch' ? { dx: 0, dy } : null; IN.rs = mode === 'pad' ? { x: 0, y: dy / 40 } : null;
+      header(st, true); const v = G.ball.vy; TOUCH.aim = null; IN.rs = null; LASTIN = 'key'; return Math.sign(Math.round(v * 10)); };
+    out.head = [hd('touch', -40), hd('touch', 40), hd('pad', -40), hd('pad', 40)];
+    away([st]); place(st, gx - s * 17, MY); giveBall(st, true); G.ctrl = st; st.cd = 0; LASTIN = 'pad'; frame();
+    const shotPad = dy => { G.ball.shot = null; giveBall(st, true); st.chargeArm = false; st.charge = 0; KEY.Space = KEYP.Space = true; readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); for (let i = 0; i < 10; i++) { readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); }
+      KEY.Space = false; readInput(1 / 60); IN.rs = { x: 0, y: dy }; G.t += 1 / 60; humanControl(1 / 60); return G.ball.shot ? Math.sign(Math.round(G.ball.vy * 10)) : 'kein Schuss'; };
+    out.padShot = [shotPad(-1), shotPad(1)]; LASTIN = 'key';
     // Freistoß vom Flügel: Zielvisier statt Schussansicht, Flanke landet dort
     const fk = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('free', 0, gx - s * 19, MY + 23); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
     fk(); out.fkAim = !aimWanted() && !!G.sp.caim; render();
@@ -654,6 +663,7 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
   ok(r.prev && r.prev.side && r.crossed, 'Landepunkt beim Aufladen (kurz = kurzer Pfosten, lang = langer Pfosten): ' + JSON.stringify(r));
   ok(r.switch.prev && r.switch.flew, 'Seitenwechsel mit Landestelle: ' + JSON.stringify(r.switch));
   ok(r.pad.moved > 10 && r.pad.err < 5, 'Gamepad: rechter Stick schiebt den Ring, Ball fliegt dorthin: ' + JSON.stringify(r.pad));
+  ok(JSON.stringify(r.head) === '[-1,1,-1,1]' && JSON.stringify(r.padShot) === '[-1,1]', 'Kopfball/Schuss zielen mit rechtem Daumen bzw. rechtem Stick: ' + JSON.stringify([r.head, r.padShot]));
   ok(r.fkAim && r.fkCross && r.fkErr < 4.5 && r.central, 'Freistoß vom Flügel mit Zielvisier: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
