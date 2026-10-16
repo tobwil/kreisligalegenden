@@ -117,6 +117,67 @@ test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüs
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+// Bot spielt ein ganzes Spiel nur über Tasten (wie ein Mensch an der Tastatur): prüft, dass Laufen, Pass (kurz und gehalten),
+// Steilpass, Schuss, Flanke, Tackling, Spielerwechsel, Standards und Halbzeit im Zusammenspiel funktionieren.
+test('Bot spielt ein ganzes Spiel mit der Tastatur: Pässe, Schüsse, Ballgewinne, Standards, Halbzeit, Abpfiff ohne Hänger', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids;
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; hideMenu();
+    const KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyS', 'KeyA', 'KeyD', 'Space', 'KeyW', 'Enter'], H = {};
+    const press = (k, n) => { if (!H[k]) H[k] = n; };   // H > 0: Taste gedrückt, H < 0: kurz losgelassen, bevor sie wieder geht
+    const busy = () => ['KeyS', 'KeyA', 'KeyD', 'Space'].some(k => H[k]);
+    const out = { regain: 0, keys: { S: 0, A: 0, D: 0, Space: 0 }, frames: 0, half: 0 };
+    let lastOwnerTeam = null, tackleT = -9, crossed = null, n = 0;
+    const s = () => atkDir(0);
+    while (G.phase !== 'end' && n < 60 * 60 * 9) {
+      n++;
+      const b = G.ball, c = G.ctrl, ph = G.phase;
+      let ax = 0, ay = 0;
+      if (ph === 'pause') { nextHalf(); out.half++; continue; }
+      if (ph === 'intro' || ph === 'replay' || ph === 'goal') { if (n % 30 === 0) press('Enter', 2); }
+      else if ((ph === 'setpiece' || ph === 'kickoff' || ph === 'penalty') && G.sp && isHumanTeam(G.sp.team) && G.sp.t > 0.6 && !busy()) {
+        if (aimViewOn()) press('Space', 30); else if (G.sp.type === 'corner') press('KeyA', 8); else press('KeyS', 4);
+      } else if (ph === 'play' && c) {
+        const gx = goalX(0), mine = b.owner === c, ours = b.owner && b.owner.team === 0;
+        if (mine) {
+          ax = s(); ay = (MY - c.y) * 0.08;
+          const dg = dist(c.x, c.y, gx, MY), front = opps(c).some(o => !isGK(o) && (o.x - c.x) * s() > 0 && dist(o.x, o.y, c.x, c.y) < 2.6);
+          if (!busy()) {
+            if (Math.abs(c.y - MY) > 12 && Math.abs(c.x - gx) < 30 && crossed !== c) { crossed = c; press('KeyA', 20); out.keys.A++; ax = 0; ay = 0; }
+            else if (dg < 27) { press('Space', 20); out.keys.Space++; }
+            else if (front) { press('KeyS', n % 3 ? 3 : 35); out.keys.S++; }
+            else if (n % 97 === 0) { press('KeyD', n % 2 ? 3 : 25); out.keys.D++; }
+          }
+        } else if (ours) { ax = Math.sign(b.owner.x + s() * 12 - c.x) * 0.6; ay = Math.sign(c.y - MY) * 0.2; }
+        else {
+          const tx = b.owner ? b.owner.x : b.x, ty = b.owner ? b.owner.y : b.y, d = dist(c.x, c.y, tx, ty);
+          if (d > 0.4) { ax = (tx - c.x) / d; ay = (ty - c.y) / d; }
+          if (b.owner && b.owner.team === 1 && d < 1.3 && G.t - tackleT > 0.8 && !busy()) { press('KeyD', 3); out.keys.D++; tackleT = G.t; }
+          else if (d > 15 && n % 60 === 0 && !busy()) { press('KeyS', 3); out.keys.S++; }
+        }
+      }
+      KEY.ArrowRight = ax > 0.3; KEY.ArrowLeft = ax < -0.3; KEY.ArrowDown = ay > 0.3; KEY.ArrowUp = ay < -0.3;
+      for (const k of ['KeyS', 'KeyA', 'KeyD', 'Space', 'Enter']) { const on = H[k] > 0; if (on && !KEY[k]) KEYP[k] = true; KEY[k] = on; if (H[k] > 0) { if (--H[k] === 0) H[k] = -6; } else if (H[k] < 0) H[k]++; }
+      readInput(1 / 60); step(1 / 60);
+      const ot = G.ball.owner ? G.ball.owner.team : null;
+      if (ot === 0 && lastOwnerTeam === 1) out.regain++;
+      if (ot != null) lastOwnerTeam = ot;
+    }
+    for (const k of KEYS) KEY[k] = false;
+    out.frames = n; out.phase = G.phase; out.score = G.score.slice(); out.passes = G.stats.passes[0]; out.passOk = G.stats.passOk[0]; out.shots = G.stats.shots[0]; out.corners = G.stats.corners[0];
+    return out;
+  });
+  ok(r.phase === 'end', 'Spiel endet nicht: ' + JSON.stringify(r));
+  ok(r.half >= 1, 'keine Halbzeit: ' + JSON.stringify(r));
+  ok(r.passes >= 12 && r.passOk / r.passes > 0.4, 'zu wenige oder zu schlechte Pässe: ' + JSON.stringify(r));
+  ok(r.shots >= 4, 'zu wenige Schüsse: ' + JSON.stringify(r));
+  ok(r.regain >= 3, 'kaum Ballgewinne: ' + JSON.stringify(r));
+  console.log('    Bot:', JSON.stringify({ score: r.score, passes: `${r.passOk}/${r.passes}`, shots: r.shots, regain: r.regain, keys: r.keys }));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Tastatur (Standard Legenden): Enter, Intro, Anstoß mit S, Pfeile laufen, Leertaste lädt und schießt, Esc pausiert', async () => {
   const { page, ctx, errors } = await open();
   await page.keyboard.press('Enter'); await page.waitForTimeout(150);

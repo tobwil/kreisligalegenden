@@ -102,7 +102,7 @@ Touch mit nur zwei Knöpfen – antippen = Hauptaktion, gedrückt halten und zie
 
 Der Quelltext liegt in `src/` (Module `p01_core.js` bis `p16_picker.js`, Gerüst und Styles in `head.html`, Vereinsdaten in `d_vereine.js`, Karte in `d_karte.js`). Die Vereinsdaten erzeugen `tools/vereine_crawl.py` (öffentliche Tabellen auf fussball.de) und `tools/vereine_build.py`, die Karte `tools/karte_raster.py` (Natural Earth, gemeinfrei). `sh src/build.sh` baut daraus `game/index.html`, das mit committet wird.
 
-Tests (Playwright mit Chromium): `cd tests && npm install && npm test`, in der GitHub Action bei jedem Pull Request und jede Nacht. Sie spielen ganze Spiele Bild für Bild durch, prüfen Regeln, Standards, Elfmeterschießen, die Vereinsdaten und die Kartenauswahl, zwei komplette Saisons mit Kreispokal und Playoffs, das Training, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
+Tests (Playwright mit Chromium): `cd tests && npm install && npm test`, in der GitHub Action bei jedem Pull Request und jede Nacht. Sie spielen ganze Spiele Bild für Bild durch (CPU gegen CPU und ein Bot, der nur über Tasten spielt wie ein Mensch), prüfen Regeln, Standards, Elfmeterschießen, die Vereinsdaten und die Kartenauswahl, zwei komplette Saisons mit Kreispokal und Playoffs, das Training, Menüs mit Pfeiltasten und die Touch-Steuerung. Die GitHub Action prüft außerdem, dass `game/index.html` zu `src/` passt.
 
 Lizenz: [PolyForm Noncommercial 1.0.0](LICENSE) · Schriften: Press Start 2P und VT323 (SIL Open Font License).
 
