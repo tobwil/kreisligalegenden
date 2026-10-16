@@ -48,6 +48,9 @@ const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 20
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 2, items: K => [
+    ['Lange Bälle annehmen', `Ohne Taste nimmt dein Spieler einen hohen Ball mit der Brust an und du läufst weiter. Köpfen: kurz vorher ${K.shot} – Flanken im Strafraum köpft er wie bisher von selbst`],
+  ] },
   { id: 1, items: K => [
     [`${K.tk} halten = stellen`, 'Dein Verteidiger bleibt zwischen Gegner und Tor und läuft mit. Loslassen, wenn du nah dran bist = Tackling'],
     ['Doppelpass auf Knopfdruck', `Gleich nach der Annahme nochmal ${K.pass} – der Ball geht sofort zurück in den Lauf deines Mitspielers`],
@@ -67,7 +70,7 @@ function showNews() {
   store.set(NEWS_KEY, top.id);
   const veteran = PROF.games > 0 || !!store.get(TUT_KEY) || !!loadCareerSave();
   if (!veteran) return false;   // wer neu ist, lernt alles im Training; das Fenster käme nur dazwischen
-  const items = NEWS.filter(n => n.id > seen).slice(0, 1).flatMap(n => n.items(newsKeys())).slice(0, 3);
+  const items = NEWS.filter(n => n.id > seen).flatMap(n => n.items(newsKeys())).slice(0, 3);   // alle verpassten Neuigkeiten, neueste zuerst
   show(`<div class="panel narrow news"><h2>NEU IM SPIEL</h2>
     <ul class="newsl">${items.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ul>
     <div class="row"><button class="main" data-act="main" autofocus>LOS GEHT'S</button><button data-act="controls">ALLE STEUERUNGEN</button></div></div>`, { back: ACT.main });
@@ -119,7 +122,7 @@ const ACT = {
         <b>${L.moveN.toUpperCase()}</b><span>Laufen${L.move[0] === 'KeyW' ? ' (die Pfeiltasten gehen auch)' : ''}</span>
         <b>${ks('a')}</b><span>Angriff: Pass in Laufrichtung (das blaue Dreieck zeigt den Empfänger), der Mitspieler läuft dem Ball entgegen. Antippen = kurzer Pass, gedrückt halten = fester und weiter (türkiser Balken), beim Loslassen geht der Ball. Kurz bevor ein Pass bei dir ankommt drücken = Direktpass. Doppelpass: gleich nach deinem Pass nochmal drücken (ohne Richtung oder zum Passgeber) – der Ball kommt sofort zurück in deinen Lauf. Abwehr: ${dt('a')}</span>
         <b>${ks('k')}</b><span>Angriff: Steilpass in den Lauf – antippen = normal, halten = weiter in die Tiefe. Abwehr: ${dt('k')}</span>
-        <b>KOPFBALL</b><span>Gelber Ring = dort kommt ein hoher Ball in Kopfhöhe an. Ist er in Reichweite, läuft dein Spieler von selbst zum Treffpunkt und der Stick zielt nur noch (Pfeil): hoch/runter = Ecke im Tor, beim Wegköpfen die Richtung. Im Strafraum des Gegners köpft dein Stürmer von selbst aufs Tor (${ks('a')} vorher = ablegen). In der Abwehr: ${ks('b')}, ${ks('c')} oder ${ks('k')} = wegköpfen in Stickrichtung, ${ks('a')} = zum Mitspieler köpfen</span>
+        <b>KOPFBALL</b><span>Gelber Ring = dort kommt ein hoher Ball in Kopfhöhe an. Ohne Taste nimmt dein Spieler einen langen Ball mit der Brust an und du läufst weiter. Köpfen: kurz vorher ${ks('b')} (aufs Tor) oder ${ks('a')} (ablegen) – dann läuft er von selbst zum Treffpunkt und der Stick zielt nur noch (Pfeil): hoch/runter = Ecke im Tor, beim Wegköpfen die Richtung. Im Strafraum des Gegners köpft dein Stürmer von selbst aufs Tor (${ks('a')} vorher = ablegen). In der Abwehr: ${ks('b')}, ${ks('c')} oder ${ks('k')} = wegköpfen in Stickrichtung, ${ks('a')} = zum Mitspieler köpfen</span>
         <b>${ks('c')}</b><span>Angriff: Flanke (auf dem Flügel) oder hoher Ball – antippen = automatisch, halten = Kraft (Flanke: kurzer Pfosten → Elfmeterpunkt → langer Pfosten, hoher Ball: weiter). Abwehr: ${dt('c')}</span>
         <b>${ks('b')}</b><span>Angriff: Schuss – antippen = platziert, halten lädt auf (grün flach, gelb hoch, rot drüber), Loslassen in der hellen Zone auf dem Balken = PERFEKT (genauer und härter); weiter als 40 m vom Tor = Befreiungsschlag hoch und weit nach vorn; ${L.move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter'} zielt in die Ecke, das Zielkreuz im Tor zeigt wohin. Beim Aufladen ${ks('a')} = Schlenzer an den Innenpfosten, ${ks('c')} = Heber über den Torwart. Kurz bevor der Ball kommt: Direktschuss, Volley oder Kopfball. Freistoß und Elfmeter: Zielansicht hinter dem Ball, Richtung = Fadenkreuz. Abwehr: ${dt('b')}</span>
         <b>${ks('f')}</b><span>Angriff: Trick – die Richtung entscheidet: zur Seite Haken, zurück Zurückziehen, nach vorn Tempo-Dribbling, ohne Richtung Übersteiger. Abwehr: Spieler wechseln</span>

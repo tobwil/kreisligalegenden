@@ -680,6 +680,13 @@ test('Zielansicht: Freistoß und Elfmeter mit Kamera hinter dem Ball, Fadenkreuz
     for (let i = 0; i < 120 && !(G.sp && G.sp.aim); i++) { readInput(1 / 60); step(1 / 60); }
     out.on = aimViewOn(); out.wall = G.players.filter(p => p.wall).length;
     render(); out.drawn = true;
+    // Texte unten (Kraftbalken) dürfen sich nicht überlappen (iPhone: „WENIG = BOGEN …“ lag über „KRAFT“)
+    const T = [], ft = ctx.fillText;
+    ctx.fillText = function (s, x, y) { const w = this.measureText(s).width, a = this.textAlign; T.push({ s, x: a === 'center' ? x - w / 2 : a === 'right' ? x - w : x, y, w, h: parseInt(this.font) }); return ft.call(this, s, x, y); };
+    try { render(); } finally { ctx.fillText = ft; }
+    const own = T.filter(t => !T.some(u => u !== t && u.s === t.s && u.x === t.x - 1 && u.y === t.y - 1)), maxY = Math.max(...own.map(t => t.y)), low = own.filter(t => t.y > maxY - 40 && t.s.trim());
+    out.overlap = low.flatMap((a, i) => low.slice(i + 1).filter(b => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h).map(b => a.s + ' / ' + b.s));
+    out.low = low.map(t => t.s);
     const u0 = G.sp && G.sp.aim ? G.sp.aim.u : null;
     // Fadenkreuz nach rechts schieben und hoch, dann mit wenig Kraft schießen
     KEY.ArrowRight = true; KEY.ArrowUp = true; for (let i = 0; i < 20; i++) { readInput(1 / 60); step(1 / 60); } KEY.ArrowRight = false; KEY.ArrowUp = false;
@@ -697,6 +704,7 @@ test('Zielansicht: Freistoß und Elfmeter mit Kamera hinter dem Ball, Fadenkreuz
     return out;
   });
   ok(r.on && r.wall >= 2, 'keine Zielansicht beim Freistoß: ' + JSON.stringify(r));
+  ok(!r.overlap.length && r.low.includes('BOGEN'), 'Freistoß: Texte unten überlappen: ' + JSON.stringify([r.overlap, r.low]));
   ok(r.moved, 'Fadenkreuz bewegt sich nicht');
   ok(r.shot && r.fly && r.jump, 'Schuss/Mauer: ' + JSON.stringify(r));
   ok(r.stillOn && r.back, 'Ansicht folgt dem Ball nicht oder kehrt nicht zurück: ' + JSON.stringify(r));
@@ -850,6 +858,44 @@ test('Kopfball: Flanke auf deinen Stürmer im Strafraum, er läuft hin und köpf
     return { shots, tries };
   });
   ok(r.shots >= 5, `nur ${r.shots} von ${r.tries} Flanken wurden zum Kopfball aufs Tor`);
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Langer Ball nach vorn: ohne Taste nimmt dein Spieler ihn mit der Brust an und läuft weiter, mit Schuss-Taste köpft er; Flanke im Strafraum bleibt Kopfball', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key';
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true;
+    const s = atkDir(0), gx = goalX(0), mf = teamP(0).find(q => grpOf(q) === 'MF'), st = teamP(0).find(q => grpOf(q) === 'ST');
+    const run = (tx, ty, press, kind = 'lob') => {
+      G.phase = 'play'; G.sp = null; G.offs = null; G.ball.shot = null; for (const k in KEY) KEY[k] = false;
+      for (const q of G.players) if (!isGK(q) && q !== mf && q !== st) place(q, q.team ? gx - s * 2 : CW / 2 - s * 20, q.team ? (q.num % 2 ? 2 : CH - 2) : CH - 2);
+      place(mf, tx - s * 28, ty); place(st, tx, ty); st.cd = 0; st.queue = null; mf.cd = 0; G.ctrl = mf; giveBall(mf, true);
+      // hoher Ball, der in Kopfhöhe bei ihm ankommt (langer Ball, Befreiungsschlag nach vorn oder Flanke)
+      const b = G.ball; kickBall(mf, kind, 0.4); launchAir(st.x + s * 0.3, st.y, 1.7, 1.4); b.passer = mf; if (kind !== 'clear') { b.passTo = st; noteRecv(st, st.x, st.y); }
+      G.ctrl = st; let headed = false, got = false;
+      for (let i = 0; i < 200 && !got && !headed; i++) {
+        const eta = dist(st.x, st.y, G.ball.x, G.ball.y) / Math.max(2, Math.hypot(G.ball.vx, G.ball.vy));
+        if (press && eta < 0.8 && !st.queue && !KEY.Space) { KEY.Space = KEYP.Space = true; } else KEY.Space = false;   // kurz vor der Ankunft Schuss drücken
+        readInput(1 / 60); step(1 / 60);
+        if (G.ball.kind === 'head' || (G.ball.shot && G.ball.shot.header) || (st.act && st.act.type === 'head')) headed = true;
+        if (G.ball.owner === st) got = true;
+      }
+      // nach der Annahme läuft er mit dem Ball weiter in Stickrichtung
+      let moved = 0; if (got) { const x0 = st.x; KEY[s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; for (let i = 0; i < 30; i++) { readInput(1 / 60); step(1 / 60); } moved = (st.x - x0) * s; KEY.ArrowRight = KEY.ArrowLeft = false; }
+      return { got, headed, moved: +moved.toFixed(1), own: G.ball.owner === st };
+    };
+    out.mid = run(CW / 2 + s * 12, MY - 6, false, 'clear'); // Befreiungsschlag nach vorn, in Kopfhöhe
+    out.box = run(gx - s * 14, MY + 3, false);              // langer hoher Ball an die Strafraumgrenze
+    out.press = run(CW / 2 + s * 12, MY - 6, true);         // mit Schuss-Taste vorgemerkt: Kopfball
+    out.cross = run(gx - s * 9, MY + 2, false, 'cross');    // Flanke in den Strafraum: Kopfball wie bisher
+    return out;
+  });
+  ok(r.mid.got && !r.mid.headed && r.mid.moved > 2, 'langer Ball wird nicht angenommen oder er läuft nicht weiter: ' + JSON.stringify(r));
+  ok(r.box.got && !r.box.headed, 'langer Ball an den Strafraum wird geköpft statt angenommen: ' + JSON.stringify(r));
+  ok(r.press.headed, 'mit Schuss-Taste kein Kopfball: ' + JSON.stringify(r));
+  ok(r.cross.headed, 'Flanke im Strafraum wird nicht geköpft: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -1070,13 +1116,15 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     out.focus = document.activeElement && document.activeElement.textContent;
     menu.querySelector('[data-act="main"]').click(); out.menu = !menu.querySelector('.news') && !!menu.querySelector('[data-act="quick"]');
     ACT.main(); out.once = !menu.querySelector('.news');
+    store.set(NEWS_KEY, 1); ACT.main(); out.next = menu.querySelectorAll('.newsl li').length; ACT.main();
     // unterbrochenes Spiel gespeichert: erst FORTSETZEN, die Neuigkeiten kommen beim nächsten Mal
     store.del(NEWS_KEY); const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; startMatch(L[0], L[1], { human: 0 }); G.paused = true; G.clock = 30; saveMatch();
     ACT.main(); out.resume = !!savedMatch() && !menu.querySelector('.news') && !!menu.querySelector('[data-act="resumeMatch"]') && store.get(NEWS_KEY) !== NEWS[0].id;
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('D halten') && r.txt.includes('LEERTASTE'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Lange Bälle') && r.txt.includes('D halten') && r.txt.includes('LEERTASTE'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.next === 1, 'wer Stand 1 schon kennt, sieht nur das Neue: ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
   ok(!errors.length, errors.join('; ')); await ctx.close();
