@@ -96,9 +96,12 @@ function drawLanding() {
 // Flanke oder hoher Ball aufladen: Ring mit Fadenkreuz, wo der Ball mit der jetzigen Kraft landet, Pfeil über dem Mitspieler, der hingeht
 function drawCrossPreview() {
   const P = !G.pl && crossPreview(G.ctrl); if (!P) return;
-  const x = sx(P.tx, P.ty), y = sy(P.ty), col = '#7cf2ff';
-  for (const [c, w] of [['#000', 3], [col, 1]]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 12, 4.5, 0, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.fillStyle = '#000'; ctx.fillRect(x - 6, y - 1, 13, 3); ctx.fillRect(x - 1, y - 3, 3, 7); ctx.fillStyle = col; ctx.fillRect(x - 5, y, 11, 1); ctx.fillRect(x, y - 2, 1, 5);
+  const x = sx(P.tx, P.ty), y = sy(P.ty), col = (Math.floor(G.t * 6) % 2) ? '#7cf2ff' : '#d8fbff', b = G.ball, bx = sx(b.x, b.y), by = sy(b.y);
+  // gepunktete Flugbahn wie bei der Ecke
+  const n = Math.max(6, Math.round(Math.hypot(x - bx, y - by) / 9)), ph = (G.t * 6) % 1, peak = Math.min(40, Math.hypot(x - bx, y - by) * 0.25);
+  for (let i = 1; i < n; i++) { const k = (i + ph) / n, px = Math.round(lerp(bx, x, k)), py = Math.round(lerp(by, y, k) - Math.sin(k * Math.PI) * peak); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 3, 3); ctx.fillStyle = col; ctx.fillRect(px, py, 1, 1); }
+  for (const [c, w] of [['#000', 3], [col, 1]]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 15, 6, 0, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.fillStyle = '#000'; ctx.fillRect(x - 8, y - 1, 17, 3); ctx.fillRect(x - 1, y - 4, 3, 9); ctx.fillStyle = col; ctx.fillRect(x - 7, y, 15, 1); ctx.fillRect(x, y - 3, 1, 7);
   if (P.tgt) { const q = P.tgt, qx = sx(q.x, q.y), qy = sy(q.y, q.z) - 40; ctx.fillStyle = '#000'; ctx.fillRect(qx - 4, qy - 1, 9, 4); ctx.fillStyle = col; ctx.fillRect(qx - 3, qy, 7, 2); ctx.fillRect(qx - 1, qy + 2, 3, 1); }
 }
 function drawRain(t) {

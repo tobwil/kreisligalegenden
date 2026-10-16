@@ -145,13 +145,12 @@ function humanControl(dt) {
     }
     // Flanke / hoher Ball: antippen = wie bisher, halten = Kraft (Flanke: kurzer Pfosten → Elfmeterpunkt → langer Pfosten; hoher Ball: weiter)
     const doCross = pw => { if (wingCross(c)) cross(c, 0, pw); else lob(c, choosePass(c, IN.x, IN.y, 'lob', 0.7, pw)); };
-    if (LASTIN === 'touch') { if (IN.pc) { const pw = TOUCH.cpow; TOUCH.cpow = null; doCross(pw); return; } }
-    else {
-      if (IN.pc) c.crsHold = G.t;
-      if (c.crsHold != null && !IN.c) {
-        if (IN.rc) { const pw = holdPow(c.crsHold); c.crsHold = null; doCross(pw); return; }
-        c.crsHold = null;
-      }
+    // Flanke/hoher Ball: halten = Kraft (ein Ring zeigt die Landestelle), beim Loslassen fliegt der Ball.
+    // Touch: PASS nach oben ziehen und halten – die Zeit, die PASS vor dem Ziehen gehalten wurde, zählt zur Kraft
+    if (IN.pc) { c.crsHold = G.t - (LASTIN === 'touch' ? TOUCH.cpre || 0 : 0); TOUCH.cpre = 0; }
+    if (c.crsHold != null && !IN.c) {
+      if (IN.rc) { const pw = holdPow(c.crsHold); c.crsHold = null; doCross(pw); return; }
+      c.crsHold = null;
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
   } else {
@@ -595,9 +594,9 @@ function wingFK(sp) {
 }
 // Flanke vom Flügel (sonst hoher Ball zum Mitspieler)
 function wingCross(c) { const gx = goalX(c.team); return Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0); }
-// Landepunkt beim Aufladen von Flanke oder hohem Ball (Tastatur/Gamepad): wohin der Ball mit der jetzigen Kraft fliegt
+// Landepunkt beim Aufladen von Flanke oder hohem Ball (Tastatur, Gamepad, Touch): wohin der Ball mit der jetzigen Kraft fliegt
 function crossPreview(c) {
-  if (!c || c.crsHold == null || G.ball.owner !== c || G.phase !== 'play' || LASTIN === 'touch') return null;
+  if (!c || c.crsHold == null || G.ball.owner !== c || G.phase !== 'play') return null;
   const pw = holdPow(c.crsHold); if (pw == null) return null;
   if (wingCross(c)) return crossPlan(c, 0, pw);
   const q = choosePass(c, IN.x, IN.y, 'lob', 0.7, pw); return q ? { ...lobPlan(c, q), tgt: q } : null;

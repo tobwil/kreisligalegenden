@@ -2,7 +2,7 @@
 // Ein normales Spiel mit wenigen Spielern, ohne Uhr. Jede Lektion stellt die Spieler auf, zählt Erfolge und setzt nach Tor, Aus oder Ballverlust neu an.
 const TUT_KEY = 'krl_tut';
 const tutKeys = () => LASTIN === 'touch'
-  ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS wischen', cross: 'PASS nach oben wischen', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING tippen', slide: 'TACKLING drücken und ziehen', sw: 'WECHSEL' }
+  ? { move: 'den Stick links', sprint: 'Stick weit ziehen', pass: 'PASS', through: 'PASS wischen', cross: 'PASS nach oben ziehen', shot: 'SCHUSS halten und loslassen', aim: 'Stick hoch/runter', tackle: 'TACKLING tippen', slide: 'TACKLING drücken und ziehen', sw: 'WECHSEL' }
   : LASTIN === 'pad'
     ? { move: 'den linken Stick', sprint: 'RT', pass: 'A', through: 'Y', cross: 'X', shot: 'B halten und loslassen', aim: 'Stick hoch/runter', tackle: 'B', slide: 'X', sw: 'A' }
     : (N => ({ move: LAY().moveN, sprint: N.s === 'SHIFT' ? 'Shift' : N.s, pass: N.a, through: N.k, cross: N.c, shot: `${N.b === 'LEER' ? 'Leertaste' : N.b} halten und loslassen`, aim: LAY().move[0] === 'KeyW' ? 'W/S' : 'Pfeil hoch/runter', tackle: (N[(LAY().def || {}).tk || 'b']), slide: (s => s === 'LEER' ? 'Leertaste' : s)(N[(LAY().def || {}).sl || 'c']), sw: N.a }))(LAY().keyN);

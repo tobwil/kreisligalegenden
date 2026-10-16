@@ -626,6 +626,10 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
     for (let i = 0; i < 30; i++) frame(); const p2 = crossPreview(st); KEY.KeyA = false; frame();
     out.prev = p1 && p2 ? { near: +Math.abs(p1.ty - MY).toFixed(1), far: +Math.abs(p2.ty - MY).toFixed(1), side: Math.sign(p1.ty - MY) === Math.sign(st.y - MY) && Math.sign(p2.ty - MY) !== Math.sign(st.y - MY) } : null;
     out.crossed = G.ball.kind === 'cross';
+    // Seitenwechsel: von links auf rechts (Richtung zur anderen Seite halten), Ring zeigt die Landestelle beim Mitspieler drüben
+    const [w1, w2] = teamP(0).filter(x => grpOf(x) === 'MF'); away([w1, w2]); place(w1, CW / 2 - s * 5, 6); place(w2, CW / 2 + s * 6, CH - 7); giveBall(w1, true); G.ctrl = w1; w1.cd = 0; frame();
+    KEY.ArrowDown = true; KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < 25; i++) frame(); const sw = crossPreview(w1); KEY.KeyA = false; frame(); KEY.ArrowDown = false;
+    out.switch = { prev: !!sw && sw.tgt === w2 && Math.abs(sw.ty - w2.y) < 6, flew: G.ball.kind === 'lob' && G.ball.passTo === w2 };
     // Freistoß vom Flügel: Zielvisier statt Schussansicht, Flanke landet dort
     const fk = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('free', 0, gx - s * 19, MY + 23); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
     fk(); out.fkAim = !aimWanted() && !!G.sp.caim; render();
@@ -641,6 +645,7 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
   ok(r.feint && !r.straight, 'Körpertäuschung: ' + JSON.stringify(r));
   ok(r.beat1 && r.banner === 'AUSGESPIELT!', 'Ausgespielt: ' + JSON.stringify(r));
   ok(r.prev && r.prev.side && r.crossed, 'Landepunkt beim Aufladen (kurz = kurzer Pfosten, lang = langer Pfosten): ' + JSON.stringify(r));
+  ok(r.switch.prev && r.switch.flew, 'Seitenwechsel mit Landestelle: ' + JSON.stringify(r.switch));
   ok(r.fkAim && r.fkCross && r.fkErr < 4.5 && r.central, 'Freistoß vom Flügel mit Zielvisier: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
@@ -1289,6 +1294,13 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   await drag('.tb-a', 4, -55);
   const hi = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
   ok(hi, 'PASS nach oben wischen spielt keinen hohen Ball');
+  // nach oben ziehen und halten: Ring mit der Landestelle, der Ball fliegt erst beim Loslassen
+  await setup(); await page.waitForTimeout(80);
+  { const c = await ctr('.tb-a'); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.move(c.x + 2, c.y - 30); await page.mouse.move(c.x + 4, c.y - 55); await page.waitForTimeout(450);
+    const held = await page.evaluate(() => ({ prev: !!crossPreview(G.ctrl), own: !!G.ball.owner, lbl: document.querySelector('.tb-a span').textContent }));
+    await page.mouse.up(); await page.waitForTimeout(80);
+    const flew = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
+    ok(held.prev && held.own && held.lbl === 'HOCH' && flew, 'PASS nach oben ziehen und halten: Landestelle / Ball erst beim Loslassen: ' + JSON.stringify([held, flew])); }
   await setup(); await page.waitForTimeout(80);
   await drag('.tb-a', 55, 5);
   const th = await page.evaluate(() => G.ball.kind === 'through' && !G.ball.owner);
@@ -1301,13 +1313,14 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const aimShot = async dy => { await page.evaluate(() => { G.phase = 'play'; G.sp = null; G.ball.shot = null; const p = teamP(0).find(q => grpOf(q) === 'ST'); place(p, goalX(0) - atkDir(0) * 18, MY); for (const o of teamP(1)) if (!isGK(o)) place(o, CW / 2, 3); giveBall(p, true); G.ctrl = p; p.cd = 0; tbMode = ''; }); await page.waitForTimeout(80); await drag('.tb-b', 0, dy, 150); return page.evaluate(() => G.ball.shot ? G.ball.vy : null); };
   const vUp = await aimShot(-60), vDown = await aimShot(60);
   ok(vUp != null && vDown != null && vUp < 0 && vDown > 0, 'Zielen mit dem Daumen: ' + vUp + ' / ' + vDown);
-  const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
+  const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; SETTINGS.autoswitch = false;   // Live-Spiel: kein Auto-Wechsel weg vom Verteidiger, wenn der Test länger braucht
+    const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
   await def(); await page.waitForTimeout(80);
   const lb = await page.evaluate(() => document.querySelector('.tb-b span').textContent);
   ok(lb === 'TACKLING', 'Abwehr-Beschriftung: ' + lb);
   await drag('.tb-b', 0, -40);
-  const sl = await page.evaluate(() => __d.act && __d.act.type === 'slide' || __d.cd > 0.5);
-  ok(sl, 'TACKLING ziehen grätscht nicht');
+  const sl = await page.evaluate(() => ({ ok: !!(__d.act && __d.act.type === 'slide' || __d.cd > 0.5), ctrl: G.ctrl === __d, act: __d.act && __d.act.type, cd: +__d.cd.toFixed(2), own: G.ball.owner && G.ball.owner.team, ph: G.phase }));
+  ok(sl.ok, 'TACKLING ziehen grätscht nicht: ' + JSON.stringify(sl));
   await def(); await page.waitForTimeout(80);
   const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y); await page.waitForTimeout(80);
   const tk = await page.evaluate(() => ({ ok: __d.d.ms.tk > 0 || (__d.act && ['tackle', 'stumble'].includes(__d.act.type)) || __d.cd > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));

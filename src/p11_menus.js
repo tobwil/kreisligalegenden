@@ -49,9 +49,10 @@ const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 20
 const NEWS_KEY = 'krl_news';
 const NEWS = [
   { id: 4, items: K => [
-    K.touch ? ['Sprint mit dem Stick', 'Im Kreis läufst du, erst wenn du über den Kreis hinaus ziehst, sprintest du (der Kreis wird rot)'] : ['Flanke mit Landepunkt', `${K.cross} halten: ein Ring zeigt, wo der Ball landet – kurz = kurzer Pfosten, lang = langer Pfosten`],
+    ...(K.touch ? [['Sprint mit dem Stick', 'Im Kreis läufst du, erst wenn du über den Kreis hinaus ziehst, sprintest du (der Kreis wird rot)']] : []),
+    ['Flanke mit Landepunkt', `${K.cross} halten: ein Ring zeigt, wo der Ball landet – mehr Kraft = weiter, ${K.touch ? 'der linke Stick' : 'die Richtung'} wählt die Seite (auch Seitenwechsel)`],
     ['Ausspielen', 'Im Gehen drehst du eng, im Sprint im Bogen. Ein scharfer Haken dicht vor dem Verteidiger lässt ihn oft aussteigen'],
-    ['Freistoß vom Flügel', 'Zielvisier wie bei der Ecke: Richtung verschiebt das Ziel im Strafraum'],
+    ...(K.touch ? [] : [['Freistoß vom Flügel', 'Zielvisier wie bei der Ecke: Richtung verschiebt das Ziel im Strafraum']]),
   ] },
   { id: 3, items: K => [
     ['Erste Berührung mit Richtung', `Beim Annehmen ${K.dir} halten: dein Spieler nimmt den Ball gleich in diese Richtung mit, mit Sprint (${K.spr}) legt er ihn weiter vor. Ohne Richtung stoppt er ihn`],
@@ -68,7 +69,7 @@ const NEWS = [
   ] },
 ];
 function newsKeys() {
-  if (TOUCHDEV && LASTIN !== 'key' && LASTIN !== 'pad') return { tk: 'TACKLING', pass: 'PASS', shot: 'SCHUSS', dir: 'den Stick', spr: 'Stick weit ziehen', cross: 'PASS nach oben wischen', touch: true };
+  if (TOUCHDEV && LASTIN !== 'key' && LASTIN !== 'pad') return { tk: 'TACKLING', pass: 'PASS', shot: 'SCHUSS', dir: 'den Stick', spr: 'Stick weit ziehen', cross: 'PASS nach oben ziehen und', touch: true };
   if (LASTIN === 'pad') return { tk: 'B', pass: 'A', shot: 'B', dir: 'den Stick', spr: 'RT', cross: 'X' };
   const L = LAY(), N = L.keyN, n = q => N[q] === 'LEER' ? 'LEERTASTE' : N[q];
   return { tk: n((L.def || { tk: 'b' }).tk), pass: n('a'), shot: n('b'), dir: 'eine Richtung', spr: n('s'), cross: n('c') };
@@ -143,7 +144,7 @@ const ACT = {
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
         <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke und Freistoß vom Flügel: Richtung verschiebt das Zielvisier im Strafraum, ${k(N.c)} oder ${k(N.b)} flankt genau dorthin, ${k(N.a)} kurz ausgeführt · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass (halten = weiter) · B Schuss (beim Aufladen A = Schlenzer, X = Heber) · X Flanke · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben wischen = Flanke/hoher Ball (erst halten, dann wischen = mit mehr Kraft). SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (zum Verteidiger vor dem Gegner, mit Stick in diese Richtung, halten = Druck), TACKLING (halten = stellen, ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (im Kreis laufen, über den Kreis hinaus ziehen = Sprint, der Kreis wird rot). Mitspieler antippen = Pass zu ihm. Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Trick in die neue Richtung (zurück Zurückziehen, zur Seite Haken), links doppelt antippen oder deinen Spieler antippen = Übersteiger. Die Knöpfe reagieren auch knapp neben dem Kreis. Knopfgröße in den Optionen</span>
+        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben ziehen und halten = Flanke/hoher Ball (ein Ring zeigt die Landestelle, der linke Stick wählt die Seite, loslassen = Ball fliegt). SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Abwehr: WECHSEL (zum Verteidiger vor dem Gegner, mit Stick in diese Richtung, halten = Druck), TACKLING (halten = stellen, ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (im Kreis laufen, über den Kreis hinaus ziehen = Sprint, der Kreis wird rot). Mitspieler antippen = Pass zu ihm. Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Trick in die neue Richtung (zurück Zurückziehen, zur Seite Haken), links doppelt antippen oder deinen Spieler antippen = Übersteiger. Die Knöpfe reagieren auch knapp neben dem Kreis. Knopfgröße in den Optionen</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });

@@ -114,7 +114,7 @@ function stickGesture(x, y, now) {
   };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   // Zwei Knöpfe, kein Suchen: antippen = Hauptaktion, gedrückt halten und ziehen (egal wohin) = zweite Aktion
-  //   Angriff  PASS:   tippen = kurzer Pass · halten = fester und weiter (Balken) · wischen = Steilpass · nach oben wischen = hoch/Flanke
+  //   Angriff  PASS:   tippen = kurzer Pass · halten = fester und weiter (Balken) · wischen = Steilpass · nach oben ziehen = hoch/Flanke (halten = Ring mit Landestelle, loslassen = Ball fliegt)
   //            SCHUSS: halten lädt auf, loslassen schießt · beim Aufladen ziehen = Zielkreuz im Tor schieben (wie bei Padel-Legenden),
   //                    das Spiel läuft dabei kurz in Zeitlupe; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber
   //   Abwehr   WECHSEL: tippen = Spieler wechseln · halten = ein Mitspieler presst mit
@@ -131,7 +131,7 @@ function stickGesture(x, y, now) {
       const att = attacking() || !!(G && G.sp && isHumanTeam(G.sp.team));
       st = { x: e.clientX, y: e.clientY, att, done: false };
       if (k === 'a') {
-        if (att) TOUCH.passT = performance.now();
+        if (att) TOUCH.passT = TOUCH.passT0 = performance.now();
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
       } else if (att) TOUCH.b = true;
       else holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.held = true; TOUCH.b = true; alt('STELLEN'); } }, 200);   // TACKLING halten = Stellen, loslassen = Tackling
@@ -140,7 +140,9 @@ function stickGesture(x, y, now) {
     const move = e => {
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
-      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.cpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
+      // nach oben ziehen = Flanke/hoher Ball: weiter halten lädt auf (Ring zeigt die Landestelle, der linke Stick wählt die Seite), loslassen = Ball fliegt
+      if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; const pre = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null, up = dy < -Math.abs(dx) * 0.8; TOUCH.passT = 0;
+        if (up) { TOUCH.cpre = TOUCH.passT0 ? Math.max(0, (performance.now() - TOUCH.passT0) / 1000) : 0; TOUCH.pulseC = 1; TOUCH.c = true; st.lob = true; } else { TOUCH.kpow = pre; TOUCH.pulseK = 1; } alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; if (st.held) { st.held = false; TOUCH.b = false; } TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     };
@@ -148,7 +150,7 @@ function stickGesture(x, y, now) {
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
       if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att && !st.held) TOUCH.pulseB = 1; }
-      if (k === 'a') TOUCH.passT = 0;
+      if (k === 'a') { TOUCH.passT = 0; TOUCH.c = false; }
       if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
       st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
     };
@@ -212,7 +214,7 @@ function touchTip() {
   const lab = (k, h, t) => `<div class="lab" data-k="${k}"><b>${h}</b>${t}</div>`;
   // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
   const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
-  const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
+  const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben ziehen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
   const B = att ? ['SCHUSS', 'halten = Kraft<br>dabei ziehen = zielen'] : ['TACKLING', 'tippen = Tackling<br>halten = stellen<br>ziehen = Grätsche'];
   const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
     : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';
