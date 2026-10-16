@@ -27,13 +27,15 @@ const want = (readFileSync(path.join(root, 'game', 'index.html'), 'utf8').match(
 
 let fails = 0;
 const ok = (cond, msg) => { console.log(`${cond ? '✔' : '✘'} ${msg}`); if (!cond) fails++; };
-const get = (u, o = {}) => fetch(BASE + u, { redirect: 'manual', ...o });
+// Netzabfrage mit bis zu 3 Versuchen: ein einzelner Verbindungsabbruch (ECONNRESET) bei GitHub/Netlify soll die Reihe nicht kippen
+const fetchRetry = async (url, o = {}, n = 3) => { for (let i = 1; ; i++) { try { return await fetch(url, o); } catch (e) { if (i >= n) throw e; console.log(`  (Netz: ${e.cause?.code || e.message}, neuer Versuch ${i + 1}/${n})`); await new Promise(r => setTimeout(r, 1500 * i)); } } };
+const get = (u, o = {}) => fetchRetry(BASE + u, { redirect: 'manual', ...o });
 
 // 1. auf die Vorschau warten
 if (WAIT) {
   const t0 = Date.now(); let seen = '';
   for (;;) {
-    try { const t = await (await fetch(BASE + '/game/', { cache: 'no-store' })).text(); seen = (t.match(/const BUILD = '(\d+)'/) || [])[1] || '?'; if (seen === want) break; } catch (e) { seen = e.message; }
+    try { const t = await (await fetchRetry(BASE + '/game/', { cache: 'no-store' })).text(); seen = (t.match(/const BUILD = '(\d+)'/) || [])[1] || '?'; if (seen === want) break; } catch (e) { seen = e.message; }
     if (Date.now() - t0 > 15 * 60e3) { console.error(`Vorschau zeigt nach 15 Minuten noch nicht den Stand ${want} (sondern ${seen})`); process.exit(1); }
     await new Promise(r => setTimeout(r, 15000));
   }
