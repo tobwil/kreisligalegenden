@@ -137,10 +137,15 @@ function through(p, q, pow = null) {
   if (isHumanTeam(p.team)) { giveAndGo(p, q); toCtrl(p.team, q, p); }
 }
 // hoher Ball: über die Abwehr zum Mitspieler (landet vor ihm)
+// Ziel eines hohen Balls (ohne Streuung) – auch für den Landepunkt beim Aufladen
+function lobPlan(p, q) {
+  const b = G.ball, d0 = dist(b.x, b.y, q.x, q.y), T = clamp(0.75 + d0 * 0.032, 0.8, 2.4);
+  return { T, tx: clamp(q.x + q.vx * T * 0.7, 1, CW - 1), ty: clamp(q.y + q.vy * T * 0.7, 1, CH - 1) };
+}
 function lob(p, q) {
   if (!q) return;
-  const b = G.ball, d0 = dist(b.x, b.y, q.x, q.y), T = clamp(0.75 + d0 * 0.032, 0.8, 2.4);
-  let tx = clamp(q.x + q.vx * T * 0.7, 1, CW - 1), ty = clamp(q.y + q.vy * T * 0.7, 1, CH - 1);
+  const b = G.ball, P = lobPlan(p, q), T = P.T;
+  let tx = P.tx, ty = P.ty;
   const err = aimErr(p, 'pas') * 1.3, d = dist(b.x, b.y, tx, ty);
   const a = gauss() * err; tx += Math.cos(a) * 0 + gauss() * err * d * 0.5; ty += gauss() * err * d * 0.5;
   kickBall(p, 'lob', 0.45);
@@ -152,6 +157,19 @@ function lob(p, q) {
 // Flanke in den Strafraum: auf Kopfhöhe am kurzen oder langen Pfosten oder am Elfmeterpunkt. aim: -1 kurz, 1 lang, 0 automatisch
 // pow (Taste gehalten): 0 = kurzer Pfosten, 0,5 = Elfmeterpunkt, 1 = langer Pfosten; null = automatisch
 function cross(p, aim = 0, pow = null) {
+  const b = G.ball, P = crossPlan(p, aim, pow), tgt = P.tgt;
+  let tx = P.tx, ty = P.ty;
+  const d = dist(b.x, b.y, tx, ty), T = clamp(0.35 + d / 19, 0.6, 2.0), err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.6 : 1.1);
+  tx += gauss() * err * d * 0.45; ty += gauss() * err * d * 0.45;
+  kickBall(p, 'cross', 0.5);
+  launchAir(tx, ty, rnd(1.4, 1.9), T);
+  if (tgt) { b.passTo = tgt; noteRecv(tgt, tx, ty); }
+  G.stats.passes[p.team]++; p.d.ms.ps++;
+  if (tgt) toCtrl(p.team, tgt, p);
+  if (!G.demo) AU.crowd(0.5);
+}
+// Ziel einer Flanke (ohne Streuung) – auch für den Landepunkt beim Aufladen
+function crossPlan(p, aim = 0, pow = null) {
   const b = G.ball, gx = goalX(p.team), s = atkDir(p.team), side = b.y < MY ? -1 : 1;
   const zones = [[gx - s * 6, MY + side * 2.5], [gx - s * 8, MY - side * 3.5], [gx - s * PEN_D, MY]];
   const inB = mates(p).filter(q => !isGK(q) && Math.abs(q.x - gx) < 20 && Math.abs(q.y - MY) < 16);
@@ -166,14 +184,7 @@ function cross(p, aim = 0, pow = null) {
   let tx, ty;
   if (zone) { [tx, ty] = zone; } else if (tgt) { tx = tgt.x + s * 1.5; ty = tgt.y; } else { const z = zones[aim < 0 ? 0 : aim > 0 ? 1 : (Math.random() * 3) | 0]; tx = z[0]; ty = z[1]; }
   tx = clamp(tx, gx === CW ? CW - 13 : 3, gx === CW ? CW - 3 : 13);
-  const d = dist(b.x, b.y, tx, ty), T = clamp(0.35 + d / 19, 0.6, 2.0), err = aimErr(p, 'pas') * (p.d.trait === 'Flankengott' ? 0.6 : 1.1);
-  tx += gauss() * err * d * 0.45; ty += gauss() * err * d * 0.45;
-  kickBall(p, 'cross', 0.5);
-  launchAir(tx, ty, rnd(1.4, 1.9), T);
-  if (tgt) { b.passTo = tgt; noteRecv(tgt, tx, ty); }
-  G.stats.passes[p.team]++; p.d.ms.ps++;
-  if (tgt) toCtrl(p.team, tgt, p);
-  if (!G.demo) AU.crowd(0.5);
+  return { tx, ty, tgt };
 }
 // Ecke mit Zielvisier: Flanke genau auf den Punkt (tx, ty), angelaufen vom Mitspieler, der am nächsten dran ist
 function cornerRecv(p, tx, ty) { return mates(p).filter(q => !isGK(q) && dist(q.x, q.y, tx, ty) < 9).sort((a, b) => dist(a.x, a.y, tx, ty) - dist(b.x, b.y, tx, ty))[0] || null; }

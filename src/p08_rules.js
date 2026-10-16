@@ -99,6 +99,7 @@ function humanControl(dt) {
   G.pressHelp = (DEF ? IN[DEF.pr] : IN.k) && !ours;
   if (hasBall) {
     c.hadT = G.t;   // für die Gnadenfrist
+    if (!isGK(c) && G.phase === 'play') dribbleDuel(c);
     if (isGK(c)) {
       if (IN.pa) { const q = choosePass(c, IN.x, IN.y); if (q) gkThrow(c, q); }
       else if (IN.pc || IN.pb || IN.pk) gkPunt(c, Math.hypot(IN.x, IN.y) > 0.3 ? choosePass(c, IN.x, IN.y, 'lob') : null);
@@ -143,11 +144,7 @@ function humanControl(dt) {
       }
     }
     // Flanke / hoher Ball: antippen = wie bisher, halten = Kraft (Flanke: kurzer Pfosten → Elfmeterpunkt → langer Pfosten; hoher Ball: weiter)
-    const doCross = pw => {
-      const gx = goalX(me);
-      if (Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0)) cross(c, 0, pw);
-      else lob(c, choosePass(c, IN.x, IN.y, 'lob', 0.7, pw));
-    };
+    const doCross = pw => { if (wingCross(c)) cross(c, 0, pw); else lob(c, choosePass(c, IN.x, IN.y, 'lob', 0.7, pw)); };
     if (LASTIN === 'touch') { if (IN.pc) { const pw = TOUCH.cpow; TOUCH.cpow = null; doCross(pw); return; } }
     else {
       if (IN.pc) c.crsHold = G.t;
@@ -298,6 +295,17 @@ function movePlayer(p, dt) {
     sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : 1);
     dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 38 : 44;   // direktes Ansprechen auf den Stick (ISS-Gefühl)
     if (swing != null && Math.hypot(p.vx, p.vy) > 2) { const k = swing * swing; dvx = lerp(p.vx, dvx, k); dvy = lerp(p.vy, dvy, k); }
+    // Wendekreis nach Tempo (wie FIFA): im Gehen dreht der Ballführer eng und schnell, im Sprint fährt er einen weiten Bogen –
+    // kurz abbremsen und haken wird so zum Mittel, um an einem Gegner vorbeizukommen
+    if (G.ball.owner === p && !isGK(p)) {
+      const sp = Math.hypot(p.vx, p.vy), dm = Math.hypot(dvx, dvy), w0 = maxSpeed(p, false) * 0.93 * 0.9, w1 = maxSpeed(p, true) * 0.93;
+      const fast = clamp((sp - w0) / (w1 - w0), 0, 1);
+      if (fast > 0 && dm > 0.5) {
+        const a0 = Math.atan2(p.vy, p.vx); let da = Math.atan2(dvy, dvx) - a0; da -= Math.round(da / (2 * Math.PI)) * 2 * Math.PI;
+        const lim = lerp(14, 4.2, fast) * (0.9 + A_(p, 'tec') / 500) * dt;
+        if (Math.abs(da) > lim) { const a = a0 + Math.sign(da) * lim, m = Math.abs(da) > 1.7 ? Math.min(dm, sp * 0.97) : dm; dvx = Math.cos(a) * m; dvy = Math.sin(a) * m; }
+      }
+    }
     // Torwart mit Ball in der Hand bleibt im Strafraum
     if (isGK(p) && G.ball.owner === p) { dvx *= 0.6; dvy *= 0.6; }
   } else {
@@ -580,6 +588,45 @@ function tryCollect() {
   // CPU: Direktschuss nach Flanke oder Querpass im Strafraum
   if (!isHumanCtrl(p) && fromMate && inBox(1 - p.team, p.x, p.y) && shotQuality(p) > 0.35 && Math.random() < (wasCross ? 0.7 : 0.45)) shoot(p, rnd(0.5, 0.85), null, { volley: wasCross });
 }
+// Freistoß vom Flügel nahe dem Strafraum (seitlich neben dem Strafraum): wird geflankt wie eine Ecke, mit Zielvisier
+function wingFK(sp) {
+  if (!sp || sp.type !== 'free') return false;
+  const gx = goalX(sp.team), b = G.ball; return Math.abs(b.y - MY) > BOX_W / 2 - 2 && Math.abs(b.x - gx) < 36;
+}
+// Flanke vom Flügel (sonst hoher Ball zum Mitspieler)
+function wingCross(c) { const gx = goalX(c.team); return Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0); }
+// Landepunkt beim Aufladen von Flanke oder hohem Ball (Tastatur/Gamepad): wohin der Ball mit der jetzigen Kraft fliegt
+function crossPreview(c) {
+  if (!c || c.crsHold == null || G.ball.owner !== c || G.phase !== 'play' || LASTIN === 'touch') return null;
+  const pw = holdPow(c.crsHold); if (pw == null) return null;
+  if (wingCross(c)) return crossPlan(c, 0, pw);
+  const q = choosePass(c, IN.x, IN.y, 'lob', 0.7, pw); return q ? { ...lobPlan(c, q), tgt: q } : null;
+}
+// Ausspielen (dein Ballführer): Körpertäuschung – ein scharfer Haken mit Tempo, während ein Verteidiger dicht vor dir ist,
+// lässt ihn kurz aussteigen (je nach Technik gegen Zweikampf); ausgespielt – wer eben noch vor dir war und jetzt hinter dir ist,
+// braucht einen Moment zum Umdrehen; zwei Gegner hintereinander stehen lassen = Banner
+function dribbleDuel(c) {
+  const sp = Math.hypot(c.vx, c.vy), m = Math.hypot(IN.x, IN.y), s = atkDir(c.team);
+  if (sp > 2.5 && m > 0.5 && G.t - (c.feintT ?? -9) > 0.8 && (c.vx * IN.x + c.vy * IN.y) / (sp * m) < 0.5) {
+    const d = opps(c).filter(o => !isGK(o) && !o.off && o.stun <= 0 && dist(o.x, o.y, c.x, c.y) < 2.2 && (o.x - c.x) * c.vx + (o.y - c.y) * c.vy > 0).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y))[0];
+    if (d) {
+      c.feintT = G.t;
+      if (Math.random() < clamp(0.5 + (A_(c, 'tec') - A_(d, 'zwk')) / 100, 0.25, 0.85)) { d.stun = Math.max(d.stun, 0.35); d.vx *= 0.4; d.vy *= 0.4; d.feinted = G.t; }
+    }
+  }
+  const duel = c.duel || (c.duel = new Map());
+  for (const o of opps(c)) {
+    if (isGK(o) || o.off) continue;
+    const ahead = (o.x - c.x) * s, dd = dist(o.x, o.y, c.x, c.y);
+    if (ahead > 0.3 && ahead < 3 && dd < 2.8) duel.set(o, G.t);
+    else if (ahead < -1.2 && duel.has(o)) {
+      const t0 = duel.get(o); duel.delete(o); if (G.t - t0 > 1.5) continue;
+      o.stun = Math.max(o.stun, 0.2); c.beatN = (c.beatN || 0) + 1;
+      if (c.beatN === 2) { banner('AUSGESPIELT!', '#7cf2ff', c.d.name.toUpperCase(), 1); say(`${c.d.name} lässt zwei Gegner stehen!`); }
+      else if (c.beatN === 3) banner('DURCH DIE ABWEHR!', '#ffc83a', c.d.name.toUpperCase(), 1.2);
+    }
+  }
+}
 // Erste Berührung mit Richtung (wie FIFA): Stick gedrückt = den Ball gleich in diese Richtung mitnehmen, ohne abzubremsen,
 // mit Sprint ein Stück weiter vorlegen; ohne Stick = den Ball stoppen (der Spieler bremst ab)
 function firstTouch(p) {
@@ -642,7 +689,7 @@ function stepSetPiece(dt) {
     if (G.phase === 'kickoff' && sp.t < 0.3) return;
     const c = tk; G.ctrl = c;
     if (sp.type === 'throw' || sp.type === 'corner' || sp.type === 'goal') { if (Math.abs(IN.x) > 0.2 || Math.abs(IN.y) > 0.2) { c.hx = IN.x; c.hy = IN.y; } }
-    if (sp.type === 'pen' || sp.type === 'free') {
+    if (sp.type === 'pen' || (sp.type === 'free' && !wingFK(sp))) {
       if (aimWanted()) { if (aimStep(dt, sp, c)) return; }   // Zielansicht hinter dem Ball (p17)
       else {
         if (IN.b) c.charge = Math.min(1.05, (c.charge || 0) + dt / 0.85);
@@ -654,8 +701,8 @@ function stepSetPiece(dt) {
     } else if (sp.type === 'goal') {
       if (IN.pa) return pass(c, choosePass(c, IN.x, IN.y));
       if (IN.pc || IN.pb || IN.pk) return gkPunt(c, Math.hypot(IN.x, IN.y) > 0.3 ? choosePass(c, IN.x, IN.y, 'lob') : null);
-    } else if (sp.type === 'corner') {
-      // Zielvisier im Strafraum: Richtung verschiebt es, Flanke oder Schuss flankt genau dorthin, Pass = kurz ausgeführt
+    } else if (sp.type === 'corner' || wingFK(sp)) {
+      // Zielvisier im Strafraum (Ecke und Freistoß vom Flügel): Richtung verschiebt es, Flanke oder Schuss flankt genau dorthin, Pass = kurz ausgeführt
       const gx = goalX(sp.team), s = atkDir(sp.team);
       if (!sp.caim) { const side = c.y < MY ? -1 : 1, q = cornerRecv(c, gx - s * 7, MY + side * 1.5); sp.caim = q ? { x: q.x + s * 1, y: q.y } : { x: gx - s * 7, y: MY + side * 1.5 }; }
       sp.caim.x = clamp(sp.caim.x + IN.x * dt * 13, Math.min(gx - s * 2.5, gx - s * 22), Math.max(gx - s * 2.5, gx - s * 22));

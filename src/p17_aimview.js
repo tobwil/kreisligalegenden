@@ -12,7 +12,7 @@ function aimWanted() {
   if (!['setpiece', 'penalty'].includes(G.phase)) return false;
   if (sp.type === 'pen') return true;
   const gx = goalX(sp.team), b = G.ball;
-  return dist(b.x, b.y, gx, MY) < AIM_RANGE && Math.abs(b.x - gx) > 9;
+  return dist(b.x, b.y, gx, MY) < AIM_RANGE && Math.abs(b.x - gx) > 9 && !wingFK(sp);   // vom Flügel: Flanke mit Zielvisier statt Schussansicht
 }
 const aimViewOn = () => !!(G && (aimWanted() || (G.aimFly && G.aimFly.t < 1.6)));
 // Kamera-Rahmen aus Ballposition und Tor: d = Blickrichtung, r = rechts

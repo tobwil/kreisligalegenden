@@ -63,10 +63,14 @@ function stickGesture(x, y, now) {
   const R = () => 46;
   const rest = () => { st.style.left = ''; st.style.top = ''; st.classList.remove('act', 'sprint'); kn.style.transform = ''; TOUCH.x = TOUCH.y = 0; TOUCH.s = false; };
   const move = e => {
-    const r = R(); let dx = e.clientX - sx0, dy = e.clientY - sy0, m = Math.hypot(dx, dy);
-    if (m > r * 2) { const f = (m - r * 2) / m; sx0 += dx * f; sy0 += dy * f; dx -= dx * f; dy -= dy * f; m = r * 2; st.style.left = sx0 + 'px'; st.style.top = sy0 + 'px'; }
-    const k = Math.min(1, r / (m || 1)); TOUCH.x = dx * k / r; TOUCH.y = dy * k / r; TOUCH.s = m > r * 1.15;
-    st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * k}px,${dy * k}px)`;
+    // im Kreis = laufen (volles Tempo am Rand des Knopfwegs), über den gezeichneten Kreis hinaus ziehen = sprinten
+    // (Kreis 60 px, Sprint ab 72 px, aus erst unter 64 px, damit es an der Kante nicht flackert); weiter weg zieht der Stick mit
+    const r = R(), far = 104; let dx = e.clientX - sx0, dy = e.clientY - sy0, m = Math.hypot(dx, dy);
+    if (m > far) { const f = (m - far) / m; sx0 += dx * f; sy0 += dy * f; dx -= dx * f; dy -= dy * f; m = far; st.style.left = sx0 + 'px'; st.style.top = sy0 + 'px'; }
+    const k = Math.min(1, r / (m || 1)), was = TOUCH.s; TOUCH.x = dx * k / r; TOUCH.y = dy * k / r; TOUCH.s = m > (was ? 64 : 72);
+    if (TOUCH.s && !was) buzz(8);
+    const kk = Math.min(1, (TOUCH.s ? 62 : r) / (m || 1));
+    st.classList.toggle('sprint', TOUCH.s); kn.style.transform = `translate(${dx * kk}px,${dy * kk}px)`;
     stickGesture(TOUCH.x, TOUCH.y, performance.now());
   };
   // größere Trefferfläche: ein Daumen knapp neben PASS/SCHUSS (bis 22 px außerhalb des Kreises) zählt als Druck auf den Knopf

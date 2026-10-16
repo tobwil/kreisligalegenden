@@ -131,7 +131,7 @@ function giveBall(p, quiet) {
   if (b.passer && b.passer.team === p.team && b.passer !== p && b.kind && b.kind !== 'shot') G.stats.passOk[p.team]++;
   b.owner = p; b.state = 'held'; b.passTo = null; b.shot = null; b.passer = null; b.kind = ''; b.vz = 0; b.z = 0; b.spin = 0; b.plan = null;
   if (isGK(p)) { b.x = p.x + p.face * 0.25; b.y = p.y + 0.05; b.z = 1; } else { b.x = p.x + p.hx * 0.45; b.y = p.y + p.hy * 0.4; }
-  b.last = p; b.lastTeam = p.team; p.gotT = G.t; p.think = rnd(0.15, 0.4) * G.diff.think;
+  b.last = p; b.lastTeam = p.team; p.gotT = G.t; p.beatN = 0; p.duel = null; p.think = rnd(0.15, 0.4) * G.diff.think;
   if (G.poss !== p.team) { G.poss = p.team; G.possT = 0; }
   if (G.offs && G.offs.team !== p.team) G.offs = null;
   if (!quiet) AU.touch();
