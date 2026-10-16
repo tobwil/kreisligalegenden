@@ -174,6 +174,10 @@ function drawPower(p, v, col) {
   ctx.fillStyle = '#1a2040'; ctx.fillRect(x, y, w, 4);
   const f = clamp(v, 0, 1.05), fw = Math.round(w * Math.min(1, f));
   ctx.fillStyle = col || (f > 0.93 ? '#ff4f3a' : f > 0.6 ? '#ffc83a' : '#3ddc84'); ctx.fillRect(x, y, fw, 4);
+  if (!col) {   // Schuss: helle Zone für den perfekten Moment
+    const z0 = Math.round(w * PERFECT[0]), z1 = Math.round(w * PERFECT[1]), inZ = f >= PERFECT[0] && f <= PERFECT[1];
+    ctx.fillStyle = inZ ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.fillRect(x + z0, y - 2, z1 - z0, 1); ctx.fillRect(x + z0, y + 5, z1 - z0, 1);
+  }
 }
 // Zielkreuz im Tor beim Aufladen: zeigt, wohin der Schuss geht (Höhe = Schusskraft, rot = drüber)
 function drawAimCross(c) {

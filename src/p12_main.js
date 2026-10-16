@@ -23,7 +23,7 @@ function tapAt(cx0, cy0) {
   if (!hit) return;
   const c = G.ctrl, own = G.ball.owner;
   // Abwehr: Gegner antippen = dein Spieler, der ihm am nächsten ist
-  if (hit.team !== me) { if (G.phase === 'play' && !isGK(hit)) { const n = nearestTo(me, hit.x, hit.y); if (n) { G.ctrl = n; G.manT = G.t; AU.select(); buzz(8); } } return; }
+  if (hit.team !== me) { if (G.phase === 'play' && !isGK(hit)) { const n = nearestTo(me, hit.x, hit.y); if (n) { G.ctrl = n; G.manT = G.t; markSwitch(); AU.select(); buzz(8); } } return; }
   // eigenen Ballführer antippen = Haken (Richtung vom Stick)
   if (own === c && hit === c && G.phase === 'play' && !isGK(c)) { trick(c, 0, 0); buzz(12); return; }   // eigenen Spieler antippen = Übersteiger
   if (own && own === c && c.team === me && hit !== c) {
@@ -111,17 +111,18 @@ function stickGesture(x, y, now) {
         if (att) TOUCH.passT = performance.now();
         else { TOUCH.pulseA = 1; holdT = setTimeout(() => { holdT = null; if (st && !st.done) { TOUCH.k = true; alt('DRUCK'); } }, 260); }
       } else if (att) TOUCH.b = true;
+      else holdT = setTimeout(() => { holdT = null; if (st && !st.done) { st.held = true; TOUCH.b = true; alt('STELLEN'); } }, 200);   // TACKLING halten = Stellen, loslassen = Tackling
     });
     b.addEventListener('pointermove', e => {
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
       if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; TOUCH.kpow = TOUCH.cpow = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null; TOUCH.passT = 0; const up = dy < -Math.abs(dx) * 0.8; if (up) TOUCH.pulseC = 1; else TOUCH.pulseK = 1; alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
-      else { st.done = true; TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
+      else { st.done = true; if (st.held) { st.held = false; TOUCH.b = false; } TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     });
     const rel = () => {
       if (holdT) { clearTimeout(holdT); holdT = null; }
-      if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att) TOUCH.pulseB = 1; }
+      if (st && !st.done) { if (k === 'a' && st.att) { TOUCH.pow = passPow(); TOUCH.pulseA = 1; } else if (k === 'b' && !st.att && !st.held) TOUCH.pulseB = 1; }
       if (k === 'a') TOUCH.passT = 0;
       if (k === 'b') { TOUCH.b = false; if (TOUCH.aim) { TOUCH.aimLast = TOUCH.aim; TOUCH.aim = null; } } if (k === 'a') TOUCH.k = false;
       st = null; b.classList.remove('on', 'lob', 'alt', 'aim'); tbMode = ''; updateTouchLabels();
@@ -186,7 +187,7 @@ function touchTip() {
   // die Knöpfe sind je nach Ballbesitz beschriftet: Beschriftung passend dazu, die andere Hälfte steht oben
   const att = attacking() || !!(G.sp && isHumanTeam(G.sp.team));
   const A = att ? ['PASS', 'tippen = kurz · halten = weiter<br>wischen = Steilpass<br>nach oben wischen = hoch'] : ['WECHSEL', 'tippen = anderer Spieler<br>halten = Mitspieler presst mit'];
-  const B = att ? ['SCHUSS', 'halten = Kraft<br>dabei ziehen = zielen'] : ['TACKLING', 'tippen = Tackling<br>ziehen = Grätsche'];
+  const B = att ? ['SCHUSS', 'halten = Kraft<br>dabei ziehen = zielen'] : ['TACKLING', 'tippen = Tackling<br>halten = stellen<br>ziehen = Grätsche'];
   const top = att ? 'Ohne Ball werden die Knöpfe zu <b>WECHSEL</b> und <b>TACKLING</b> (ziehen = Grätsche). Gegner antippen = zu ihm wechseln.'
     : 'Mit Ball werden die Knöpfe zu <b>PASS</b> (halten = weiter, wischen = steil) und <b>SCHUSS</b> (halten = Kraft, dabei ziehen = zielen).';
   el.innerHTML = `<div class="cmtop"><b>SO SPIELST DU AUF DEM HANDY</b><span>${top}</span><button>LOS GEHT'S</button></div>`

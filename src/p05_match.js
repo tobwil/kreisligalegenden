@@ -126,6 +126,7 @@ function giveBall(p, quiet) {
   const b = G.ball, from = b.last;
   if (b.passer && ['pass', 'through', 'lob'].includes(b.kind)) flairRecv(p, b.passer);
   if (G.tut && b.passer && b.passer.team === p.team && b.passer !== p) tutEvent({ k: 'recv', p, kind: b.kind });
+  const O = G.oneTwo; if (O) { if (O.to === p && b.passer === O.from && b.kind === 'pass') O.got = true; else G.oneTwo = null; }   // Doppelpass nur direkt nach genau diesem Zuspiel
   p.assistFrom = b.passer && b.passer !== p && b.passer.team === p.team && ['pass', 'through', 'lob', 'cross', 'head'].includes(b.kind) ? b.passer : null;
   if (b.passer && b.passer.team === p.team && b.passer !== p && b.kind && b.kind !== 'shot') G.stats.passOk[p.team]++;
   b.owner = p; b.state = 'held'; b.passTo = null; b.shot = null; b.passer = null; b.kind = ''; b.vz = 0; b.z = 0; b.spin = 0; b.plan = null;
