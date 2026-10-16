@@ -302,6 +302,15 @@ function diveStep(g, dt) {
   resolveSave(g);
 }
 // Parade im richtigen Moment ausführen
+// Flugbahn eines abgewehrten Balls vorausrechnen: geht er innerhalb von 2,5 s unter der Latte zwischen den Pfosten über die Torlinie?
+function parryScores(b, lx) {
+  const o = { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, spin: 0 }, side0 = Math.sign(b.x - lx) || 1;
+  for (let i = 0; i < 150; i++) {
+    ballPhys(o, 1 / 60);
+    if (Math.sign(o.x - lx) !== side0) return Math.abs(o.y - MY) < GW / 2 + 0.15 && o.z < GH + 0.15;
+  }
+  return false;
+}
 function resolveSave(g) {
   const b = G.ball, pl = b.plan;
   if (!pl || pl.g !== g || pl.done || b.owner || pl.fid !== b.fid) return;
@@ -313,10 +322,14 @@ function resolveSave(g) {
   if (pl.catchIt) { giveBall(g); AU.catch(); say(pick([`${g.d.name} hält sicher.`, `Gefangen! ${g.d.name} ist da.`, `Kein Problem für ${g.d.name}.`])); }
   else {
     b.parryBy = b.shot ? b.shot.by : null; b.owner = null; b.last = g; b.lastTeam = g.team; b.shot = null; b.kind = 'parry'; b.fid++; b.passer = null; G.offs = null; b.plan = null;
-    const side = b.y > MY ? 1 : -1, r = Math.random();
-    if (b.z > 1.5 && r < 0.45) { b.vx = -s * rnd(1.5, 3); b.vy = rnd(-1, 1); b.vz = rnd(4, 6); }                 // über die Latte gelenkt
-    else if (Math.abs(b.y - MY) > 1.6 && r < 0.5) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten
+    const side = b.y > MY ? 1 : -1, r = Math.random(), lx = ownX(g.team), dLine = Math.abs(b.x - lx);
+    if (b.z > 1.5 && r < 0.45) {   // über die Latte gelenkt: so steil, dass er an der Torlinie sicher über der Latte ist
+      const t = clamp(dLine / 3, 0.15, 0.5), vx = Math.max(rnd(1.5, 3), dLine / t); b.vx = -s * vx; b.vy = rnd(-1, 1); b.vz = Math.max(rnd(3.5, 5), (GH + 0.6 - b.z + 0.5 * GRAV * t * t) / t);
+    }
+    else if (Math.abs(b.y - MY) > GW / 2 - 0.3 && r < 0.5) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten (nur, wenn er schon außen ist)
     else { b.vx = s * rnd(3, 8); b.vy = (b.y > g.y ? 1 : -1) * rnd(3, 8) + rnd(-2, 2); b.vz = rnd(1, 4.5); }   // abgewehrt ins Feld
+    // Sicherheitsnetz: würde der abgewehrte Ball doch unter der Latte zwischen den Pfosten über die Linie gehen, lieber ins Feld (#8)
+    if (parryScores(b, lx)) { b.vx = s * rnd(3, 7); b.vy = side * rnd(3, 7); b.vz = rnd(1.5, 4); }
     b.nc = g; b.ncT = 0.4;
     AU.catch(); banner('PARADE!', '#7cf2ff', g.d.name.toUpperCase(), 1.1); say(pick([`Glanzparade von ${g.d.name}!`, `${g.d.name} fliegt und lenkt ihn weg!`, `Stark gehalten von ${g.d.name}!`]));
     if (!G.demo) AU.ooh(0.9);
@@ -455,6 +468,7 @@ function tryCollect() {
     if (b.shot && b.shot.team !== p.team && !isGK(p) && Math.hypot(b.vx, b.vy) > 12) continue;   // Schuss: nur Block (checkBlocks), kein Annehmen
     const a = p.act && p.act.type; if (a === 'slide' || a === 'fall' || a === 'stumble' || a === 'dive') continue;
     if (b.nc === p && b.ncT > 0) continue;
+    if (b.x < 0 || b.x > CW) continue;   // hinter der Torlinie ist der Ball aus (sonst trug der Torwart ihn ins eigene Tor, #8)
     const gk = isGK(p) && inBox(p.team, b.x, b.y), claim = gk && p.claim && p.claim.go && p.claim.fid === b.fid, maxZ = gk ? 2.7 : 2.3, mine = passIncoming(p);
     const r = gk ? (claim ? 1.3 : 1.05) : mine ? (b.z > 1.0 ? (b.kind === 'cross' ? 1.45 : 1.1) : 1.35) : b.z > 1.0 ? airR(p) : 0.62;
     if (b.z > maxZ + p.z) continue;
