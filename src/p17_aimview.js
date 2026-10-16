@@ -253,10 +253,12 @@ function drawAimView() {
       ctx.fillStyle = cl; ctx.fillRect(t.x - 14, t.y - 1, 7, 2); ctx.fillRect(t.x + 7, t.y - 1, 7, 2); ctx.fillRect(t.x - 1, t.y - 14, 2, 7); ctx.fillRect(t.x - 1, t.y + 7, 2, 7);
     }
     // Kraftbalken unten in der Mitte (zwischen Stick und Knöpfen)
-    const bw = 150, bx0 = W / 2 - bw / 2, by0 = H - 22;
+    const bw = 150, bx0 = W / 2 - bw / 2, by0 = H - (sp.type === 'free' ? 30 : 22);   // Freistoß: Platz für BOGEN/FLACH darunter
     ctx.fillStyle = 'rgba(3,5,16,0.88)'; ctx.fillRect(bx0 - 5, by0 - 15, bw + 10, 26);
     text('KRAFT', bx0, by0 - 12, '#cfd6f2', 8, 'left', false);
-    text(v < 0.01 ? (sp.type === 'free' ? 'WENIG = BOGEN · VIEL = FLACH' : '') : v < 0.45 ? 'BOGEN' : v < 0.85 ? 'MITTEL' : v > 0.97 ? 'ZU FEST!' : 'STRAMM', bx0 + bw, by0 - 12, v < 0.01 ? '#8a90a8' : '#ffc83a', 8, 'right', false);
+    // Freistoß: unter den Enden des Balkens steht, was wenig und viel Kraft bewirkt (ein langer Satz neben KRAFT passte nicht und überlagerte es)
+    if (sp.type === 'free') { ctx.fillStyle = 'rgba(3,5,16,0.88)'; ctx.fillRect(bx0 - 5, by0 + 11, bw + 10, 9); text('BOGEN', bx0, by0 + 10, '#8a90a8', 8, 'left', false); text('FLACH', bx0 + bw, by0 + 10, '#8a90a8', 8, 'right', false); }
+    text(v < 0.01 ? '' : v < 0.45 ? 'BOGEN' : v < 0.85 ? 'MITTEL' : v > 0.97 ? 'ZU FEST!' : 'STRAMM', bx0 + bw, by0 - 12, v < 0.01 ? '#8a90a8' : '#ffc83a', 8, 'right', false);
     ctx.fillStyle = '#1a2040'; ctx.fillRect(bx0, by0, bw, 6);
     ctx.fillStyle = '#2a3058'; ctx.fillRect(bx0 + Math.round(bw * 0.45), by0, 1, 6); ctx.fillRect(bx0 + Math.round(bw * 0.85), by0, 1, 6);
     ctx.fillStyle = v > 0.97 ? '#ff4f3a' : v > 0.85 ? '#ffc83a' : '#3ddc84'; ctx.fillRect(bx0, by0, Math.round(bw * Math.min(1, v)), 6);

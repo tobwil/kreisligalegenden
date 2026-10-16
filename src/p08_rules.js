@@ -201,8 +201,18 @@ function airNear(c) {
 }
 // Kopfball-Spot: kommt ein hoher Ball in Kopfhöhe in Reichweite deines Spielers, läuft er von selbst zum Treffpunkt.
 // Der Stick bewegt ihn dann nicht mehr weg, sondern gibt die Richtung des Kopfballs vor (Ecke im Tor, wegköpfen, ablegen).
+// Kopfball oder annehmen? Dein Spieler köpft nur, wenn es passt: Flanke im gegnerischen Strafraum, hoher Ball des Gegners
+// vor dem eigenen Tor, oder du hast vorher Schuss, Pass oder Abwehr gedrückt. Einen langen Ball nach vorn nimmt er sonst
+// mit der Brust an und du läufst weiter (wie bei FIFA: ohne Taste = annehmen)
+function humanHeads(p) {
+  const b = G.ball, q = p.queue, pressed = !!q && G.t - q.t < 1.5 && ['shot', 'pass', 'clear'].includes(q.k);
+  const cross = b.kind === 'cross' && inBox(1 - p.team, p.x, p.y);
+  const defend = b.lastTeam !== p.team && prog(p.team, p.x) < 0.3;
+  return pressed || cross || defend;
+}
 function headSpot(p) {
   const b = G.ball; if (b.owner || b.shot || G.phase !== 'play' || isGK(p) || (b.z < 0.9 && b.vz <= 0)) return null;
+  if (!humanHeads(p)) return null;   // annehmen statt köpfen: du steuerst selbst (oder er läuft zum Zuspiel)
   let best = null, bd = 1e9;
   for (const q of ballPath()) {
     if (q.t > 1.4) break; if (q.z > 2.4 || q.z < 0.9) continue;
@@ -528,6 +538,11 @@ function tryCollect() {
     const overHim = b.vz < 0 ? false : b.z > 1.5;
     const slow = Math.hypot(b.vx, b.vy) < 11;
     const hq = isHumanCtrl(p) && q && ['clear', 'pass'].includes(q.k) && G.t - q.t < 1.5;
+    if (isHumanCtrl(p)) {
+      if (humanHeads(p)) { header(p, wantShot); return; }
+      if (b.z <= 2.1) { giveBall(p, true); AU.touch(); return; }   // mit der Brust annehmen, weiterlaufen
+      return;
+    }
     if (wantShot || hq || attackBox || defend || (overHim && b.z < 2.3)) { header(p, wantShot); return; }
     if ((b.z <= 1.6 && slow) || (passIncoming(p) && b.z <= 2)) { giveBall(p, true); AU.touch(); return; }
     return;
