@@ -44,6 +44,37 @@ function teamStr(tid) {
 let INGAME_MENU = false;
 const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 2026), alle Spieler, Werte und Trikots frei erfunden. Kein offizielles Spiel des DFB, der Landesverbände oder der Vereine.';
 
+// Was ist neu? Einmal pro Update für alle, die schon gespielt haben (Neue bekommen Training und Hinweise am Stick).
+// Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
+const NEWS_KEY = 'krl_news';
+const NEWS = [
+  { id: 1, items: K => [
+    [`${K.tk} halten = stellen`, 'Dein Verteidiger bleibt zwischen Gegner und Tor und läuft mit. Loslassen, wenn du nah dran bist = Tackling'],
+    ['Doppelpass auf Knopfdruck', `Gleich nach der Annahme nochmal ${K.pass} – der Ball geht sofort zurück in den Lauf deines Mitspielers`],
+    ['Perfekter Schuss', `${K.shot} halten und in der hellen Zone auf dem Kraftbalken loslassen = PERFEKT: genauer und härter`],
+  ] },
+];
+function newsKeys() {
+  if (TOUCHDEV && LASTIN !== 'key' && LASTIN !== 'pad') return { tk: 'TACKLING', pass: 'PASS', shot: 'SCHUSS' };
+  if (LASTIN === 'pad') return { tk: 'B', pass: 'A', shot: 'B' };
+  const L = LAY(), N = L.keyN, n = q => N[q] === 'LEER' ? 'LEERTASTE' : N[q];
+  return { tk: n((L.def || { tk: 'b' }).tk), pass: n('a'), shot: n('b') };
+}
+// gibt true zurück, wenn das Fenster gezeigt wird; gilt dann als gesehen
+function showNews() {
+  const seen = store.get(NEWS_KEY, 0), top = NEWS[0];
+  if (!top || seen >= top.id || savedMatch()) return false;   // unterbrochenes Spiel: erst fortsetzen, die Neuigkeiten kommen beim nächsten Mal
+  store.set(NEWS_KEY, top.id);
+  const veteran = PROF.games > 0 || !!store.get(TUT_KEY) || !!loadCareerSave();
+  if (!veteran) return false;   // wer neu ist, lernt alles im Training; das Fenster käme nur dazwischen
+  const items = NEWS.filter(n => n.id > seen).slice(0, 1).flatMap(n => n.items(newsKeys())).slice(0, 3);
+  show(`<div class="panel narrow news"><h2>NEU IM SPIEL</h2>
+    <ul class="newsl">${items.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ul>
+    <div class="row"><button class="main" data-act="main" autofocus>LOS GEHT'S</button><button data-act="controls">ALLE STEUERUNGEN</button></div></div>`, { back: ACT.main });
+  track('neuigkeiten', { stand: top.id });
+  return true;
+}
+
 const ACT = {
   title() {
     show(`<div class="title">
@@ -55,6 +86,7 @@ const ACT = {
   },
   main() {
     checkVersion();
+    if (showNews()) return;
     const sv = loadCareerSave(), ok = !!sv;
     show(`<div class="panel narrow"><div class="title"><h1 class="logo mlogo">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1></div>
       <div class="btns menu-list">
