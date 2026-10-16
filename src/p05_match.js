@@ -308,10 +308,12 @@ function readInput(dt) {
   if (K(ml) || (arrows && K('ArrowLeft'))) x -= 1; if (K(mr) || (arrows && K('ArrowRight'))) x += 1;
   if (K(mu) || (arrows && K('ArrowUp'))) y -= 1; if (K(md) || (arrows && K('ArrowDown'))) y += 1;
   a = K(...L.a); b = K(...L.b); c = K(...L.c); k = K(...L.k); f = K(...L.f); s = K(...L.s);
+  IN.rs = null;
   if (navigator.getGamepads) for (const gp of navigator.getGamepads()) {
     if (!gp) continue;
     const bt = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
     if (Math.hypot(ax, ay) > 0.25) { x += ax; y += ay; }
+    const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0; IN.rs = Math.hypot(rx, ry) > 0.25 ? { x: rx, y: ry } : null;   // rechter Stick (Ring beim hohen Ball schieben)
     if (bt(14)) x -= 1; if (bt(15)) x += 1; if (bt(12)) y -= 1; if (bt(13)) y += 1;
     a = a || bt(0); b = b || bt(1); c = c || bt(2); k = k || bt(3); f = f || bt(4); s = s || bt(5) || bt(7) || bt(6); st = st || bt(9);
     if (bt(8) && !prevIN.sel && G && !G.demo && G.human >= 0 && menu.hidden) ACT.tactics(); prevIN.sel = bt(8);

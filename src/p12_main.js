@@ -138,11 +138,13 @@ function stickGesture(x, y, now) {
     };
     b.addEventListener('pointerdown', e => down(e));
     const move = e => {
+      if (st && st.lob) { TOUCH.lobAim = { dx: e.clientX - st.lx, dy: e.clientY - st.ly }; return; }   // hoher Ball: der rechte Daumen schiebt den Ring
       if (!st || st.done) return;
       const dx = e.clientX - st.x, dy = e.clientY - st.y; if (Math.hypot(dx, dy) < (k === 'b' && st.att ? (TOUCH.aim ? 0 : 14) : DRAG)) return;
-      // nach oben ziehen = Flanke/hoher Ball: weiter halten lädt auf (Ring zeigt die Landestelle, der linke Stick wählt die Seite), loslassen = Ball fliegt
+      // nach oben ziehen = Flanke/hoher Ball: der Ring erscheint beim besten Mitspieler, weiter ziehen schiebt ihn frei übers Feld,
+      // halten = schärfer, loslassen = Ball fliegt genau dorthin (der linke Daumen läuft weiter)
       if (k === 'a') { if (!st.att || Math.hypot(dx, dy) < 40) return; st.done = true; const pre = TOUCH.passT && performance.now() - TOUCH.passT > 220 ? passPow() : null, up = dy < -Math.abs(dx) * 0.8; TOUCH.passT = 0;
-        if (up) { TOUCH.cpre = TOUCH.passT0 ? Math.max(0, (performance.now() - TOUCH.passT0) / 1000) : 0; TOUCH.pulseC = 1; TOUCH.c = true; st.lob = true; } else { TOUCH.kpow = pre; TOUCH.pulseK = 1; } alt(up ? 'HOCH' : 'STEIL'); }
+        if (up) { TOUCH.cpre = TOUCH.passT0 ? Math.max(0, (performance.now() - TOUCH.passT0) / 1000) : 0; TOUCH.pulseC = 1; TOUCH.c = true; st.lob = true; st.lx = e.clientX; st.ly = e.clientY; TOUCH.lobAim = { dx: 0, dy: 0 }; } else { TOUCH.kpow = pre; TOUCH.pulseK = 1; } alt(up ? 'HOCH' : 'STEIL'); }
       else if (st.att) { if (!TOUCH.b) return; if (!TOUCH.aim) { b.classList.add('aim'); buzz(10); } TOUCH.aim = { dx, dy }; return; }
       else { st.done = true; if (st.held) { st.held = false; TOUCH.b = false; } TOUCH.pulseC = 1; alt('GRÄTSCHE'); }
     };

@@ -630,6 +630,13 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
     const [w1, w2] = teamP(0).filter(x => grpOf(x) === 'MF'); away([w1, w2]); place(w1, CW / 2 - s * 5, 6); place(w2, CW / 2 + s * 6, CH - 7); giveBall(w1, true); G.ctrl = w1; w1.cd = 0; frame();
     KEY.ArrowDown = true; KEY.KeyA = KEYP.KeyA = true; for (let i = 0; i < 25; i++) frame(); const sw = crossPreview(w1); KEY.KeyA = false; frame(); KEY.ArrowDown = false;
     out.switch = { prev: !!sw && sw.tgt === w2 && Math.abs(sw.ty - w2.y) < 6, flew: G.ball.kind === 'lob' && G.ball.passTo === w2 };
+    // Gamepad: rechter Stick schiebt den Ring frei (0,5 s nach rechts = gut 13 m), der Ball fliegt dorthin
+    away([w1, w2]); place(w1, CW / 2 - s * 5, 6); place(w2, CW / 2 + s * 6, CH - 7); giveBall(w1, true); G.ctrl = w1; w1.cd = 0; LASTIN = 'pad'; frame();
+    const pf = () => { readInput(1 / 60); IN.rs = { x: s, y: 0 }; G.t += 1 / 60; humanControl(1 / 60); };
+    KEY.KeyA = KEYP.KeyA = true; frame(); for (let i = 0; i < 30; i++) pf(); const g1 = crossPreview(w1), g0 = w1.lobBase && { tx: w1.lobBase.tx };
+    KEY.KeyA = false; readInput(1 / 60); G.t += 1 / 60; humanControl(1 / 60); LASTIN = 'key';
+    const GB = { ...G.ball }; let gl = null; for (let i = 0; i < 300 && !gl; i++) { ballPhys(GB, 1 / 60); if (GB.z < 2 && GB.vz < 0 && i > 10) gl = { x: GB.x, y: GB.y }; }
+    out.pad = { moved: g0 && g1 ? +((g1.tx - g0.tx) * s).toFixed(1) : null, err: gl && g1 ? +Math.hypot(gl.x - g1.tx, gl.y - g1.ty).toFixed(1) : 99 };
     // Freistoß vom Flügel: Zielvisier statt Schussansicht, Flanke landet dort
     const fk = () => { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); G.paused = true; G.phase = 'play'; setupSetPiece('free', 0, gx - s * 19, MY + 23); G.phase = 'setpiece'; G.sp.t = 2; for (const k in KEY) KEY[k] = false; readInput(1 / 60); stepSetPiece(1 / 60); };
     fk(); out.fkAim = !aimWanted() && !!G.sp.caim; render();
@@ -646,6 +653,7 @@ test('Ausspielen und Flanken: Wendekreis nach Tempo, Körpertäuschung, Ausgespi
   ok(r.beat1 && r.banner === 'AUSGESPIELT!', 'Ausgespielt: ' + JSON.stringify(r));
   ok(r.prev && r.prev.side && r.crossed, 'Landepunkt beim Aufladen (kurz = kurzer Pfosten, lang = langer Pfosten): ' + JSON.stringify(r));
   ok(r.switch.prev && r.switch.flew, 'Seitenwechsel mit Landestelle: ' + JSON.stringify(r.switch));
+  ok(r.pad.moved > 10 && r.pad.err < 5, 'Gamepad: rechter Stick schiebt den Ring, Ball fliegt dorthin: ' + JSON.stringify(r.pad));
   ok(r.fkAim && r.fkCross && r.fkErr < 4.5 && r.central, 'Freistoß vom Flügel mit Zielvisier: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
@@ -1297,10 +1305,15 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   // nach oben ziehen und halten: Ring mit der Landestelle, der Ball fliegt erst beim Loslassen
   await setup(); await page.waitForTimeout(80);
   { const c = await ctr('.tb-a'); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.move(c.x + 2, c.y - 30); await page.mouse.move(c.x + 4, c.y - 55); await page.waitForTimeout(450);
-    const held = await page.evaluate(() => ({ prev: !!crossPreview(G.ctrl), own: !!G.ball.owner, lbl: document.querySelector('.tb-a span').textContent }));
-    await page.mouse.up(); await page.waitForTimeout(80);
-    const flew = await page.evaluate(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner);
-    ok(held.prev && held.own && held.lbl === 'HOCH' && flew, 'PASS nach oben ziehen und halten: Landestelle / Ball erst beim Loslassen: ' + JSON.stringify([held, flew])); }
+    const held = await page.evaluate(() => { const P = crossPreview(G.ctrl); return { prev: !!P, x: P && P.tx, own: !!G.ball.owner, lbl: document.querySelector('.tb-a span').textContent }; });
+    // rechter Daumen schiebt den Ring: 60 px nach rechts = 15 m
+    await page.mouse.move(c.x + 34, c.y - 55); await page.mouse.move(c.x + 64, c.y - 55); await page.waitForTimeout(120);
+    const ring = await page.evaluate(() => { const P = crossPreview(G.ctrl); return P && { x: P.tx, y: P.ty }; });
+    await page.mouse.up();
+    const flew0 = await page.waitForFunction(() => ['lob', 'cross'].includes(G.ball.kind) && !G.ball.owner, null, { timeout: 1500, polling: 'raf' }).then(() => true, () => false);
+    const fl = await page.evaluate(([ring, flew]) => { const B = { ...G.ball }; let land = null; for (let i = 0; i < 300 && !land; i++) { ballPhys(B, 1 / 60); if (B.z < 2 && B.vz < 0) land = { x: B.x, y: B.y }; }
+      return { flew, err: land && ring ? +Math.hypot(land.x - ring.x, land.y - ring.y).toFixed(1) : 99 }; }, [ring, flew0]);
+    ok(held.prev && held.own && held.lbl === 'HOCH' && ring && Math.abs(ring.x - held.x - 15) < 1 && fl.flew && fl.err < 5, 'PASS nach oben ziehen und halten: Ring, rechter Daumen schiebt ihn, Ball fliegt beim Loslassen dorthin: ' + JSON.stringify([held, ring, fl])); }
   await setup(); await page.waitForTimeout(80);
   await drag('.tb-a', 55, 5);
   const th = await page.evaluate(() => G.ball.kind === 'through' && !G.ball.owner);

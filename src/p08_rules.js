@@ -147,9 +147,15 @@ function humanControl(dt) {
     const doCross = pw => { if (wingCross(c)) cross(c, 0, pw); else lob(c, choosePass(c, IN.x, IN.y, 'lob', 0.7, pw)); };
     // Flanke/hoher Ball: halten = Kraft (ein Ring zeigt die Landestelle), beim Loslassen fliegt der Ball.
     // Touch: PASS nach oben ziehen und halten – die Zeit, die PASS vor dem Ziehen gehalten wurde, zählt zur Kraft
-    if (IN.pc) { c.crsHold = G.t - (LASTIN === 'touch' ? TOUCH.cpre || 0 : 0); TOUCH.cpre = 0; }
+    if (IN.pc) { c.crsHold = G.t - (LASTIN === 'touch' ? TOUCH.cpre || 0 : 0); TOUCH.cpre = 0; c.lobBase = null; c.padAim = null; }
+    // Gamepad: beim Halten schiebt der rechte Stick den Ring (wie der rechte Daumen am Handy)
+    if (c.crsHold != null && IN.c && IN.rs) { const A = c.padAim || (c.padAim = { dx: 0, dy: 0 }); A.dx += IN.rs.x * dt * 110; A.dy += IN.rs.y * dt * 110; }
     if (c.crsHold != null && !IN.c) {
-      if (IN.rc) { const pw = holdPow(c.crsHold); c.crsHold = null; doCross(pw); return; }
+      if (IN.rc) {
+        const pw = holdPow(c.crsHold), P = freeAim(c) ? crossPreview(c) : null; c.crsHold = null; c.lobBase = null; c.padAim = null; TOUCH.lobAim = null;
+        if (P) crossTo(c, P.tx, P.ty, pw); else doCross(pw);   // Touch/Gamepad: genau auf den Ring, den der rechte Daumen bzw. Stick geschoben hat
+        return;
+      }
       c.crsHold = null;
     }
     if (IN.pf) { const d = TOUCH.fdir || IN; TOUCH.fdir = null; trick(c, d.x, d.y, d.kind); }
@@ -594,10 +600,20 @@ function wingFK(sp) {
 }
 // Flanke vom Flügel (sonst hoher Ball zum Mitspieler)
 function wingCross(c) { const gx = goalX(c.team); return Math.abs(c.y - MY) > 11 && Math.abs(c.x - gx) < 34 && Math.abs(IN.x) < 0.5 + (Math.abs(IN.y) > 0.3 ? 0.3 : 0); }
+// freies Zielen beim hohen Ball: rechter Daumen (Touch) oder rechter Stick (Gamepad)
+function freeAim(c) { return LASTIN === 'touch' ? TOUCH.lobAim : LASTIN === 'pad' ? c.padAim : null; }
 // Landepunkt beim Aufladen von Flanke oder hohem Ball (Tastatur, Gamepad, Touch): wohin der Ball mit der jetzigen Kraft fliegt
 function crossPreview(c) {
   if (!c || c.crsHold == null || G.ball.owner !== c || G.phase !== 'play') return null;
-  const pw = holdPow(c.crsHold); if (pw == null) return null;
+  const pw = holdPow(c.crsHold);
+  // Touch/Gamepad: der Ring startet beim besten Mitspieler, der rechte Daumen bzw. rechte Stick schiebt ihn frei übers Feld (0,25 m je Pixel)
+  const A = freeAim(c);
+  if (A) {
+    if (!c.lobBase) { const q = wingCross(c) ? null : choosePass(c, IN.x, IN.y, 'lob', 0.7, pw); c.lobBase = wingCross(c) ? crossPlan(c, 0, pw ?? 0.5) : q ? lobPlan(c, q) : { tx: c.x + atkDir(c.team) * 20, ty: c.y }; }
+    const tx = clamp(c.lobBase.tx + A.dx * 0.25, 2, CW - 2), ty = clamp(c.lobBase.ty + A.dy * 0.25, 2, CH - 2);
+    return { tx, ty, tgt: cornerRecv(c, tx, ty) };
+  }
+  if (pw == null) return null;
   if (wingCross(c)) return crossPlan(c, 0, pw);
   const q = choosePass(c, IN.x, IN.y, 'lob', 0.7, pw); return q ? { ...lobPlan(c, q), tgt: q } : null;
 }
