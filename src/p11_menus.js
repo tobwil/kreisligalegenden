@@ -48,6 +48,10 @@ const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 20
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 6, items: K => [
+    ...(K.touch ? [['Kamera näher dran', 'Spieler und Ball sind am Handy jetzt größer. In den Optionen unter KAMERA: NAH, MITTEL oder WEIT'], ['Tor antippen = Schuss', 'Mit Ball am Fuß einfach aufs Tor tippen: der Schuss geht genau dorthin, oben oder unten im Tor = die Ecke']]
+      : [['Kamera-Zoom', 'In den Optionen unter KAMERA: NAH, MITTEL oder WEIT']]),
+  ] },
   { id: 5, items: K => [
     ['Tackling mit Anlauf', `${K.tk} kurz antippen, wenn der Gegner noch ein paar Meter weg ist: dein Spieler sprintet hin und tackelt, sobald er dran ist. Halten = stellen`],
   ] },
@@ -147,7 +151,7 @@ const ACT = {
         <b>TORWART</b><span>Hat dein Torwart den Ball: ${k(N.a)} abwerfen, ${k(N.b)} oder ${k(N.c)} abschlagen. Beim Elfmeter gegen dich: Richtung halten = Ecke raten</span>
         <b>STANDARDS</b><span>Einwurf: Richtung + ${k(N.a)} · Ecke und Freistoß vom Flügel: Richtung verschiebt das Zielvisier im Strafraum, ${k(N.c)} oder ${k(N.b)} flankt genau dorthin, ${k(N.a)} kurz ausgeführt · Freistoß in Schussweite und Elfmeter: Kamera hinter dem Ball, Richtung verschiebt das Fadenkreuz, ${k(N.b)} halten = Kraft (wenig = Bogen über die Mauer, viel = hart und flach), ${k(N.a)} Pass, ${k(N.c)} Flanke</span>
         <b>GAMEPAD</b><span>Wie EA FC: Stick laufen · A Pass (halten = weiter) · B Schuss (beim Aufladen A = Schlenzer, X = Heber) · X Flanke (halten: Ring zeigt die Landestelle, rechter Stick schiebt ihn) · rechter Stick beim Schuss oder Kopfball = Ecke im Tor · Y Steilpass · LB Haken · RT Sprint. Abwehr: A Wechsel · B Tackling · X Grätsche · Y Druck · Select Taktik · Start Pause</span>
-        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben ziehen und halten = Flanke/hoher Ball (ein Ring erscheint beim besten Mitspieler, weiter ziehen schiebt ihn frei übers Feld, loslassen = Ball fliegt genau dorthin). SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Kopfball: kurz vorher SCHUSS drücken und nach oben/unten ziehen = Ecke im Tor. Abwehr: WECHSEL (zum Verteidiger vor dem Gegner, mit Stick in diese Richtung, halten = Druck), TACKLING (tippen = Tackling, aus ein paar Metern mit Anlauf; halten = stellen, ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (im Kreis laufen, über den Kreis hinaus ziehen = Sprint, der Kreis wird rot). Mitspieler antippen = Pass zu ihm. Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Trick in die neue Richtung (zurück Zurückziehen, zur Seite Haken), links doppelt antippen oder deinen Spieler antippen = Übersteiger. Die Knöpfe reagieren auch knapp neben dem Kreis. Knopfgröße in den Optionen</span>
+        <b>TOUCH</b><span>Zwei Knöpfe: antippen = Hauptaktion, gedrückt halten und ziehen = zweite Aktion. PASS: tippen = kurzer Pass, halten = fester und weiter (türkiser Balken), wischen = Steilpass, nach oben ziehen und halten = Flanke/hoher Ball (ein Ring erscheint beim besten Mitspieler, weiter ziehen schiebt ihn frei übers Feld, loslassen = Ball fliegt genau dorthin). SCHUSS: halten lädt auf, Daumen ziehen = Zielkreuz im Tor verschieben (Zeitlupe), loslassen = Schuss; leicht in die Ecke = Schlenzer, leicht gegen einen herausgelaufenen Torwart = Heber. Kopfball: kurz vorher SCHUSS drücken und nach oben/unten ziehen = Ecke im Tor. Abwehr: WECHSEL (zum Verteidiger vor dem Gegner, mit Stick in diese Richtung, halten = Druck), TACKLING (tippen = Tackling, aus ein paar Metern mit Anlauf; halten = stellen, ziehen = Grätsche), Gegner antippen = zu ihm wechseln; hoher Ball: TACKLING = wegköpfen, WECHSEL = zum Mitspieler köpfen. Stick links (im Kreis laufen, über den Kreis hinaus ziehen = Sprint, der Kreis wird rot). Mitspieler antippen = Pass zu ihm, Tor antippen = Schuss genau dorthin (oben/unten im Tor = die Ecke). Kamera: in den Optionen NAH/MITTEL/WEIT (AUTO = am Handy nah). Tricks mit dem Stick: einmal kreisen = Drehung, schnell in die Gegenrichtung schnippen = Trick in die neue Richtung (zurück Zurückziehen, zur Seite Haken), links doppelt antippen oder deinen Spieler antippen = Übersteiger. Die Knöpfe reagieren auch knapp neben dem Kreis. Knopfgröße in den Optionen</span>
       </div>
       <p class="muted">Abseits ist an (Optionen). Gelb-Rot und Rot schicken den Spieler vom Platz. Fouls im Strafraum geben Elfmeter.</p>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button>${INGAME_MENU ? '' : '<button data-act="training">TRAINING STARTEN</button>'}</div></div>`, { back: () => ACT.back() });
@@ -179,6 +183,7 @@ const ACT = {
         <span>Steuerhilfen</span><div class="row">${[['auto', 'AUTO'], ['1', 'AN'], ['0', 'AUS']].map(([v, n]) => `<button class="small ${String(SETTINGS.helps === true ? '1' : SETTINGS.helps === false ? '0' : 'auto') === v ? 'on' : ''}" data-act="optHelps" data-arg="${v}">${n}</button>`).join('')}</div>
         <span>Tastatur</span><div class="row">${Object.entries(LAYOUTS).map(([id, l]) => `<button class="small ${SETTINGS.keys === id ? 'on' : ''}" data-act="optKeys" data-arg="${id}">${l.n}</button>`).join('')}</div>
         ${TOUCHDEV ? `<span>Knopfgröße</span><div class="row">${[['s', 'KLEIN'], ['m', 'NORMAL'], ['l', 'GROSS']].map(([v, n]) => `<button class="small ${SETTINGS.btn === v ? 'on' : ''}" data-act="optBtn" data-arg="${v}">${n}</button>`).join('')}</div>` : ''}
+        <span>Kamera</span><div class="row">${[['auto', 'AUTO'], ['nah', 'NAH'], ['mittel', 'MITTEL'], ['weit', 'WEIT']].map(([v, n]) => `<button class="small ${(SETTINGS.zoom || 'auto') === v ? 'on' : ''}" data-act="optZoom" data-arg="${v}">${n}</button>`).join('')}</div>
         <span>Spieltempo</span><div class="row">${[[0.85, 'RUHIG'], [1, 'NORMAL'], [1.15, 'SCHNELL']].map(([s, n]) => `<button class="small ${SETTINGS.speed === s ? 'on' : ''}" data-act="optSpeed" data-arg="${s}">${n}</button>`).join('')}</div>
       </div>
       <div class="row"><button class="main" data-act="back">ZURÜCK</button></div></div>`, { back: () => ACT.back() });
@@ -195,6 +200,7 @@ const ACT = {
   optHelps(a) { SETTINGS.helps = a === 'auto' ? 'auto' : a === '1'; saveSettings(); ACT.options(); },
   optSpeed(a) { SETTINGS.speed = +a; saveSettings(); ACT.options(); },
   optBtn(a) { SETTINGS.btn = a; saveSettings(); applyBtnSize(); ACT.options(); },
+  optZoom(a) { SETTINGS.zoom = a; saveSettings(); CAMLIM = { key: '' }; ACT.options(); },   // AUTO = am Handy nah, am Rechner weit
   pause() {
     INGAME_MENU = true; G.paused = true; AU.ambience(false);
     show(`<div class="panel narrow"><h2>PAUSE</h2>

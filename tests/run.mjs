@@ -1237,7 +1237,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Tackling mit Anlauf') && r.txt.includes('D kurz antippen') && r.txt.includes('Flanke mit Landepunkt'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Kamera-Zoom') && r.txt.includes('Tackling mit Anlauf') && r.txt.includes('D kurz antippen'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
@@ -1361,6 +1361,33 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
     await page.mouse.up(); await page.waitForTimeout(80);
     const after = await page.evaluate(() => !__d.contain);
     ok(st.contain && !st.tk && after, 'TACKLING halten stellt nicht: ' + JSON.stringify(st)); }
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Handy: Kamera näher dran (Zoom AUTO = nah, Option WEIT), Mitspieler antippen passt auch mit Zoom, Tor antippen schießt in diese Ecke', async () => {
+  const { page, ctx, errors } = await open(MOBILE);
+  await page.evaluate(() => { localStorage.setItem('krl_touchtip', '9'); });
+  const setup = (where) => page.evaluate(where => { LASTIN = 'touch'; const L = LIGEN[TEAMS[HOME_TEAM].lg].ids; if (!G || G.demo || !G.T) { startMatch(L[0], L[1], { human: 0, flitzer: 0 }); hideMenu(); }
+    G.phase = 'play'; G.sp = null; G.ball.shot = null; const s = atkDir(0), gx = goalX(0), st = teamP(0).find(q => grpOf(q) === 'ST'), mf = teamP(0).find(q => grpOf(q) === 'MF');
+    for (const o of G.players) if (!isGK(o) && o !== st && o !== mf) place(o, o.team ? gx - s * 40 : CW / 2 - s * 30, o.team ? 2 : CH - 2);
+    place(st, where === 'goal' ? gx - s * 15 : CW / 2, MY); place(mf, where === 'goal' ? gx - s * 22 : CW / 2 + s * 8, MY + 8); st.cd = 0; giveBall(st, true); G.ctrl = st; G.camSnap = true; G.paused = true; render(); render(); G.paused = false;
+    window.__st = st; window.__mf = mf; }, where);
+  // Bildschirmpunkt (CSS-Pixel) eines Spielfeldpunkts mit Zoom
+  const scr = (x, y, z) => page.evaluate(([x, y, z]) => { const r = cv.getBoundingClientRect(), k = r.width / W; return { x: r.left + zx(sx(x, y)) * k, y: r.top + zy(sy(y, z)) * k }; }, [x, y, z]);
+  await setup('mid');
+  const z = await page.evaluate(() => { const a = ZM; SETTINGS.zoom = 'weit'; G.camSnap = true; render(); const w = ZM; SETTINGS.zoom = 'mittel'; G.camSnap = true; render(); const m = ZM; SETTINGS.zoom = 'auto'; G.camSnap = true; render(); return { auto: a, weit: w, mittel: m }; });
+  ok(z.auto === 1.25 && z.weit === 1 && z.mittel > 1 && z.mittel < 1.25, 'Zoom-Stufen: ' + JSON.stringify(z));
+  // Mitspieler antippen = Pass zu ihm (Antippen-Punkt über die Zoom-Umrechnung)
+  const mfp = await page.evaluate(() => ({ x: __mf.x, y: __mf.y })); const pm = await scr(mfp.x, mfp.y, 1.2);
+  await page.evaluate(() => { G.paused = true; }); await page.touchscreen.tap(pm.x, pm.y); await page.waitForTimeout(80);
+  const passed = await page.evaluate(() => G.ball.passTo === __mf || G.ball.owner === __mf);
+  ok(passed, 'Mitspieler antippen spielt keinen Pass (Zoom): ' + JSON.stringify(pm));
+  // Tor antippen: oben im Tor = obere Ecke, unten = untere Ecke
+  const tapGoal = async yy => { await setup('goal'); await page.evaluate(() => { G.paused = true; render(); });
+    const g = await page.evaluate(() => goalX(0)); const pt = await scr(g, yy, 1.2); await page.touchscreen.tap(pt.x, pt.y); await page.waitForTimeout(60);
+    return page.evaluate(() => G.ball.shot && G.ball.shot.by === __st ? Math.sign(G.ball.vy) : 'kein Schuss'); };
+  const up = await tapGoal(32 - 3.66 + 0.6), down = await tapGoal(32 + 3.66 - 0.6);
+  ok(up === -1 && down === 1, 'Tor antippen schießt nicht in die Ecke: ' + JSON.stringify([up, down]));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
