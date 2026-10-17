@@ -17,7 +17,16 @@ function tapAt(cx0, cy0) {
   if (G.phase === 'intro' || G.phase === 'replay') { KEYP.Enter = true; IN.any = true; return; }
   if (G.watch) { joinGame(); return; }
   const r = cv.getBoundingClientRect(); if (cx0 < r.left || cx0 > r.right || cy0 < r.top || cy0 > r.bottom) return;
-  const cx = (cx0 - r.left) * W / r.width, cy = (cy0 - r.top) * H / r.height, me = G.human; if (me < 0) return;
+  const cx = unzx((cx0 - r.left) * W / r.width), cy = unzy((cy0 - r.top) * H / r.height), me = G.human; if (me < 0) return;   // in Spielfeld-Bildpunkte (Zoom)
+  // Tor antippen mit Ball am Fuß: Schuss genau dorthin (oben/unten im Tor = die Ecke), so einfach wie einen Mitspieler antippen
+  const sc = G.ctrl;
+  if (G.phase === 'play' && sc && G.ball.owner === sc && sc.team === me && !isGK(sc) && !G.pl) {
+    const gx = goalX(me), y1 = sy(GY1, GH / 2), y2 = sy(GY2, GH / 2);
+    if (Math.abs(cx - sx(gx, MY)) < 28 && cy > sy(GY1, GH) - 16 && cy < sy(GY2) + 12) {
+      const y = lerp(GY1 + 0.45, GY2 - 0.45, clamp((cy - y1) / (y2 - y1), 0, 1));
+      sc.charge = 0; sc.chargeArm = false; sc.passHold = null; shoot(sc, 0.62, 0, { aimPt: { y }, auto: true }); buzz(14); return;
+    }
+  }
   let hit = null, hd = 1e9;
   for (const p of G.players) { if (p.off || (p.team !== me && attacking())) continue; const px = sx(p.x, p.y), py = sy(p.y, p.z) - 14, d = Math.hypot((cx - px) * 1.2, cy - py); if (Math.abs(cx - px) < 14 && Math.abs(cy - py) < 22 && d < hd) { hd = d; hit = p; } }
   if (!hit) return;

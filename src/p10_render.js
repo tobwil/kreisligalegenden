@@ -21,35 +21,49 @@ const touchPad = () => TOUCHDEV && document.body.classList.contains('touch') && 
 let CAMLIM = { key: '' };
 for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { CAMLIM = { key: '' }; });
 function camLimits() {
-  const lo = VIEW_HALF - 6, hi = CW - VIEW_HALF + 6;
+  const vh = VIEW_HALF / ZM, lo = vh - 6, hi = CW - vh + 6;
   if (!touchPad()) return [lo, hi];
-  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}|${SETTINGS.btn}`;
+  const key = `${W}|${innerWidth}|${innerHeight}|${Math.round(CAMY / 8)}|${SETTINGS.btn}|${ZM}|${Math.round(ZFY / 8)}`;
   if (CAMLIM.key === key && performance.now() - CAMLIM.t < 1000) return CAMLIM.v;
   const pad = document.getElementById('pad'), cr = cv.getBoundingClientRect();
   if (!pad || !pad.getBoundingClientRect().width || !cr.width) return [lo, hi];
   const k = cr.width / W, kk = kOf(GY2), M = 6, back = NET_D + 0.6;
-  const top = cr.top + sy(GY1, GH + 0.6) * k, bot = cr.top + sy(GY2) * k;              // Tor auf dem Bildschirm, Latte bis Boden
+  const top = cr.top + zy(sy(GY1, GH + 0.6)) * k, bot = cr.top + zy(sy(GY2)) * k;              // Tor auf dem Bildschirm, Latte bis Boden
   const onGoal = q => q.width && q.bottom > top && q.top < bot;
   const btn = [...pad.querySelectorAll('.tb[data-k]')].map(e => e.getBoundingClientRect()).filter(onGoal), st = document.getElementById('stick').getBoundingClientRect();
   let l = lo, h = hi;
-  if (btn.length) { const T = (Math.min(...btn.map(q => q.left)) - cr.left) / k - M; h = Math.max(hi, CW + back - (T - W / 2) / (PX * kk)); }
-  if (onGoal(st)) { const T = (st.right - cr.left) / k + M; l = Math.min(lo, -back - (T - W / 2) / (PX * kk)); }
+  if (btn.length) { const T = (Math.min(...btn.map(q => q.left)) - cr.left) / k - M; h = Math.max(hi, CW + back - (T - W / 2) / (PX * kk * ZM)); }
+  if (onGoal(st)) { const T = (st.right - cr.left) / k + M; l = Math.min(lo, -back - (T - W / 2) / (PX * kk * ZM)); }
   CAMLIM = { key, t: performance.now(), v: [l, h] };
   return CAMLIM.v;
 }
+// Kamera-Zoom (Optionen: Auto = am Handy nah, sonst weit): Spielfeld, Spieler und alles, was am Spielfeld hängt, werden größer;
+// Anzeigetafel, Hinweise und Knöpfe bleiben gleich. Senkrecht folgt der Ausschnitt dem Ball, bleibt aber im normalen Bild
+const ZOOMS = { weit: 1, mittel: 1.12, nah: 1.25 };
+let ZM = 1, ZFY = H / 2;
+const zoomLevel = () => ZOOMS[SETTINGS.zoom] || (TOUCHDEV ? ZOOMS.nah : ZOOMS.weit);
+function zoomOn() { if (ZM !== 1) ctx.setTransform(ZM, 0, 0, ZM, W / 2 * (1 - ZM), H / 2 - ZFY * ZM); }
+function zoomOff() { ctx.setTransform(1, 0, 0, 1, 0, 0); }
+const zx = x => W / 2 + (x - W / 2) * ZM, zy = y => H / 2 + (y - ZFY) * ZM;       // Spielfeld-Bildpunkt → Bildschirm
+const unzx = x => W / 2 + (x - W / 2) / ZM, unzy = y => ZFY + (y - H / 2) / ZM;   // Bildschirm → Spielfeld-Bildpunkt
 function render() {
   const now = performance.now(), dt = Math.min(0.05, (now - (G.lastR || now)) / 1000); G.lastR = now;
   const [tx, ty] = G.phase === 'replay' && G.replay ? [clamp(G.ball.x, ...camLimits()), G.ball.y] : camTarget();
   const k = Math.min(1, dt * (G.phase === 'replay' ? 5 : 2.6));
-  if (G.camSnap) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; }
+  G.camSnap0 = G.camSnap; if (G.camSnap) { G.cam.x = tx; G.cam.y = ty; G.camSnap = false; }
   G.cam.x = lerp(G.cam.x, tx, k); G.cam.y = lerp(G.cam.y, ty, Math.min(1, dt * 1.8));
   CAMX = G.cam.x + (G.shake > 0 ? rnd(-1, 1) * G.shake * 0.4 : 0);
   CAMY = CAMY_MAX * clamp((G.cam.y - 12) / (CH - 22), 0, 1);
+  // bei Ecke und Freistoß vom Flügel (Zielvisier) zoomt die Kamera sanft heraus, damit Schütze, Strafraum und Visier ins Bild passen
+  const zt = G.demo ? 1 : G.phase === 'setpiece' && G.sp && G.sp.caim ? 1 : zoomLevel();
+  ZM = G.camSnap0 || G.zm == null ? zt : lerp(G.zm, zt, Math.min(1, dt * 3)); if (Math.abs(ZM - zt) < 0.004) ZM = zt; G.zm = ZM;
+  ZFY = clamp(sy(G.cam.y) - 12, H / 2 / ZM, H - H / 2 / ZM);
   // Zielansicht hinter dem Ball bei Freistoß und Elfmeter (p17), danach zurück zur TV-Kamera
   if (G.aimFly) { G.aimFly.t += dt; if (G.aimFly.t > 1.6 || (G.ball.owner && G.aimFly.t > 0.4)) { G.aimFly = null; G.camSnap = true; } }
   if (!G.aimFly && !aimWanted()) G.aimCam = null;
   if (G.phase !== 'replay' && aimViewOn()) { drawAimView(); if (!G.demo) drawHUD(true); return; }
   const t = G.t, excite = G.excite > 1.2 ? 2 : G.excite > 0.4 ? 1 : 0;
+  zoomOn();
   drawBack(t, excite);
   drawPitch();
   drawTutMarks();
@@ -67,6 +81,7 @@ function render() {
   if (!G.demo && G.human >= 0 && !G.watch && G.phase === 'play') { drawLanding(); drawCrossPreview(); }
   items.sort((a, c) => a.y - c.y).forEach(i => i.draw());
   drawParts();
+  zoomOff();
   if (PITCH.wet) drawRain(t);
   if (G.phase === 'replay') { drawReplayOverlay(); return; }
   if (!G.demo) drawHUD();
@@ -129,12 +144,13 @@ function drawHUD(lite) {
   if (G.so) drawShootoutTally(x0, y0 + 26);
   if (lite) { if (G.banner) drawBanner(G.banner); if (G.cut) drawCard(G.cut); return; }
   if (SETTINGS.radar && G.phase !== 'intro') drawRadar();
+  zoomOn();   // Steuermarke, Ladebalken, Namen, Eckenvisier hängen am Spielfeld und zoomen mit
   if (G.pl) { for (const sl of G.pl) withSlot(sl, () => drawCtrlHUD(sl.ctrl, MP_COL[sl.i], sl.i + 1)); }
   else drawCtrlHUD(G.ctrl, '#ffc83a', 0);
   // Name des Ballführers
   const o = G.ball.owner;
   if (o && (G.phase === 'play' || G.phase === 'setpiece')) text(`${o.d.num} ${o.d.name.toUpperCase()}`, sx(o.x, o.y), sy(o.y) + 4, o.team === G.human ? '#ffc83a' : '#cfd6f2', 8, 'center');
-  drawCornerAim(); drawSetPieceHint();
+  drawCornerAim(); zoomOff(); drawSetPieceHint();
   if (G.phase === 'goal' && G.scorer && G.scorer.team === G.human && !G.watch && !G.celebSet && G.phaseT < 2.6) { const K = KEYN(); hint(`JUBEL: ${K.a} KNIE-RUTSCHER · ${K.b} FLIEGER · ${K.c} BECKER-FAUST`); }
   if (G.ticker) { const a = clamp(G.ticker.t * 3, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(3,5,16,0.85)'; ctx.fillRect(0, H - 18, W, 14); text(G.ticker.txt, W / 2, H - 15, '#f3ead6', 8, 'center', false); ctx.globalAlpha = 1; }
   else drawKeyBar();
@@ -165,7 +181,7 @@ function drawCtrlHUD(c, col, num) {
   // Steuermarke über dem eigenen Spieler
   if (c && (G.human >= 0 || G.pl) && !G.watch && !c.off) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
-    if (x < 4 || x > W - 4) { const ex = x < 4 ? 4 : W - 10, ey = clamp(sy(c.y) - 20, 30, H - 30); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = col; ctx.fillRect(ex, ey, 6, 6); }
+    if (zx(x) < 4 || zx(x) > W - 4) { const ex = zx(x) < 4 ? 4 : W - 10, ey = clamp(zy(sy(c.y) - 20), 30, H - 30); zoomOff(); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = col; ctx.fillRect(ex, ey, 6, 6); zoomOn(); }   // Randmarke im Bildschirm (ohne Zoom)
     else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
     if (G.ball.owner === c && !isGK(c) && G.phase === 'play' && (PROF.games < 15 || G.tut) && !c.charge && !G.pl && opps(c).some(o => !isGK(o) && dist(o.x, o.y, c.x, c.y) < 4)) {
       const K = KEYN(), tk = TRICK_N[trickKind(c, IN.x, IN.y)];
@@ -226,7 +242,7 @@ function drawRadar() {
   }
   const b = G.ball; ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(x0 + b.x) - 1, Math.round(y0 + b.y) - 1, 2, 2);
   // Sichtfenster
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.strokeRect(Math.round(x0 + CAMX - VIEW_HALF) + 0.5, y0 + 0.5, Math.round(VIEW_HALF * 2), h - 1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.strokeRect(Math.round(x0 + CAMX - VIEW_HALF / ZM) + 0.5, y0 + 0.5, Math.round(VIEW_HALF * 2 / ZM), h - 1);
 }
 function drawShootoutTally(x0, y0) {
   const S = G.so;
