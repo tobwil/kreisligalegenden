@@ -42,7 +42,8 @@ function teamStr(tid) {
   return { ovr: teamOvr(tid), att: Math.round(avg(p => p.grp === 'ST' || p.grp === 'MF', 'ovr')), def: Math.round(avg(p => p.grp === 'AB' || p.grp === 'TW', 'ovr')), star: xi.slice().sort((a, b) => b.ovr - a.ovr)[0] };
 }
 let INGAME_MENU = false;
-const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 2026), alle Spieler, Werte und Trikots frei erfunden. Kein offizielles Spiel des DFB, der Landesverbände oder der Vereine.';
+const FAN = 'Ein privates, nicht-kommerzielles Fanprojekt.';
+const LEGAL = FAN + ' Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 2026), alle Spieler, Werte und Trikots frei erfunden. Kein offizielles Spiel des DFB, der Landesverbände oder der Vereine.';
 
 // Was ist neu? Einmal pro Update für alle, die schon gespielt haben (Neue bekommen Training und Hinweise am Stick).
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
@@ -105,7 +106,7 @@ const ACT = {
     show(`<div class="title">
       <h1 class="logo">KREISLIGA-<br>LEGENDEN<span>11 GEGEN 11</span></h1>
       <button class="press" data-act="main" autofocus>${TOUCHDEV ? 'TIPPEN ZUM STARTEN' : 'DRÜCKE START'}</button>
-      <p class="legal">${LEGAL}</p>
+      <p class="legal"><b class="fan">${FAN}</b>${LEGAL.slice(FAN.length)}</p>
       <p class="legal">${esc(PLATFORM.legal || '© 2026 Tobias Wilhelm · Quellcode offen, nicht kommerziell · github.com/tobwil/kreisligalegenden')}</p></div>`, { clear: true });
     menu.querySelector('.title').addEventListener('click', () => { AU.init(); AU.select(); ACT.main(); });   // irgendwo tippen reicht
   },
@@ -164,7 +165,7 @@ const ACT = {
   exitGame() { if (PLATFORM.quit) PLATFORM.quit(); },
   about() {
     show(`<div class="panel narrow"><h2>ÜBER DAS SPIEL</h2>
-      <p><b>Kreisliga-Legenden ist ein Fußballspiel im Retro-Pixel-Look</b> über den Amateurfußball – vom Ascheplatz bis zur deutschen Kreisliga-Meisterschaft.</p>
+      <p><b>Kreisliga-Legenden ist ein Fußballspiel im Retro-Pixel-Look</b> über den Amateurfußball – vom Ascheplatz bis zur deutschen Kreisliga-Meisterschaft. Ein privates, nicht-kommerzielles Fanprojekt.</p>
       <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (aus mehreren Quellen zusammengetragen, u. a. fussball.de und der Community). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Dein Verein fehlt oder ein Name stimmt nicht? Einfach Feedback dalassen, per E-Mail (siehe Impressum) oder auf GitHub. Ein Verein möchte nicht dabei sein? Genauso melden.</p>
       <p>Kostenlos, ohne Werbung, ohne Anmeldung. Spielstände bleiben nur ${ON_WEB ? 'in deinem Browser' : 'auf diesem Gerät'}.</p>
       <p class="muted">Aus der Familie von Hallen-Legenden, Padel-Legenden und Korb-Legenden. Schriften: Press Start 2P und VT323 (SIL Open Font License).</p>
