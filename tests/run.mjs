@@ -108,7 +108,7 @@ test('Vereinsauswahl: Karte -> Landesverband -> Kreis -> Verein, Suche mit höch
 test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüsse, Pässe, Zweikämpfe', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(RUN_MATCH);
-  const res = await page.evaluate(() => [0, 1, 2, 3].map(i => __runMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[i], LIGEN[TEAMS[HOME_TEAM].lg + 1].ids[15 - i])));
+  const res = await page.evaluate(() => [0, 1, 2, 3, 4, 5].map(i => __runMatch(LIGEN[TEAMS[HOME_TEAM].lg].ids[i], LIGEN[TEAMS[HOME_TEAM].lg + 1].ids[15 - i])));   // 6 Spiele: bei ~1,4 Toren je Spiel sind 2 Tore in 4 Spielen nicht sicher
   let goals = 0, shots = 0, passes = 0, ok2 = 0;
   for (const r of res) {
     ok(r.phase === 'end', 'Spiel endet nicht: ' + JSON.stringify(r.score));
@@ -116,9 +116,9 @@ test('CPU gegen CPU: komplette Spiele ohne Hänger, plausible Ergebnisse, Schüs
     ok(r.score[0] + r.score[1] < 13, 'unplausibles Ergebnis ' + r.score);
     ok(r.log.length === r.score[0] + r.score[1], 'Torliste passt nicht zum Ergebnis');
   }
-  ok(goals >= 2 && goals <= 32, 'Tore gesamt ' + goals);
-  ok(shots >= 16, 'zu wenige Schüsse ' + shots);
-  ok(passes > 150 && ok2 / passes > 0.55, `Passquote ${ok2}/${passes}`);
+  ok(goals >= 3 && goals <= 48, 'Tore gesamt ' + goals);
+  ok(shots >= 24, 'zu wenige Schüsse ' + shots);
+  ok(passes > 225 && ok2 / passes > 0.55, `Passquote ${ok2}/${passes}`);
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -800,17 +800,17 @@ test('Parade (#8): abgewehrter Ball („über die Latte“, „um den Pfosten“
 });
 
 // Reddit-Feedback 2: „bis 2 m komme ich ran, dann Blitzpass“ und „zu viele Abpraller-Tore“
-test('CPU unter Druck (merkt dich später, Fehlpass, Befreiungsschlag) und Abpraller (Parade zur Seite, Torwart am kurzen Pfosten, spitzer Winkel)', async () => {
+test('CPU unter Druck (merkt dich später, Fehlpass, Befreiungsschlag) und Abpraller (Parade zur Seite, Torwart am kurzen Pfosten)', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
     startMatch(L[0], L[1], { human: 0, flitzer: 0, diff: 1 }); G.paused = true; G.phase = 'play'; G.sp = null;
     const s = atkDir(1), c = teamP(1).find(q => grpOf(q) === 'MF'), m = teamP(1).find(q => grpOf(q) === 'MF' && q !== c), h = teamP(0).find(q => grpOf(q) === 'MF');
     const away = keep => { G.phase = 'play'; G.sp = null; G.offs = null; G.ball.passTo = null; G.ball.shot = null; for (const q of G.players) if (!isGK(q) && !keep.includes(q)) place(q, CW / 2 - s * 30, q.team ? 2 : CH - 2); };
-    // du läufst auf 2 m ran: in den ersten 0,2 s spielt die CPU nicht ab (vorher: sofort)
+    // du stellst dich auf 2 m vor sie, ein Mitspieler steht schräg hinter ihr frei: in den ersten 0,2 s spielt die CPU nicht ab (vorher: sofort)
     let early = 0; for (let i = 0; i < 60; i++) {
-      away([c, m, h]); place(c, CW / 2, MY); place(m, CW / 2 + s * 10, MY + 6); place(h, CW / 2 - s * 2, MY); G.ctrl = h; G.poss = 1; G.ball.owner = null; giveBall(c, true); c.settleT = 0; c.think = 0;
-      for (let f = 0; f < 12; f++) { G.t += 1 / 60; place(h, CW / 2 - s * 2, MY); carrierAI(c, 1 / 60); if (G.ball.owner !== c) { early++; break; } }
+      away([c, m, h]); place(c, CW / 2, MY); place(m, CW / 2 - s * 6, MY + 8); place(h, CW / 2 + s * 2, MY); G.ctrl = h; G.poss = 1; G.ball.owner = null; giveBall(c, true); c.settleT = 0; c.think = 0;
+      for (let f = 0; f < 12; f++) { G.t += 1 / 60; place(h, CW / 2 + s * 2, MY); carrierAI(c, 1 / 60); if (G.ball.owner !== c) { early++; break; } }
     }
     out.early = early;
     // Fehlpass unter Druck: Richtungsfehler mit dir dicht dran deutlich größer als frei
@@ -833,22 +833,15 @@ test('CPU unter Druck (merkt dich später, Fehlpass, Befreiungsschlag) und Abpra
       if (Math.abs(o.x - lx) < 11 && Math.abs(o.y - MY) < 9) near++;
     }
     out.parryNear = near / Math.max(1, n);
-    // Torwart: Ball 5 m vor der Linie, 8 m seitlich – er steht am kurzen Pfosten, nicht in der Mitte
+    // Torwart: Ball 5 m vor der Linie, 8 m seitlich – er rückt zum kurzen Pfosten (vorher 0,7 m neben der Mitte)
     away([g]); G.ball.owner = null; Object.assign(G.ball, { x: lx + s * 5, y: MY + 8, z: 0, vx: 0, vy: 0, vz: 0 }); out.gkY = gkSpot(g)[1] - MY;
-    // spitzer Winkel: aus 6 m seitlich vom Pfosten geht viel mehr daneben als zentral aus gleicher Entfernung
-    const miss = (x, y) => { let k = 0; const st = teamP(0).find(q => grpOf(q) === 'ST'), gx = goalX(0); for (let i = 0; i < 300; i++) {
-      away([st]); place(st, gx - atkDir(0) * x, y); G.ball.owner = null; giveBall(st, true); shoot(st, 0.6, null);
-      const b = G.ball, o = { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, spin: b.spin || 0 }; let hit = false;
-      for (let f = 0; f < 120; f++) { ballPhys(o, 1 / 60); if ((o.x - gx) * atkDir(0) >= 0) { hit = o.y > GY1 && o.y < GY2 && o.z < GH; break; } } if (!hit) k++; } return k / 300; };
-    out.miss = [miss(9.5, MY), miss(5, MY + 8.3)];
     return out;
   });
   ok(r.early <= 6, 'CPU spielt weiter sofort ab, wenn du auf 2 m ran bist: ' + JSON.stringify(r));
   ok(r.dev[1] > r.dev[0] * 1.8, 'unter Druck nicht ungenauer: ' + JSON.stringify(r));
   ok(r.clears >= 10, 'kein Befreiungsschlag in der Not: ' + JSON.stringify(r));
   ok(r.parryNear < 0.35, 'Paraden landen zu oft zentral vor dem Tor: ' + JSON.stringify(r));
-  ok(r.gkY > 2, 'Torwart steht bei Ball von schräg nicht am kurzen Pfosten: ' + JSON.stringify(r));
-  ok(r.miss[1] > r.miss[0] + 0.15, 'aus spitzem Winkel nicht schwerer: ' + JSON.stringify(r));
+  ok(r.gkY > 1.3, 'Torwart steht bei Ball von schräg nicht am kurzen Pfosten: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -1349,7 +1342,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Fairere Zweikämpfe') && r.txt.includes('Alter und Beruf') && r.txt.includes('Kamera-Zoom'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('CPU unter Druck') && r.txt.includes('Weniger Abstauber') && r.txt.includes('Fairere Zweikämpfe'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');

@@ -49,6 +49,10 @@ const LEGAL = FAN + ' Echte Vereinsnamen aller Kreisligen Deutschlands (Stand He
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 8, items: K => [
+    ['CPU unter Druck', 'Läufst du sie an, merkt die CPU dich einen Moment später, spielt öfter Fehlpässe und haut den Ball in der Not auch mal blind raus'],
+    ['Weniger Abstauber', 'Der Torwart lenkt Bälle zur Seite oder ums Eck statt dem Stürmer vor die Füße, steht bei Schüssen von schräg am kurzen Pfosten, und die Abwehr klärt Abpraller sofort'],
+  ] },
   { id: 7, items: K => [
     ['Fairere Zweikämpfe', 'Nach deiner Ballannahme hast du einen Moment Ruhe, die CPU spielt nach einem Ballgewinn nicht mehr blitzschnell weiter und greift nicht sofort wieder an. Wer einem Gegner hinterherläuft, kommt schneller ran'],
     ['Alter und Beruf', 'In der Saison beim Spieler bearbeiten: jetzt auch Alter und Beruf'],

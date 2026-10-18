@@ -206,7 +206,7 @@ function carrierAI(p, dt) {
   opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen
   // Befreiungsschlag in Not
   if (prog(t, p.x) < 0.18 && pr < 1.6 && bv < 0.4) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
-  else if (panic > 0.45 && prog(t, p.x) < 0.4) opts.push({ k: 'clear', v: 0.35 + panic * 0.8 });   // Panik: hinten raus, egal wohin
+  else if (panic > 0.45 && prog(t, p.x) < 0.35) opts.push({ k: 'clear', v: 0.15 + panic * 0.7 });   // Panik: hinten raus, egal wohin
   for (const o of opts) o.v += rnd(0, 0.35);
   opts.sort((a, c) => c.v - a.v);
   const o = opts[0];
