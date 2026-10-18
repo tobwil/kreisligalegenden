@@ -1147,6 +1147,20 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+// Issue #19: Spielerkarte und Editor des Torwarts stürzten ab (Vereinstrikot ohne Torwartfarbe)
+test('Saison: Spielerkarte und Bearbeiten öffnen auch beim Torwart', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    NEWC.team = HOME_TEAM; ACT.ncGo(); const gk = CAREER.squads[CAREER.team].find(q => q.grp === 'TW'), out = {};
+    try { ACT.cplayer(gk.pid); out.card = menu.textContent.includes(gk.name) && !!menu.querySelector(`canvas[data-pid="${gk.pid}"]`); } catch (e) { out.card = 'Fehler: ' + e.message; }
+    try { ACT.cpEdit(gk.pid); out.edit = !!menu.querySelector('#pe_name') && menu.querySelector('#pe_name').value === gk.name; ACT.peCancel(); } catch (e) { out.edit = 'Fehler: ' + e.message; }
+    try { for (const t of ['kader', 'elf']) ACT.ctab(t); out.kader = true; } catch (e) { out.kader = 'Fehler: ' + e.message; }
+    return out;
+  });
+  ok(r.card === true && r.edit === true && r.kader === true, 'Torwart: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Saison: eigenen Verein anlegen, Spieler bearbeiten (Name, Nummer, Alter, Beruf, Position, Aussehen), nach Neuladen alles noch da', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { ACT.career(); ACT.ncEigen(); });
