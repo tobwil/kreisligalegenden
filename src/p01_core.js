@@ -61,7 +61,7 @@ const store = {
   del(k) { try { (PLATFORM.storage || localStorage).removeItem(k); } catch (e) { } },
 };
 // Einstellungen: Halbzeitlänge in Minuten (echte Zeit), Schwierigkeit, Spieltempo, Abseits, automatischer Spielerwechsel in der Abwehr, Steuerhilfen
-const SETTINGS = Object.assign({ hlen: 3, diff: 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, zoom: 'auto', keys: 'legenden', btn: 'm' }, store.get('krl_settings', {}), { hlen: 2 });   // Halbzeit immer 2 Minuten (der Einfachheit halber)
+const SETTINGS = Object.assign({ hlen: 3, diff: TOUCHDEV ? 0 : 1, speed: 1, offside: true, autoswitch: true, autosub: true, helps: 'auto', radar: true, zoom: 'auto', keys: 'legenden', btn: 'm' }, store.get('krl_settings', {}), { hlen: 2 });   // Halbzeit immer 2 Minuten (der Einfachheit halber)
 const saveSettings = () => store.set('krl_settings', SETTINGS);
 function track(name, data) {
   try { if (window.umami && name) window.umami.track(name, data); } catch (e) { }

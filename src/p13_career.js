@@ -201,8 +201,8 @@ function applyGame(h, a, gh, ga, live) {
       if (x.yc) { s.yc++; c.yc++; p.ycs++; if (p.ycs % 5 === 0) { p.ban = Math.max(p.ban, 1); p.banNew = true; if (tid === CT()) news('Sperre', `${p.name} gesperrt`, `Die fünfte Gelbe Karte: ${p.name} muss ein Spiel zuschauen.`); } }
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
-      p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (p.age > 30 ? 3 : 0), 40, 100);
-      if (!x.sub && Math.random() < 0.012 + (p.age > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
+      p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100);
+      if (!x.sub && Math.random() < 0.012 + (devAge(p) > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
     }
   }
@@ -217,7 +217,9 @@ function betweenGames(tids) {
   }
   trainStep();
 }
-const A_fit = p => (p.aus - 60) / 10 - (p.age > 32 ? 2 : 0);
+const A_fit = p => (p.aus - 60) / 10 - (devAge(p) > 32 ? 2 : 0);
+// Alter für Entwicklung und Fitness: im Spieler-Editor geändertes Alter ist nur fürs Auge (ageAdj gleicht es aus)
+const devAge = p => p.age + (p.ageAdj || 0);
 
 // ---------- Ereignis abarbeiten ----------
 // mine: Ergebnis des eigenen Spiels (aus dem echten Spiel) oder null = simulieren
@@ -371,7 +373,7 @@ const TRAIN = { bal: ['Ausgewogen', ATTRS.filter(a => a !== 'tw')], kond: ['Kond
 function trainStep() {
   const C = CAREER, focus = TRAIN[C.train] || TRAIN.bal;
   for (const p of C.squads[C.team] || []) {
-    const room = p.pot - p.ovr, ageK = p.age < 22 ? 1.4 : p.age < 26 ? 1 : p.age < 30 ? 0.5 : 0.2;
+    const room = p.pot - p.ovr, da = devAge(p), ageK = da < 22 ? 1.4 : da < 26 ? 1 : da < 30 ? 0.5 : 0.2;
     if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) {
       const ks = p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw');
       const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
@@ -416,8 +418,8 @@ function endSeason() {
     for (const p of sq) {
       p.age++; p.seasons++;
       // Entwicklung: Junge wachsen Richtung Potenzial, Ältere bauen ab
-      const delta = p.age <= 22 ? rnd(1, 4) : p.age <= 26 ? rnd(0, 2.5) : p.age <= 30 ? rnd(-1, 1) : rnd(-3.5, -0.5);
-      for (const a of ATTRS) { if (a === 'tw' && p.grp !== 'TW') continue; p[a] = clamp(Math.round(p[a] + delta * (a === 'tmp' || a === 'aus' ? (p.age > 29 ? 1.4 : 0.8) : 1) + rnd(-1, 1)), 20, 95); }
+      const da = devAge(p), delta = da <= 22 ? rnd(1, 4) : da <= 26 ? rnd(0, 2.5) : da <= 30 ? rnd(-1, 1) : rnd(-3.5, -0.5);
+      for (const a of ATTRS) { if (a === 'tw' && p.grp !== 'TW') continue; p[a] = clamp(Math.round(p[a] + delta * (a === 'tmp' || a === 'aus' ? (da > 29 ? 1.4 : 0.8) : 1) + rnd(-1, 1)), 20, 95); }
       p.ovr = Math.min(ovr(p), p.age <= 26 ? Math.max(p.pot, ovr(p)) : 99); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
       p.inj = 0; p.ban = 0; p.fit = 100; p.form = 0;
       // Karriereende im Kreisliga-Alter, Wechsel nach oben für junge Starke

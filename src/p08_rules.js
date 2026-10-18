@@ -282,6 +282,14 @@ function moveAll(dt) {
     if (d < 0.75 && d > 0.001) { const k = (0.75 - d) / d * 0.5; a.x -= dx * k; a.y -= dy * k; c.x += dx * k; c.y += dy * k; }
   }
 }
+// Aufholschub: dein Spieler läuft einem Gegner mit Ball hinterher – ein Tick schneller, damit du (gerade am Handy) wieder rankommst
+function chaseBoost(p, dx, dy) {
+  const o = G.ball.owner;
+  if (G.phase !== 'play' || !o || o.team === p.team || isGK(o) || G.human < 0 || isHumanTeam(o.team) || !isHumanCtrl(p)) return 1;
+  const ox = o.x - p.x, oy = o.y - p.y, d = Math.hypot(ox, oy), m = Math.hypot(dx, dy);
+  if (d < 0.8 || d > 15 || m < 0.1 || (ox * dx + oy * dy) / (d * m) < 0.6) return 1;
+  return 1 + (G.diff.chase ?? 0);
+}
 function movePlayer(p, dt) {
   if (p.off) return;
   const a = p.act;
@@ -305,7 +313,7 @@ function movePlayer(p, dt) {
   // Schwung nach dem Wechsel: der neue Spieler bleibt nicht stehen und knickt nicht ab, er läuft weiter und dreht in 0,25 s auf den Stick
   const swing = G.phase === 'play' && p === G.ctrl && G.swT != null && G.t - G.swT < 0.25 && !G.pl ? (G.t - G.swT) / 0.25 : null;
   if (G.phase === 'play' && isHumanCtrl(p) && !hs && !cs && !passIncoming(p) && (Math.hypot(IN.x, IN.y) > 0.15 || !selfRun)) {
-    sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : 1);
+    sprint = IN.s; const v = maxSpeed(p, sprint) * (G.ball.owner === p ? 0.93 : chaseBoost(p, IN.x, IN.y));
     dvx = IN.x * v; dvy = IN.y * v; acc = G.ball.owner === p ? 38 : 44;   // direktes Ansprechen auf den Stick (ISS-Gefühl)
     if (swing != null && Math.hypot(p.vx, p.vy) > 2) { const k = swing * swing; dvx = lerp(p.vx, dvx, k); dvy = lerp(p.vy, dvy, k); }
     // Wendekreis nach Tempo (wie FIFA): im Gehen dreht der Ballführer eng und schnell, im Sprint fährt er einen weiten Bogen –
@@ -326,7 +334,7 @@ function movePlayer(p, dt) {
     const dx = gx0 - p.x, dy = gy0 - p.y, d = Math.hypot(dx, dy);
     if (d > 0.25) {
       sprint = !!ln || (hs || cs || p.urg > 0.92) && d > 3;
-      const v = cs ? maxSpeed(p, sprint) * Math.min(1, d / 1.2) : maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1) * (passIncoming(p) && isHumanTeam(p.team) ? 1.15 : 1);
+      const v = cs ? maxSpeed(p, sprint) * Math.min(1, d / 1.2) * chaseBoost(p, dx, dy) : maxSpeed(p, sprint) * (0.55 + 0.45 * p.urg) * Math.min(1, d / 2.2) * (G.phase === 'goal' || G.phase === 'dead' ? 0.8 : 1) * (passIncoming(p) && isHumanTeam(p.team) ? 1.15 : 1);
       dvx = dx / d * v; dvy = dy / d * v;
     }
   }

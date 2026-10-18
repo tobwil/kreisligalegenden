@@ -146,6 +146,7 @@ function aiTeam(t, dt) {
     // Zweikampf: der Presser greift an, wenn er nah genug dran ist
     if (r && r.k === 'press' && own && own.team !== t && !isHumanCtrl(p) && p.cd <= 0 && p.stun <= 0) {
       const d = dist(p.x, p.y, own.x, own.y), cpuVsHuman = G.human >= 0 && isHumanTeam(own.team) && !isHumanTeam(t);
+      if (cpuVsHuman && G.t - (own.gotT || 0) < (G.diff.grace ?? 0)) continue;   // Schonfrist: gerade angenommen, erst mal in Ruhe lassen
       if (d < 1.4 && Math.random() < dt * (cpuVsHuman ? 1.2 * G.diff.tackle : 1.3)) tackle(p, own);
       else if (d < 2.6 && d > 1.2 && Math.random() < dt * 0.16 * (cpuVsHuman ? G.diff.tackle : 1) * (p.d.trait === 'Blutgrätsche' ? 2 : 1)) slide(p, own.x + own.vx * 0.3 - p.x, own.y + own.vy * 0.3 - p.y);
     }
@@ -163,7 +164,7 @@ function carrierAI(p, dt) {
   if (isGK(p)) return gkHold(p, dt);
   p.think -= dt;
   const pr = pressure(p), d = dist(p.x, p.y, gx, MY);
-  if (p.think > 0 && pr > 2.4) return dribble(p);
+  if (p.think > 0 && pr > 2.4 || p.settleT > G.t) return dribble(p);   // nach Ballgewinn gegen dich: erst den Ball sichern
   p.think = (pr > 4 ? rnd(0.5, 1.0) : pr > 2.4 ? rnd(0.3, 0.6) : rnd(0.18, 0.35)) * G.diff.think;   // mit Platz: Ball führen, Spiel aufbauen
   // Optionen bewerten
   const opts = [];
