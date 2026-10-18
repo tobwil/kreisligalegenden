@@ -350,6 +350,7 @@ function tackle(d, c) {
   if (isHumanCtrl(d)) pr += G.diff.htk ?? 0.12;   // Arcade: dein Tackling sitzt öfter
   if (d.d.trait === 'Blutgrätsche' || d.d.trait === 'Dampfwalze') pr += 0.05;
   AU.tackle();
+  if (G.human >= 0 && !isHumanTeam(d.team) && isHumanTeam(c.team)) d.cd = G.diff.tkcd ?? 0.7;   // kein Dauerfeuer: derselbe CPU-Spieler greift nicht sofort wieder an
   if (Math.random() < pr) {
     d.d.ms.tk++; if (isHumanCtrl(d)) { G.hitStop = 0.04; G.shake = Math.max(G.shake, 0.08); }
     if (Math.random() < 0.6) giveBall(d);

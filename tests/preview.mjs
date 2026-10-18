@@ -21,7 +21,7 @@ if (!/^https?:\/\//.test(BASE)) { console.error('Aufruf: node preview.mjs https:
 const WAIT = process.argv.includes('--wait');
 const SEEDS = (process.env.SEEDS || '3,11').split(',').map(Number).filter(Boolean);
 // diese Tests hängen am Zufall (Spielzüge, Torwart, Zweikämpfe) – sie laufen mit jedem SEED noch einmal
-const RANDOM = ['CPU gegen CPU', 'Bot spielt', 'Ecke mit Zielvisier', 'Flanke halten', 'Ecken-Balance', 'Parade (#8)', 'Arcade-Feinschliff', 'Arcade-Hilfen', 'Kopfball', 'Regeln', 'Tor: Jubel'];
+const RANDOM = ['CPU gegen CPU', 'Bot spielt', 'Ecke mit Zielvisier', 'Flanke halten', 'Ecken-Balance', 'Parade (#8)', 'Arcade-Feinschliff', 'Arcade-Hilfen', 'Kopfball', 'Regeln', 'Tor: Jubel', 'Zweikampf-Fairness'];
 const exe = process.env.CHROMIUM_PATH || ['/opt/pw-browsers/chromium'].find(existsSync);
 const want = (readFileSync(path.join(root, 'game', 'index.html'), 'utf8').match(/const BUILD = '(\d+)'/) || [])[1];
 

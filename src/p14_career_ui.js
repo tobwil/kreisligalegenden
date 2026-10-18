@@ -155,7 +155,7 @@ function showPlayer(pid) {
   const mine = p.tid === CAREER.team, T = TEAMS[p.tid];
   const at = ATTRS.filter(a => p.grp === 'TW' || a !== 'tw').map(a => [ATTR_N[a], p[a]]);
   show(`<div class="panel narrow"><div class="pcard"><canvas width="40" height="40" data-pid="${p.pid}"></canvas><div><h2>${esc(p.first)} ${p.nick ? `„${esc(p.nick)}“ ` : ''}${esc(p.name)}</h2>
-    <p class="muted">#${p.num} · ${GRP_N[p.grp]} · ${p.age} Jahre · ${esc(p.job)} · ${esc(T.short)}</p></div></div>
+    <p class="muted">#${p.num} · ${GRP_N[p.grp]} · ${p.age} Jahre${p.job ? ` · ${esc(p.job)}` : ''} · ${esc(T.short)}</p></div></div>
     ${p.trait ? `<p><span class="badge">${esc(p.trait.toUpperCase())}</span></p>` : ''}
     ${bars(at.concat([['Gesamt', p.ovr], ['Potenzial', p.pot]]), 20, 95)}
     <div class="kpis"><div class="kpi"><span>SAISON</span><b>${p.ss.sp} SP · ${p.ss.g} T · ${p.ss.a} V</b><i>Note ${noteAvg(p.ss)}${p.grp === 'TW' ? ` · ${p.ss.co} Gegentore` : ''}</i></div>

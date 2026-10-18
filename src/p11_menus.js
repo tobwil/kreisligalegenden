@@ -48,6 +48,10 @@ const LEGAL = 'Echte Vereinsnamen aller Kreisligen Deutschlands (Stand Herbst 20
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 7, items: K => [
+    ['Fairere Zweikämpfe', 'Nach deiner Ballannahme hast du einen Moment Ruhe, die CPU spielt nach einem Ballgewinn nicht mehr blitzschnell weiter und greift nicht sofort wieder an. Wer einem Gegner hinterherläuft, kommt schneller ran'],
+    ['Alter und Beruf', 'In der Saison beim Spieler bearbeiten: jetzt auch Alter und Beruf'],
+  ] },
   { id: 6, items: K => [
     ...(K.touch ? [['Kamera näher dran', 'Spieler und Ball sind am Handy jetzt größer. In den Optionen unter KAMERA: NAH, MITTEL oder WEIT'], ['Tor antippen = Schuss', 'Mit Ball am Fuß einfach aufs Tor tippen: der Schuss geht genau dorthin, oben oder unten im Tor = die Ecke']]
       : [['Kamera-Zoom', 'In den Optionen unter KAMERA: NAH, MITTEL oder WEIT']]),
@@ -161,7 +165,7 @@ const ACT = {
   about() {
     show(`<div class="panel narrow"><h2>ÜBER DAS SPIEL</h2>
       <p><b>Kreisliga-Legenden ist ein Fußballspiel im Retro-Pixel-Look</b> über den Amateurfußball – vom Ascheplatz bis zur deutschen Kreisliga-Meisterschaft.</p>
-      <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (Quelle: öffentliche Tabellen auf fussball.de). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Ein Verein möchte nicht dabei sein? Kurze Nachricht über das Impressum genügt.</p>
+      <p>Dabei sind alle ${TEAMS.length.toLocaleString('de-DE')} Vereine der höchsten Kreisspielklasse aus ${KREISE.length} Kreisen und allen ${VERB.length} Landesverbänden – mit ihren echten Namen, Saison 2026/27, Stand Herbst 2026 (aus mehreren Quellen zusammengetragen, u. a. fussball.de und der Community). Spieler, Spielstärken, Trikotfarben, Sportplätze und Werbebanden sind frei erfunden. Kein offizielles Produkt des DFB, der Landesverbände oder der Vereine. Dein Verein fehlt oder ein Name stimmt nicht? Einfach Feedback dalassen, per E-Mail (siehe Impressum) oder auf GitHub. Ein Verein möchte nicht dabei sein? Genauso melden.</p>
       <p>Kostenlos, ohne Werbung, ohne Anmeldung. Spielstände bleiben nur ${ON_WEB ? 'in deinem Browser' : 'auf diesem Gerät'}.</p>
       <p class="muted">Aus der Familie von Hallen-Legenden, Padel-Legenden und Korb-Legenden. Schriften: Press Start 2P und VT323 (SIL Open Font License).</p>
       ${ON_WEB ? '<p class="muted"><a href="../">Startseite mit Story</a> · <a href="../impressum.html">Impressum</a> · <a href="../datenschutz.html">Datenschutz</a></p>' : ''}

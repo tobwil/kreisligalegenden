@@ -2,10 +2,13 @@
 let G = null;
 // Schwierigkeit: cpu = Bonus auf die Werte der CPU, react = Reaktionszeit, tackle = Zweikampfeifer der CPU,
 // foul = Foulquote der CPU gegen den Menschen, think = Bedenkzeit am Ball, gk = Bonus für den CPU-Torwart
+// Fairness gegen dich: grace = Schonfrist nach deiner Ballannahme (s, so lange greift die CPU nicht an),
+// settle = Bedenkzeit der CPU nach einem Ballgewinn gegen dich, tkcd = Pause desselben CPU-Spielers nach seinem Tackling,
+// chase = Aufholschub deines Spielers, wenn er einem Gegner mit Ball hinterherläuft
 const DIFF = [
-  { n: 'Freizeitkick', cpu: -9, react: 1.4, tackle: 0.55, foul: 0.45, think: 1.45, gk: -6, icpt: 0.35, htk: 0.22 },
-  { n: 'Kreisliga', cpu: 0, react: 1, tackle: 1, foul: 0.8, think: 1, gk: 0, icpt: 0.55, htk: 0.12 },
-  { n: 'Legende', cpu: 7, react: 0.72, tackle: 1.4, foul: 1, think: 0.7, gk: 5, icpt: 0.8, htk: 0.03 },
+  { n: 'Freizeitkick', cpu: -10, react: 1.4, tackle: 0.45, foul: 0.45, think: 1.6, gk: -6, icpt: 0.3, htk: 0.25, grace: 1, settle: 1.4, tkcd: 1.8, chase: 0.12 },
+  { n: 'Kreisliga', cpu: 0, react: 1, tackle: 0.85, foul: 0.8, think: 1.15, gk: 0, icpt: 0.5, htk: 0.15, grace: 0.7, settle: 1, tkcd: 1.3, chase: 0.08 },
+  { n: 'Legende', cpu: 7, react: 0.72, tackle: 1.4, foul: 1, think: 0.7, gk: 5, icpt: 0.8, htk: 0.03, grace: 0.4, settle: 0.55, tkcd: 0.8, chase: 0.03 },
 ];
 // Spielrichtung: in der 1. Halbzeit spielt Team 0 nach rechts (auf das Tor bei x = CW), nach der Pause getauscht
 const atkDir = t => ((t === 0) !== G.swap) ? 1 : -1;
@@ -132,6 +135,8 @@ function giveBall(p, quiet) {
   b.owner = p; b.state = 'held'; b.passTo = null; b.shot = null; b.passer = null; b.kind = ''; b.vz = 0; b.z = 0; b.spin = 0; b.plan = null;
   if (isGK(p)) { b.x = p.x + p.face * 0.25; b.y = p.y + 0.05; b.z = 1; } else { b.x = p.x + p.hx * 0.45; b.y = p.y + p.hy * 0.4; }
   b.last = p; b.lastTeam = p.team; p.gotT = G.t; p.beatN = 0; p.duel = null; p.think = rnd(0.15, 0.4) * G.diff.think;
+  // CPU hat dir den Ball abgenommen: kurz sortieren statt blitzschnell weiterzuspielen – du kannst nachsetzen
+  p.settleT = G.phase === 'play' && G.poss != null && G.poss !== p.team && G.human >= 0 && isHumanTeam(G.poss) && !isHumanTeam(p.team) && !isGK(p) ? G.t + rnd(0.55, 0.9) * (G.diff.settle ?? 1) : 0;
   if (G.poss !== p.team) { G.poss = p.team; G.possT = 0; }
   if (G.offs && G.offs.team !== p.team) G.offs = null;
   if (!quiet) AU.touch();

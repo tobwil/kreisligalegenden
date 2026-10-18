@@ -95,15 +95,17 @@ Object.assign(ACT, {
 
 // ---------- Spieler bearbeiten ----------
 let PED = null;   // { pid, snap }
-const PED_KEYS = ['first', 'name', 'nick', 'num', 'grp', 'skin', 'hair', 'style', 'beard', 'belly'];
+const PED_KEYS = ['first', 'name', 'nick', 'num', 'age', 'ageAdj', 'job', 'grp', 'skin', 'hair', 'style', 'beard', 'belly'];
 function playerEditHTML(p) {
   const btn = (act, v, on, label, style = '') => `<button class="small ${on ? 'on' : ''}" data-act="${act}" data-arg="${v}" ${style}>${label}</button>`;
-  return `<div class="panel narrow"><div class="pcard"><canvas width="40" height="40" data-pid="${p.pid}"></canvas><div><h2>SPIELER BEARBEITEN</h2><p class="muted">Werte und Stärke bleiben gleich – nur Name, Nummer, Position und Aussehen.</p></div></div>
+  return `<div class="panel narrow"><div class="pcard"><canvas width="40" height="40" data-pid="${p.pid}"></canvas><div><h2>SPIELER BEARBEITEN</h2><p class="muted">Werte und Stärke bleiben gleich – nur Name, Nummer, Alter, Beruf, Position und Aussehen. Das Alter ändert nichts an der Entwicklung.</p></div></div>
     <div class="eform">
       <label>Vorname<input id="pe_first" maxlength="16" value="${esc(p.first)}" autocomplete="off"></label>
       <label>Nachname<input id="pe_name" maxlength="18" value="${esc(p.name)}" autocomplete="off"></label>
       <label>Spitzname<input id="pe_nick" maxlength="16" value="${esc(p.nick || '')}" placeholder="(keiner)" autocomplete="off"></label>
       <label>Nummer<input id="pe_num" type="number" min="1" max="99" value="${PED.num ?? p.num}" inputmode="numeric"></label>
+      <label>Alter<input id="pe_age" type="number" min="16" max="49" value="${PED.age ?? p.age}" inputmode="numeric"></label>
+      <label>Beruf<input id="pe_job" maxlength="24" value="${esc(p.job || '')}" list="pe_jobs" placeholder="(keiner)" autocomplete="off"><datalist id="pe_jobs">${JOBS.map(j => `<option value="${esc(j)}">`).join('')}</datalist></label>
     </div>
     <div class="row"><span class="tag">POSITION</span>${['TW', 'AB', 'MF', 'ST'].map(g => btn('peGrp', g, p.grp === g, GRP_N[g].toUpperCase())).join('')}</div>
     <div class="row"><span class="tag">HAUT</span>${SKIN.map((s, i) => `<button class="sw ${p.skin === i ? 'on' : ''}" style="background:${s[0]}" data-act="peSkin" data-arg="${i}" aria-label="Hautton ${i + 1}"></button>`).join('')}</div>
@@ -117,8 +119,9 @@ function renderPlayerEdit() {
   const p = playerById(PED.pid); if (!p) return ACT.chub();
   show(playerEditHTML(p), { back: ACT.peCancel }); bindHubCanvases();
   const $ = id => menu.querySelector('#' + id);
-  for (const k of ['first', 'name', 'nick']) $('pe_' + k).addEventListener('input', e => { p[k] = e.target.value; });
+  for (const k of ['first', 'name', 'nick', 'job']) $('pe_' + k).addEventListener('input', e => { p[k] = e.target.value; });
   $('pe_num').addEventListener('input', e => { PED.num = e.target.value; });
+  $('pe_age').addEventListener('input', e => { PED.age = e.target.value; });
 }
 const pedLook = (k, v) => { const p = playerById(PED.pid); if (!p) return; p[k] = v; renderPlayerEdit(); };
 Object.assign(ACT, {
@@ -133,7 +136,9 @@ Object.assign(ACT, {
   peSave() {
     const p = playerById(PED.pid); if (!p) return ACT.chub();
     const $ = id => menu.querySelector('#' + id);
-    p.first = $('pe_first').value.trim() || PED.snap.first; p.name = $('pe_name').value.trim() || PED.snap.name; p.nick = $('pe_nick').value.trim();
+    p.first = $('pe_first').value.trim() || PED.snap.first; p.name = $('pe_name').value.trim() || PED.snap.name; p.nick = $('pe_nick').value.trim(); p.job = $('pe_job').value.trim();
+    // Alter: nur fürs Auge – die Entwicklung rechnet weiter mit dem echten Alter (sonst würde man sich eine junge, wachsende Mannschaft bauen)
+    const age = clamp(Math.round(+(PED.age ?? $('pe_age').value) || p.age), 16, 49); if (age !== PED.snap.age) { p.ageAdj = (PED.snap.ageAdj || 0) + PED.snap.age - age; p.age = age; }
     const num = clamp(Math.round(+(PED.num ?? $('pe_num').value) || p.num), 1, 99);
     if (num !== PED.snap.num) { const other = ensureSquad(CAREER.team).find(q => q !== p && q.num === num); if (other) other.num = PED.snap.num; p.num = num; }
     p.ovr = ovr(p); PED = null; saveCareer(); showPlayer(p.pid);

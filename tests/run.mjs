@@ -566,6 +566,51 @@ test('Arcade-Feinschliff: Stellen (Tackling halten), Schwung nach dem Wechsel, D
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+// Reddit-Feedback „CPU nimmt zu leicht den Ball ab und gibt blitzschnell weiter, man kommt kaum an den Gegner“
+test('Zweikampf-Fairness: Schonfrist nach deiner Annahme, CPU spielt nach Ballgewinn nicht sofort weiter, kein Dauerfeuer, Aufholschub, Handy startet auf Freizeitkick', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0, diff: 1 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const s = atkDir(0), h = teamP(0).find(q => grpOf(q) === 'MF'), c = teamP(1).find(q => grpOf(q) === 'MF');
+    const away = keep => { G.offs = null; G.banner = null; G.ball.passer = null; G.ball.passTo = null; for (const q of G.players) if (!isGK(q) && !keep.includes(q)) place(q, CW / 2 + (q.team ? 30 : -30) * s, q.team ? 2 : CH - 2); };
+    let tk = 0; const oTk = window.tackle; window.tackle = (d, o) => { if (d === c) tk++; return oTk(d, o); };
+    // Schonfrist: der CPU-Presser steht direkt an dir – in den ersten 0,6 s nach der Annahme greift er nicht an, danach schon
+    const win = (a, b, n) => { let k = 0; for (let i = 0; i < n; i++) {
+      away([h, c]); place(h, CW / 2, MY); place(c, CW / 2 + s * 1, MY); c.cd = 0; c.stun = 0; c.act = null; h.stun = 0; h.act = null; G.ctrl = h; G.poss = 1; giveBall(h, true);
+      for (let f = 0; f < b * 60; f++) { G.t += 1 / 60; place(h, CW / 2, MY); place(c, CW / 2 + s * 1, MY); if (G.ball.owner !== h) break; const t0 = tk; aiTeam(1, 1 / 60); if (tk > t0) { if (f < a * 60) k++; break; } }
+    } return k; };
+    tk = 0; out.early = win(0.6, 0.6, 150);
+    tk = 0; let late = 0; for (let i = 0; i < 60; i++) { away([h, c]); place(h, CW / 2, MY); place(c, CW / 2 + s * 1, MY); c.cd = 0; c.stun = 0; c.act = null; G.ctrl = h; giveBall(h, true); h.gotT = G.t - 1; for (let f = 0; f < 60 && !tk; f++) { G.t += 1 / 60; place(h, CW / 2, MY); place(c, CW / 2 + s * 1, MY); G.ball.owner = h; aiTeam(1, 1 / 60); } if (tk) late++; tk = 0; }
+    out.late = late;
+    // kein Dauerfeuer: nach seinem Tackling wartet derselbe CPU-Spieler länger
+    away([h, c]); place(h, CW / 2, MY); place(c, CW / 2 + s * 1, MY); c.cd = 0; c.stun = 0; c.act = null; giveBall(h, true); oTk(c, h); out.cd = c.cd; G.phase = 'play'; G.sp = null; G.paused = true;   // ein Foul pfeift ab – für die nächsten Teile wieder anpfeifen
+    // nach dem Ballgewinn gegen dich: die CPU sichert erst den Ball (kein Pass in den ersten 0,5 s), obwohl ein Mitspieler frei steht
+    const m = teamP(1).find(q => grpOf(q) === 'MF' && q !== c); let quick = 0;
+    for (let i = 0; i < 40; i++) {
+      away([h, c, m]); place(h, CW / 2 - s * 6, MY); place(c, CW / 2, MY); place(m, CW / 2 - s * 10, MY + 8); G.poss = 0; G.ball.owner = null; giveBall(c, true);
+      for (let f = 0; f < 30; f++) { G.t += 1 / 60; carrierAI(c, 1 / 60); if (G.ball.owner !== c) { quick++; break; } }
+    }
+    out.quick = quick; out.settle = c.settleT > 0;
+    // Aufholschub: einem Gegner mit Ball hinterher läuft dein Spieler etwas schneller als zu einem Mitspieler
+    const mate = teamP(0).find(q => grpOf(q) === 'ST');
+    const run = opp => { away([h, c, m, mate]); place(h, CW / 2, MY); h.vx = h.vy = 0; h.stun = 0; h.act = null; h.contain = null; h.lunge = null; const own = opp ? c : mate; place(own, CW / 2 + s * 10, MY); giveBall(own, true); own.think = 9; G.ctrl = h;
+      for (const k in KEY) KEY[k] = false; KEY[s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; readInput(1 / 60); const x0 = h.x; for (let f = 0; f < 45; f++) { place(own, CW / 2 + s * 10, MY); movePlayer(h, 1 / 60); } KEY.ArrowRight = KEY.ArrowLeft = false; return Math.abs(h.x - x0); };
+    out.chase = [run(true), run(false)];
+    window.tackle = oTk;
+    return out;
+  });
+  ok(r.early === 0, 'Schonfrist: CPU tackelt direkt nach deiner Annahme: ' + JSON.stringify(r));
+  ok(r.late >= 20, 'nach der Schonfrist greift die CPU nicht mehr an: ' + JSON.stringify(r));
+  ok(r.cd >= 1.2, 'CPU-Tackling ohne Pause danach: ' + JSON.stringify(r));
+  ok(r.settle && r.quick <= 2, 'CPU spielt nach Ballgewinn sofort weiter: ' + JSON.stringify(r));
+  ok(r.chase[0] > r.chase[1] * 1.05, 'kein Aufholschub: ' + JSON.stringify(r));
+  // Handy ohne gespeicherte Einstellungen: Start auf Freizeitkick, am Rechner Kreisliga
+  for (const [o, want] of [[MOBILE, 0], [DESKTOP, 1]]) { const x = await open(o, 0); const d = await x.page.evaluate(() => SETTINGS.diff); ok(d === want, `Start-Schwierigkeit ${o === MOBILE ? 'Handy' : 'Rechner'}: ${d}`); await x.ctx.close(); }
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('FIFA-Gefühl: erste Berührung in Stickrichtung (mit Sprint weiter vorgelegt, ohne Stick gestoppt), Gnadenfrist nach Ballverlust', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
@@ -1102,20 +1147,20 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Saison: eigenen Verein anlegen, Spieler bearbeiten (Name, Nummer, Position, Aussehen), nach Neuladen alles noch da', async () => {
+test('Saison: eigenen Verein anlegen, Spieler bearbeiten (Name, Nummer, Alter, Beruf, Position, Aussehen), nach Neuladen alles noch da', async () => {
   const { page, ctx, errors } = await open();
   await page.evaluate(() => { ACT.career(); ACT.ncEigen(); });
   await page.fill('#eg_n', 'SV Musterdorf 1920'); await page.click('[data-act="eigCol"][data-arg="c1|#141414"]'); await page.click('[data-act="eigCol"][data-arg="c2|#ffd200"]');
   await page.click('[data-act="eigSave"]');
   const a = await page.evaluate(() => { const t = TEAMS[NEWC.team]; ACT.ncGo(); return { n: t.n, k: t.k, custom: !!t.custom, inLiga: LIGEN[t.lg].ids.includes(t.id), career: TEAMS[CAREER.team].n, tbl: Object.keys(CAREER.S.tables[CAREER.lg]).map(Number).includes(t.id) }; });
   ok(a.custom && a.k === 'MUS' && a.inLiga && a.tbl && a.career === 'SV Musterdorf 1920', 'eigener Verein: ' + JSON.stringify(a));
-  await page.evaluate(() => { const p = ensureSquad(CAREER.team).find(q => q.grp === 'MF'); window.__pid = p.pid; ACT.cpEdit(p.pid); });
-  await page.fill('#pe_name', 'Wilhelm'); await page.fill('#pe_num', '10'); await page.click('[data-act="peGrp"][data-arg="ST"]'); await page.click('[data-act="peBeard"]');
+  await page.evaluate(() => { const p = ensureSquad(CAREER.team).find(q => q.grp === 'MF'); window.__pid = p.pid; window.__age = p.age; ACT.cpEdit(p.pid); });
+  await page.fill('#pe_name', 'Wilhelm'); await page.fill('#pe_num', '10'); await page.fill('#pe_age', '41'); await page.fill('#pe_job', 'Kreisliga-Legende'); await page.click('[data-act="peGrp"][data-arg="ST"]'); await page.click('[data-act="peBeard"]');
   await page.click('[data-act="peSave"]');
-  await page.evaluate(() => localStorage.setItem('__pid', String(__pid)));
+  await page.evaluate(() => { localStorage.setItem('__pid', String(__pid)); localStorage.setItem('__age', String(__age)); });
   await page.reload(); await page.waitForTimeout(600);
-  const b = await page.evaluate(() => { ACT.career(); const p = playerById(+localStorage.getItem('__pid')); return { team: CAREER && TEAMS[CAREER.team].n, name: p && p.name, num: p && p.num, grp: p && p.grp, nums: new Set(ensureSquad(CAREER.team).map(q => q.num)).size === ensureSquad(CAREER.team).length }; });
-  ok(b.team === 'SV Musterdorf 1920' && b.name === 'Wilhelm' && b.num === 10 && b.grp === 'ST' && b.nums, 'nach Neuladen: ' + JSON.stringify(b));
+  const b = await page.evaluate(() => { ACT.career(); const p = playerById(+localStorage.getItem('__pid')); return { team: CAREER && TEAMS[CAREER.team].n, name: p && p.name, num: p && p.num, grp: p && p.grp, age: p && p.age, job: p && p.job, dev: p && devAge(p) === +localStorage.getItem('__age'), card: p && (showPlayer(p.pid), menu.textContent.includes('41 Jahre · Kreisliga-Legende')), nums: new Set(ensureSquad(CAREER.team).map(q => q.num)).size === ensureSquad(CAREER.team).length }; });
+  ok(b.team === 'SV Musterdorf 1920' && b.name === 'Wilhelm' && b.num === 10 && b.grp === 'ST' && b.age === 41 && b.job === 'Kreisliga-Legende' && b.dev && b.card && b.nums, 'nach Neuladen: ' + JSON.stringify(b));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -1237,7 +1282,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Kamera-Zoom') && r.txt.includes('Tackling mit Anlauf') && r.txt.includes('D kurz antippen'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Fairere Zweikämpfe') && r.txt.includes('Alter und Beruf') && r.txt.includes('Kamera-Zoom'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
