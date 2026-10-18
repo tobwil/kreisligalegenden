@@ -41,7 +41,8 @@ const HAND = { hold: [4, -18], throw1: [-2, -28], throw2: [6, -24], stretch: [1,
 
 // Trikot: c1 Grundfarbe, c2 Absetzfarbe, pat Muster, sh Hose, so Stutzen. Torwart: eigene Farbe gk
 function kitLook(kit, gk) {
-  const c1 = gk ? kit.gk : kit.c1, c2 = gk ? shade(kit.gk, 0.55) : kit.c2;
+  const g = kit.gk || GK_COLS[0];   // außerhalb eines Spiels (Spielerkarte, Kader) hat das Vereinstrikot noch keine Torwartfarbe
+  const c1 = gk ? g : kit.c1, c2 = gk ? shade(g, 0.55) : kit.c2;
   const sh = gk ? '#1d1d24' : kit.sh || (colDist(kit.c2, kit.c1) > 90 ? kit.c2 : '#1d1d24');
   return { c1, c2, pat: gk ? 0 : kit.pat || 0, sh, so: gk ? c1 : kit.so || c1 };
 }
