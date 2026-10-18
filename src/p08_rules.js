@@ -293,7 +293,7 @@ function chaseBoost(p, dx, dy) {
 function movePlayer(p, dt) {
   if (p.off) return;
   const a = p.act;
-  if (a) { a.t += dt; if (a.t >= a.dur) { p.act = null; if (a.type === 'slide' || a.type === 'dive') p.stun = Math.max(p.stun, a.type === 'dive' ? 0.25 : 0.35); } }
+  if (a) { a.t += dt; if (a.t >= a.dur) { p.act = null; if (a.type === 'slide' || a.type === 'dive') p.stun = Math.max(p.stun, a.type === 'dive' ? 0.12 : 0.35); } }
   p.stun = Math.max(0, p.stun - dt); p.cd = Math.max(0, p.cd - dt);
   if (p.z > 0 || p.vz > 0) { p.vz -= GRAV * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; p.vz = 0; } }
   if (p.wall && G.wallHold && G.t < G.wallHold) { p.vx = 0; p.vy = 0; return integ(p, dt); }   // Mauer bleibt stehen und springt nur
@@ -399,8 +399,8 @@ function resolveSave(g) {
     if (b.z > 1.5 && r < 0.45) {   // über die Latte gelenkt: so steil, dass er an der Torlinie sicher über der Latte ist
       const t = clamp(dLine / 3, 0.15, 0.5), vx = Math.max(rnd(1.5, 3), dLine / t); b.vx = -s * vx; b.vy = rnd(-1, 1); b.vz = Math.max(rnd(3.5, 5), (GH + 0.6 - b.z + 0.5 * GRAV * t * t) / t);
     }
-    else if (Math.abs(b.y - MY) > GW / 2 - 0.3 && r < 0.5) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten (nur, wenn er schon außen ist)
-    else { b.vx = s * rnd(3, 8); b.vy = (b.y > g.y ? 1 : -1) * rnd(3, 8) + rnd(-2, 2); b.vz = rnd(1, 4.5); }   // abgewehrt ins Feld
+    else if (Math.abs(b.y - MY) > 1.5 && r < 0.6) { b.vx = -s * rnd(1, 2.5); b.vy = side * rnd(7, 10); b.vz = rnd(0.5, 2); }   // um den Pfosten (nur, wenn er schon außen ist)
+    else { b.vx = s * rnd(2, 6); b.vy = (b.y > g.y ? 1 : -1) * rnd(6, 11); b.vz = rnd(1, 4.5); }   // abgewehrt ins Feld: zur Seite weg, nicht dem Stürmer vor die Füße
     // Sicherheitsnetz: würde der abgewehrte Ball doch unter der Latte zwischen den Pfosten über die Linie gehen, lieber ins Feld (#8)
     if (parryScores(b, lx)) { b.vx = s * rnd(3, 7); b.vy = side * rnd(3, 7); b.vz = rnd(1.5, 4); }
     b.nc = g; b.ncT = 0.4;
@@ -499,7 +499,7 @@ function checkBlocks() {
     if (hit) {
       b.tried.add(o); if (Math.random() > (o.wall ? 0.9 : 0.45)) continue;
       b.blockChecked = b.fid; b.shot = null; b.plan = null; b.fid++; b.last = o; b.lastTeam = o.team; b.kind = 'block'; G.offs = null;
-      const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(0.05, 0.55); b.vy = sg * rnd(sp * 0.5, sp * 1.1); b.vz = rnd(0.5, 3.5);
+      const sp = Math.hypot(b.vx, b.vy) * 0.4, sg = Math.random() < 0.5 ? 1 : -1; b.vx = b.vx * rnd(-0.45, 0.25); b.vy = sg * rnd(sp * 0.5, sp * 1.1);   // eher zurück ins Feld als weiter Richtung Tor b.vz = rnd(0.5, 3.5);
       AU.tackle(); if (!G.demo) { banner('GEBLOCKT', '#9cff57', o.d.name.toUpperCase(), 0.8); AU.ooh(0.6); }
       return;
     }

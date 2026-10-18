@@ -799,6 +799,59 @@ test('Parade (#8): abgewehrter Ball („über die Latte“, „um den Pfosten“
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+// Reddit-Feedback 2: „bis 2 m komme ich ran, dann Blitzpass“ und „zu viele Abpraller-Tore“
+test('CPU unter Druck (merkt dich später, Fehlpass, Befreiungsschlag) und Abpraller (Parade zur Seite, Torwart am kurzen Pfosten, spitzer Winkel)', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    startMatch(L[0], L[1], { human: 0, flitzer: 0, diff: 1 }); G.paused = true; G.phase = 'play'; G.sp = null;
+    const s = atkDir(1), c = teamP(1).find(q => grpOf(q) === 'MF'), m = teamP(1).find(q => grpOf(q) === 'MF' && q !== c), h = teamP(0).find(q => grpOf(q) === 'MF');
+    const away = keep => { G.phase = 'play'; G.sp = null; G.offs = null; G.ball.passTo = null; G.ball.shot = null; for (const q of G.players) if (!isGK(q) && !keep.includes(q)) place(q, CW / 2 - s * 30, q.team ? 2 : CH - 2); };
+    // du läufst auf 2 m ran: in den ersten 0,2 s spielt die CPU nicht ab (vorher: sofort)
+    let early = 0; for (let i = 0; i < 60; i++) {
+      away([c, m, h]); place(c, CW / 2, MY); place(m, CW / 2 + s * 10, MY + 6); place(h, CW / 2 - s * 2, MY); G.ctrl = h; G.poss = 1; G.ball.owner = null; giveBall(c, true); c.settleT = 0; c.think = 0;
+      for (let f = 0; f < 12; f++) { G.t += 1 / 60; place(h, CW / 2 - s * 2, MY); carrierAI(c, 1 / 60); if (G.ball.owner !== c) { early++; break; } }
+    }
+    out.early = early;
+    // Fehlpass unter Druck: Richtungsfehler mit dir dicht dran deutlich größer als frei
+    const devs = near => { let sum = 0; for (let i = 0; i < 300; i++) {
+      away([c, m, h]); place(c, CW / 2, MY); place(m, CW / 2 + s * 12, MY); place(h, near ? CW / 2 - s * 0.8 : CW / 2 - s * 20, MY + 0.3); G.ball.owner = null; giveBall(c, true);
+      pass(c, m); sum += Math.abs(Math.atan2(G.ball.vy, G.ball.vx * s)); } return sum / 300; };
+    out.dev = [devs(false), devs(true)];
+    // Panik: in der eigenen Hälfte bedrängt haut die CPU den Ball auch mal blind raus
+    let clears = 0; const oc = window.clearBall; window.clearBall = p => { clears++; return oc(p); };
+    for (let i = 0; i < 150; i++) { away([c, m, h]); const ox = ownX(1); place(c, ox + s * 30, MY + 8); place(m, ox + s * 45, MY - 10); place(h, ox + s * 29.2, MY + 8); G.poss = 1; giveBall(c, true); c.settleT = 0; c.think = 0; c.pressT = G.t - 1; carrierAI(c, 1 / 60); }
+    window.clearBall = oc; out.clears = clears;
+    // Parade ins Feld: landet selten zentral vor dem Tor
+    let near = 0, n = 0; const g = G.gk[1], lx = ownX(1), sh = teamP(0).find(q => grpOf(q) === 'ST');
+    for (let i = 0; i < 300; i++) {
+      away([g, sh]); const y = MY + rnd(-1.2, 1.2), b = G.ball; place(g, lx + s * 0.6, y); g.act = null; g.stun = 0;
+      Object.assign(b, { owner: null, x: lx + s * 0.6, y, z: rnd(0.3, 1.2), vx: -s * rnd(14, 22), vy: rnd(-2, 2), vz: rnd(-1, 1), passTo: null, kind: 'shot' }); b.fid++;
+      b.shot = { by: sh, team: 0, t0: G.t, d: 12 }; b.plan = { g, ok: true, catchIt: false, done: false, fid: b.fid, at: G.t, y };
+      resolveSave(g); if (b.kind !== 'parry') continue; n++;
+      const o = { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, spin: 0 }; for (let k = 0; k < 90; k++) ballPhys(o, 1 / 60);
+      if (Math.abs(o.x - lx) < 11 && Math.abs(o.y - MY) < 9) near++;
+    }
+    out.parryNear = near / Math.max(1, n);
+    // Torwart: Ball 5 m vor der Linie, 8 m seitlich – er steht am kurzen Pfosten, nicht in der Mitte
+    away([g]); G.ball.owner = null; Object.assign(G.ball, { x: lx + s * 5, y: MY + 8, z: 0, vx: 0, vy: 0, vz: 0 }); out.gkY = gkSpot(g)[1] - MY;
+    // spitzer Winkel: aus 6 m seitlich vom Pfosten geht viel mehr daneben als zentral aus gleicher Entfernung
+    const miss = (x, y) => { let k = 0; const st = teamP(0).find(q => grpOf(q) === 'ST'), gx = goalX(0); for (let i = 0; i < 300; i++) {
+      away([st]); place(st, gx - atkDir(0) * x, y); G.ball.owner = null; giveBall(st, true); shoot(st, 0.6, null);
+      const b = G.ball, o = { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, spin: b.spin || 0 }; let hit = false;
+      for (let f = 0; f < 120; f++) { ballPhys(o, 1 / 60); if ((o.x - gx) * atkDir(0) >= 0) { hit = o.y > GY1 && o.y < GY2 && o.z < GH; break; } } if (!hit) k++; } return k / 300; };
+    out.miss = [miss(9.5, MY), miss(5, MY + 8.3)];
+    return out;
+  });
+  ok(r.early <= 6, 'CPU spielt weiter sofort ab, wenn du auf 2 m ran bist: ' + JSON.stringify(r));
+  ok(r.dev[1] > r.dev[0] * 1.8, 'unter Druck nicht ungenauer: ' + JSON.stringify(r));
+  ok(r.clears >= 10, 'kein Befreiungsschlag in der Not: ' + JSON.stringify(r));
+  ok(r.parryNear < 0.35, 'Paraden landen zu oft zentral vor dem Tor: ' + JSON.stringify(r));
+  ok(r.gkY > 2, 'Torwart steht bei Ball von schräg nicht am kurzen Pfosten: ' + JSON.stringify(r));
+  ok(r.miss[1] > r.miss[0] + 0.15, 'aus spitzem Winkel nicht schwerer: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 test('Arcade-Hilfen: Pass in Stickrichtung zum freien Mann, Gegner in der Passlinie greift nicht immer zu, Ball spitzeln, Doppelpass-Lauf', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {

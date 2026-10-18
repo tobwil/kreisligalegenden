@@ -30,7 +30,13 @@ function launchAir(tx, ty, tz, T) {
   const b = G.ball, k = 1 + AIRDRAG * T * 0.5;
   b.vx = (tx - b.x) / T * k; b.vy = (ty - b.y) / T * k; b.vz = (tz - b.z + 0.5 * GRAV * T * T) / T;
 }
-function aimErr(p, k) { const press = pressure(p); return (0.012 + (100 - A_(p, k)) / 100 * 0.07) * (press < 1.5 ? 1.5 : 1) * (G.sp && G.sp.taker === p ? 0.55 : 1) * (p.team === G.human ? 0.85 : 1); }
+// CPU unter deinem Druck: je näher einer von deinem Team dran ist, desto nervöser (0–1, je nach Schwierigkeit)
+function panicK(p) {
+  if (G.human < 0 || isHumanTeam(p.team) || G.phase !== 'play') return 0;
+  let m = 9; for (const o of opps(p)) if (!isGK(o)) m = Math.min(m, dist(o.x, o.y, p.x, p.y));
+  return clamp((3 - m) / 2, 0, 1) * (G.diff.panic ?? 0);
+}
+function aimErr(p, k) { const press = pressure(p); return (1 + 2.2 * panicK(p)) * (0.012 + (100 - A_(p, k)) / 100 * 0.07) * (press < 1.5 ? 1.5 : 1) * (G.sp && G.sp.taker === p ? 0.55 : 1) * (p.team === G.human ? 0.85 : 1); }
 function rotV(vx, vy, a) { const c = Math.cos(a), s = Math.sin(a); return [vx * c - vy * s, vx * s + vy * c]; }
 function noteRecv(q, x, y, run) { q.recv = { x, y, t: G.t, fid: G.ball.fid }; if (run) q.runT = G.t; }
 
@@ -87,7 +93,8 @@ function pass(p, q, pow = null) {
   const t = (v0 - va) / FRIC();
   tx = clamp(q.x + q.vx * t * 0.75, 0.5, CW - 0.5); ty = clamp(q.y + q.vy * t * 0.75, 0.5, CH - 0.5);
   d = dist(b.x, b.y, tx, ty); v0 = clamp(groundSpeed(d, va), 9, 30);
-  const err = aimErr(p, 'pas'), a = Math.atan2(ty - b.y, tx - b.x) + gauss() * err;
+  const err = aimErr(p, 'pas'), pk = panicK(p), miss = pk > 0 && Math.random() < pk * 0.4;   // unter deinem Druck verunglückt der CPU-Pass ab und zu richtig
+  const a = Math.atan2(ty - b.y, tx - b.x) + gauss() * err + (miss ? gauss() * 0.45 : 0); if (miss) v0 *= rnd(0.55, 1.35);
   const thr = G.sp && G.sp.taker === p && G.sp.type === 'throw';
   kickBall(p, thr ? 'throw' : 'pass', 0.25);
   if (thr) { b.z = 2; b.y = clamp(b.y, 0.15, CH - 0.15); launchAir(tx, ty, 0.6, clamp(d / 13, 0.35, 1.6)); }
@@ -253,6 +260,8 @@ function shoot(p, power, aimY, o = {}) {
   const sch = o.header ? A_(p, 'kop') : A_(p, 'sch');
   let err = (0.04 + d * 0.0036) * (1.55 - sch / 100) * (pressure(p) < 1.4 ? 1.45 : 1) * (o.header ? 1.3 : 1) * (o.volley ? 1.35 : 1) * (p.d.energy < 0.45 ? 1.2 : 1);
   if (o.pen) err *= 0.45; if (p.d.trait === 'Knipser') err *= 0.85;
+  // spitzer Winkel: je kleiner das sichtbare Tor, desto schwerer trifft man es (vor allem Abstauber von der Seite)
+  if (!o.pen && !o.target) { const gx = goalX(p.team), th = Math.abs(Math.atan2(GY2 - p.y, gx - p.x) - Math.atan2(GY1 - p.y, gx - p.x)); err *= clamp(0.42 / Math.max(0.05, th), 1, 2); }
   if (isHumanTeam(p.team)) err *= TOUCHDEV ? 0.72 : 0.8;   // Arcade: der eigene Schuss geht eher dahin, wo das Zielkreuz steht
   if (!isHumanTeam(p.team) && G.human >= 0) err *= 1 - G.diff.cpu / 60;
   if (o.finesse) err *= 0.62; if (o.chip) err *= 0.75; if (o.perfect) err *= 0.45;
