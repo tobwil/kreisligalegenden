@@ -31,8 +31,11 @@ for (const touch of [false, true]) for (const diff of [0, 1, 2]) {
       const L = LIGEN[TEAMS[HOME_TEAM].lg].ids;
       startMatch(L[0], L[1], { human: 0, flitzer: 0, diff }); G.paused = true; hideMenu();
       const H = {}, press = (k, n) => { if (!H[k]) H[k] = n; }, busy = () => ['KeyS', 'KeyA', 'KeyD', 'Space'].some(k => H[k]);
-      const m = { own: 0, opp: 0, lost: 0, quick: 0, cpuTk: 0, cpuPoke: 0, cpuFirst: [], chase: [] };
-      const oTk = window.tackle, oPoke = window.poke;
+      const m = { own: 0, opp: 0, lost: 0, quick: 0, cpuTk: 0, cpuPoke: 0, cpuFirst: [], chase: [], cpuPass: 0, cpuPressed: 0, cpuClear: 0, cpuPassOk: 0, cpuPassBad: 0 };
+      let pend = null;
+      const oTk = window.tackle, oPoke = window.poke, oPass = window.pass, oClear = window.clearBall;
+      window.pass = (p, q, pw) => { if (p.team === 1 && G.phase === 'play') { m.cpuPass++; pend = { p }; if (teamP(0).some(o => !isGK(o) && dist(o.x, o.y, p.x, p.y) < 2.5)) m.cpuPressed++; } return oPass(p, q, pw); };
+      window.clearBall = p => { if (p.team === 1 && G.phase === 'play') m.cpuClear++; return oClear(p); };
       window.tackle = (d, c) => { if (d.team === 1 && c && c.team === 0) m.cpuTk++; return oTk(d, c); };
       window.poke = (d, c) => { if (d.team === 1) m.cpuPoke++; return oPoke(d, c); };
       let lastTeam = null, gotT = 0, cpuGot = null, chaseT = null, n = 0, lag = [], tackleT = -9;
@@ -82,16 +85,17 @@ for (const touch of [false, true]) for (const diff of [0, 1, 2]) {
         // wieder dran: dein Spieler bis 1,5 m am Ballführer
         if (chaseT != null && G.ctrl && o && o.team === 1 && dist(G.ctrl.x, G.ctrl.y, o.x, o.y) < 1.5) { m.chase.push(G.t - chaseT); chaseT = null; }
         if (chaseT != null && G.phase !== 'play') chaseT = null;
+        if (pend && o && o !== pend.p) { m[o.team === 1 ? 'cpuPassOk' : 'cpuPassBad']++; pend = null; } else if (pend && G.phase !== 'play') { m.cpuPassBad++; pend = null; }
         if (ot != null) lastTeam = ot;
       }
-      window.tackle = oTk; window.poke = oPoke;
+      window.tackle = oTk; window.poke = oPoke; window.pass = oPass; window.clearBall = oClear;
       const avg = a => a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0;
-      return { goals: G.score[0], against: G.score[1], poss: m.own / Math.max(1, m.own + m.opp), lost: m.lost, quick: m.quick, cpuTk: m.cpuTk, cpuPoke: m.cpuPoke, first: avg(m.cpuFirst), chase: avg(m.chase) };
+      return { goals: G.score[0], against: G.score[1], poss: m.own / Math.max(1, m.own + m.opp), lost: m.lost, quick: m.quick, cpuTk: m.cpuTk, cpuPoke: m.cpuPoke, first: avg(m.cpuFirst), chase: avg(m.chase), cpuPassOk: m.cpuPassOk / Math.max(1, m.cpuPassOk + m.cpuPassBad), cpuPressed: m.cpuPressed / Math.max(1, m.cpuPass), cpuClear: m.cpuClear };
     }, [diff, touch, 100 + i * 17 + diff]));
     await ctx.close();
   }
   const sum = k => acc.reduce((p, q) => p + q[k], 0), av = k => sum(k) / acc.length;
-  rows.push({ eingabe: touch ? 'Handy' : 'Tastatur', stufe: ['Freizeitkick', 'Kreisliga', 'Legende'][diff], tore: `${sum('goals')}:${sum('against')}`, ballbesitz: (av('poss') * 100).toFixed(0) + '%', ballverluste: av('lost').toFixed(1), sofortWeg: av('quick').toFixed(1), cpuTackling: av('cpuTk').toFixed(1), cpuSpitzeln: av('cpuPoke').toFixed(1), cpuErsteAktion: av('first').toFixed(2) + ' s', wiederDran: av('chase').toFixed(2) + ' s' });
+  rows.push({ eingabe: touch ? 'Handy' : 'Tastatur', stufe: ['Freizeitkick', 'Kreisliga', 'Legende'][diff], tore: `${sum('goals')}:${sum('against')}`, ballbesitz: (av('poss') * 100).toFixed(0) + '%', ballverluste: av('lost').toFixed(1), sofortWeg: av('quick').toFixed(1), cpuTackling: av('cpuTk').toFixed(1), cpuSpitzeln: av('cpuPoke').toFixed(1), cpuErsteAktion: av('first').toFixed(2) + ' s', wiederDran: av('chase').toFixed(2) + ' s', cpuPassQuote: (av('cpuPassOk') * 100).toFixed(0) + '%', cpuPassUnterDruck: (av('cpuPressed') * 100).toFixed(0) + '%', cpuBefreiung: av('cpuClear').toFixed(1) });
   console.log(JSON.stringify(rows.at(-1)));
 }
 await browser.close();

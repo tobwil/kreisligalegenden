@@ -63,8 +63,11 @@ function offLine(t) {
 function gkSpot(g) {
   const t = g.team, gx = ownX(t), s = atkDir(t), b = G.ball;
   const d = dist(b.x, b.y, gx, MY), out = clamp(d * 0.09, 0.6, 4.5) * (G.poss === t && prog(t, b.x) > 0.5 ? 1.8 : 1);
-  const ang = Math.atan2(b.y - MY, (b.x - gx) * s);
-  return [gx + s * Math.cos(ang) * Math.min(out, 9), clamp(MY + Math.sin(ang) * out, GY1 - 0.6, GY2 + 0.6)];
+  const ang = Math.atan2(b.y - MY, (b.x - gx) * s), ex = gx + s * Math.cos(ang) * Math.min(out, 9);
+  // seitlich: auf der Linie, die den Winkel Ball–Pfosten halbiert (von schräg und nah also am kurzen Pfosten, nicht in der Tormitte)
+  const a1 = Math.atan2(GY1 - b.y, gx - b.x), a2 = Math.atan2(GY2 - b.y, gx - b.x); let da = a2 - a1; da -= Math.round(da / (2 * Math.PI)) * 2 * Math.PI;
+  const a = a1 + da / 2, c = Math.cos(a), y = (b.x - ex) * s > 0.3 && Math.abs(c) > 0.05 ? b.y + Math.tan(a) * (ex - b.x) : b.y;
+  return [ex, clamp(y, GY1 - 0.6, GY2 + 0.6)];
 }
 
 // ---------- Teamsteuerung ----------
@@ -79,7 +82,9 @@ function aiTeam(t, dt) {
     if (chaser) roles.set(chaser, { k: 'chase', x: cpt.x, y: cpt.y, urg: 1 });
     // ein zweiter läuft mit (Abpraller, zweiter Ball)
     const second = field.filter(p => p !== chaser).sort((a, c) => dist(a.x, a.y, b.x, b.y) - dist(c.x, c.y, b.x, b.y))[0];
-    if (second && dist(second.x, second.y, b.x, b.y) < 14) { const q = interceptOf(second); roles.set(second, { k: 'chase2', x: lerp(q.x, second.x, 0.3), y: lerp(q.y, second.y, 0.3), urg: 0.6 }); }
+    // Abpraller vor dem eigenen Tor: der zweite geht voll mit drauf, damit die Abwehr den Ball eher erwischt als der Stürmer
+    const danger = ['parry', 'block'].includes(b.kind) && dist(b.x, b.y, ownX(t), MY) < 24;
+    if (second && dist(second.x, second.y, b.x, b.y) < 14) { const q = interceptOf(second); roles.set(second, danger ? { k: 'chase', x: q.x, y: q.y, urg: 1 } : { k: 'chase2', x: lerp(q.x, second.x, 0.3), y: lerp(q.y, second.y, 0.3), urg: 0.6 }); }
   } else if (own.team !== t) {
     // Gegner am Ball: Pressing, Absicherung, Deckung im eigenen Drittel
     const gx = ownX(t), holdsGK = isGK(own) && G.phase === 'play';
@@ -164,7 +169,13 @@ function carrierAI(p, dt) {
   if (isGK(p)) return gkHold(p, dt);
   p.think -= dt;
   const pr = pressure(p), d = dist(p.x, p.y, gx, MY);
+  if (pr > 3) p.pressT = null;
+  // Abpraller im eigenen Strafraum erwischt und ein Gegner ist nah: sofort klären statt rumzufummeln
+  if (inBox(t, p.x, p.y) && ['parry', 'block', 'loose'].includes(p.gotKind) && G.t - p.gotT < 0.5 && pr < 6) { p.gotKind = ''; return clearBall(p); }
   if (p.think > 0 && pr > 2.4 || p.settleT > G.t) return dribble(p);   // nach Ballgewinn gegen dich: erst den Ball sichern
+  // du läufst an: die CPU merkt es nicht sofort (sonst spielt sie immer genau dann ab, wenn du auf 2 m ran bist)
+  if (pr <= 2.4 && G.human >= 0 && !isHumanTeam(t)) { if (p.pressT == null) p.pressT = G.t; if (G.t - p.pressT < (G.diff.late ?? 0)) return dribble(p); }
+  const panic = panicK(p);
   p.think = (pr > 4 ? rnd(0.5, 1.0) : pr > 2.4 ? rnd(0.3, 0.6) : rnd(0.18, 0.35)) * G.diff.think;   // mit Platz: Ball führen, Spiel aufbauen
   // Optionen bewerten
   const opts = [];
@@ -195,6 +206,7 @@ function carrierAI(p, dt) {
   opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen
   // Befreiungsschlag in Not
   if (prog(t, p.x) < 0.18 && pr < 1.6 && bv < 0.4) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
+  else if (panic > 0.45 && prog(t, p.x) < 0.35) opts.push({ k: 'clear', v: 0.15 + panic * 0.7 });   // Panik: hinten raus, egal wohin
   for (const o of opts) o.v += rnd(0, 0.35);
   opts.sort((a, c) => c.v - a.v);
   const o = opts[0];
@@ -311,14 +323,14 @@ function planSave(g) {
     if (sh && sh.finesse && lat > 1.6) pr -= 0.18;           // Schlenzer an den Innenpfosten
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
     ok = Math.random() < clamp(pr, 0.03, 0.97);
-    catchIt = ok && v < 17 && lat < 1 && hz < 2;
+    catchIt = ok && hz < 2 && (v < 17 && lat < 1 || v < 23 && lat < 0.7 && Math.random() < tw / 130);   // nicht zu harte Bälle direkt auf ihn: festhalten statt abprallen lassen
   }
   if (!onT && !ok) return null;
   return { g, fid: b.fid, at: G.t + c.t, y: c.y, z: c.z, ok, catchIt, onT };
 }
 function startDive(g) {
   const pl = G.ball.plan, dy = pl.y - g.y, big = Math.abs(dy) > 0.8 || pl.z > 1.7;
-  g.act = { type: big ? 'dive' : 'block', t: 0, dur: big ? 0.9 : 0.4, dy: Math.sign(dy) || 1, z: pl.z, y0: g.y, y1: pl.y, at: pl.at };
+  g.act = { type: big ? 'dive' : 'block', t: 0, dur: big ? 0.7 : 0.4, dy: Math.sign(dy) || 1, z: pl.z, y0: g.y, y1: pl.y, at: pl.at };
   if (big) { g.vz = clamp(pl.z * 2.6, 1.5, 4.2); }
 }
 // Elfmeter: Torwart rät eine Ecke (Mensch: Richtung beim Schuss, CPU: Zufall mit Gefühl)
