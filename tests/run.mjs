@@ -1193,16 +1193,21 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, du verteilst sie auf der Spielerkarte, sonst setzt das Training sie; Fitness in ganzen Prozent', async () => {
+test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, du verteilst sie auf der Spielerkarte, Rest setzt das Training am Saisonende; Fitness in ganzen Prozent', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     NEWC.team = HOME_TEAM; ACT.ncGo(); const C = CAREER, sq = ensureSquad(C.team), out = {};
     const st = sq.find(q => q.grp === 'ST'), gk = sq.find(q => q.grp === 'TW');
     // Training: die Verbesserung landet als Punkt beim Spieler, nicht mehr direkt in einem Wert
     const sum = p => ATTRS.reduce((s, a) => s + p[a], 0), before = sq.map(sum);
-    for (const p of sq) { p.dp = 0; p.dpWait = 0; p.pot = 95; p.ageAdj = 0; p.age = 19; }
+    for (const p of sq) { p.dp = 0; p.pot = 95; p.ageAdj = 0; p.age = 19; }
     const oR = Math.random; Math.random = () => 0.01; trainStep(); Math.random = oR;
     out.trainPts = sq.every(p => p.dp === 1) && sq.every((p, i) => sum(p) === before[i]);
+    // das Kreisblatt meldet neue Punkte, der KADER-Reiter zeigt sie an
+    out.news = C.news[0] && C.news[0].h.includes('verbessern') && /Kader/.test(C.news[0].t);
+    ACT.ctab('elf'); const tb = menu.querySelector('[data-act="ctab"][data-arg="kader"] .badge.dp'); out.tab = !!tb && tb.textContent === '+' + sq.length;
+    // Karte ohne Punkte erklärt, woher sie kommen
+    const nb = sq.find(q => q !== st); nb.dp = 0; ACT.cplayer(nb.pid); out.hint = /keine offen/.test(menu.textContent) && !menu.querySelector('[data-act="cdp"]');
     // Verteilen: + auf der Spielerkarte hebt den Wert um 1
     const t0 = st.tmp, o0 = st.ovr; ACT.cplayer(st.pid); out.btns = menu.querySelectorAll('[data-act="cdp"]').length;
     out.noTw = !menu.querySelector(`[data-act="cdp"][data-arg="${st.pid}|tw"]`);
@@ -1214,10 +1219,12 @@ test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, 
     st.dp = 1; st.sch = 95; out.cap = spendDP(st, 'sch') === false && st.sch === 95; st.dp = 0;
     // Kader zeigt offene Punkte
     sq[3].dp = 2; ACT.ctab('kader'); out.badge = !!menu.querySelector('.badge.dp');
-    // nicht verteilt: nach 3 Spieltagen verteilt das Training nach dem Schwerpunkt (Torabschluss = Schuss/Kopfball)
-    const m = sq.find(q => q.grp === 'MF'); C.train = 'absch'; m.dp = 2; m.dpWait = 0; m.pot = 30; m.sch = 60; m.kop = 60;
-    Math.random = () => 0.99; for (let i = 0; i < 4; i++) trainStep(); Math.random = oR;
-    out.auto = m.dp === 0 && m.sch + m.kop === 122;
+    // offene Punkte bleiben die ganze Saison liegen (auch beim Simulieren) …
+    const m = sq.find(q => q.grp === 'MF'); C.train = 'absch'; m.dp = 2; m.pot = 30; m.sch = 60; m.kop = 60;
+    Math.random = () => 0.99; for (let i = 0; i < 30; i++) trainStep(); Math.random = oR;
+    out.keep = m.dp === 2 && m.sch + m.kop === 120;
+    // … erst am Saisonende verteilt das Training nach dem Schwerpunkt (Torabschluss = Schuss/Kopfball)
+    autoDP(m); out.auto = m.dp === 0 && m.sch + m.kop === 122;
     // starkes Spiel: Spieler des Spiels bekommt einen Bonuspunkt (nur eigener Verein)
     const opp = LIGEN[C.lg].ids.find(i => i !== C.team); for (const p of sq) p.dp = 0;
     const st2 = sq.find(q => q.grp === 'ST'), oppSq = ensureSquad(opp); for (const p of oppSq) p.dp = 0;
@@ -1230,8 +1237,8 @@ test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, 
   });
   ok(r.trainPts, 'Training gibt keine Punkte oder ändert Werte direkt: ' + JSON.stringify(r));
   ok(r.btns >= 7 && r.noTw && r.spent && r.fieldTw && r.gkTw && r.cap, 'Verteilen auf der Spielerkarte: ' + JSON.stringify(r));
-  ok(r.badge, 'Kader zeigt offene Punkte nicht: ' + JSON.stringify(r));
-  ok(r.auto, 'Training verteilt nicht nach 3 Spieltagen: ' + JSON.stringify(r));
+  ok(r.badge && r.tab && r.news && r.hint, 'Offene Punkte nicht sichtbar (Kader, Reiter, Kreisblatt, Karte): ' + JSON.stringify(r));
+  ok(r.keep && r.auto, 'Punkte verschwinden vor Saisonende oder Training verteilt nicht: ' + JSON.stringify(r));
   ok(r.potm, 'Bonuspunkt für starkes Spiel (nur eigener Verein): ' + JSON.stringify(r));
   ok(r.fitInt && r.noDec, 'Fitness mit Nachkommastellen: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();

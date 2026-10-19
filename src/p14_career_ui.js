@@ -70,12 +70,13 @@ function renderNewCareer(focusSel) {
   pickerWire(renderNewCareer);
   if (focusSel) { const el = menu.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
 }
+const dpOpen = () => ensureSquad(CAREER.team).reduce((n, p) => n + (p.dp || 0), 0);
 const TABS = [['blatt', 'KREISBLATT'], ['tab', 'TABELLE'], ['kader', 'KADER'], ['elf', 'AUFSTELLUNG'], ['plan', 'SPIELPLAN'], ['cup', 'KREISPOKAL'], ['po', 'PLAYOFFS'], ['stat', 'STATISTIK'], ['hist', 'HISTORIE'], ['verein', 'VEREIN']];
 function renderHub(focusSel) {
   const C = CAREER, T = TEAMS[C.team], S = C.S, ev = curEvent(), g = myGame(ev);
   const head = `<div class="csticky"><div class="row spread chead"><div class="tname"><img src="${iconURL(T.home)}" alt="">${esc(T.n.toUpperCase())}</div>
     <div class="cbud"><b>${fmtMoney(C.money)}</b><span class="tag">SAISON ${seasonLabel(C.year)}${S.ci < S.cal.length && curEvent().t !== 'po' ? ` · ${posOf(C.team)}. PLATZ` : ''}</span></div></div>
-    <div class="ctabw"><div class="ctabs">${TABS.map(([k, n]) => `<button class="small ${CTAB === k ? 'on' : ''}" data-act="ctab" data-arg="${k}">${n}</button>`).join('')}</div></div></div>`;
+    <div class="ctabw"><div class="ctabs">${TABS.map(([k, n]) => `<button class="small ${CTAB === k ? 'on' : ''}" data-act="ctab" data-arg="${k}">${n}${k === 'kader' && dpOpen() ? ` <span class="badge dp">+${dpOpen()}</span>` : ''}</button>`).join('')}</div></div></div>`;
   const body = { blatt: blattHTML, tab: tableHTML, kader: squadHTML, elf: lineupHTML, plan: planHTML, cup: cupHTML, po: poHTML, stat: statHTML, hist: histHTML, verein: clubHTML }[CTAB] || blattHTML;
   let foot;
   if (S.done || S.ci >= S.cal.length) {
@@ -160,7 +161,8 @@ function showPlayer(pid) {
     <p class="muted">#${p.num} · ${GRP_N[p.grp]} · ${p.age} Jahre${p.job ? ` · ${esc(p.job)}` : ''} · ${esc(T.short)}</p></div></div>
     ${p.trait ? `<p><span class="badge">${esc(p.trait.toUpperCase())}</span></p>` : ''}
     ${bars(at.concat([['Gesamt', p.ovr], ['Potenzial', p.pot]]), 20, 95)}
-    ${mine && p.dp > 0 ? `<h3>ENTWICKLUNGSPUNKTE: ${p.dp}</h3><p class="muted">Wohin soll ${esc(p.name)} sich entwickeln? Jeder Punkt hebt einen Wert um 1 (bis ${DP_MAX}). Nicht verteilte Punkte setzt das Training nach ${DP_AUTO} Spieltagen selbst nach dem Schwerpunkt.</p>
+    ${mine && !(p.dp > 0) ? `<p class="muted">ENTWICKLUNGSPUNKTE: keine offen. Punkte gibt es durch Training (je jünger und je mehr Luft bis zum Potenzial, desto öfter) und für starke Spiele – dann erscheinen hier Knöpfe zum Verteilen.</p>` : ''}
+    ${mine && p.dp > 0 ? `<h3>ENTWICKLUNGSPUNKTE: ${p.dp}</h3><p class="muted">Wohin soll ${esc(p.name)} sich entwickeln? Jeder Punkt hebt einen Wert um 1 (bis ${DP_MAX}). Was bis zum Saisonende offen ist, setzt das Training nach dem Schwerpunkt.</p>
     <div class="row">${dpKeys(p).map(a => `<button class="small" data-act="cdp" data-arg="${p.pid}|${a}" ${p[a] >= DP_MAX ? 'disabled' : ''}>+ ${ATTR_N[a].toUpperCase()} ${p[a]}</button>`).join('')}</div>` : ''}
     <div class="kpis"><div class="kpi"><span>SAISON</span><b>${p.ss.sp} SP · ${p.ss.g} T · ${p.ss.a} V</b><i>Note ${noteAvg(p.ss)}${p.grp === 'TW' ? ` · ${p.ss.co} Gegentore` : ''}</i></div>
       <div class="kpi"><span>KARRIERE</span><b>${p.cs.sp} SP · ${p.cs.g} T · ${p.cs.a} V</b><i>Note ${noteAvg(p.cs)} · ${p.cs.yc} Gelb · ${p.cs.rc} Rot</i></div>
@@ -252,7 +254,7 @@ function clubHTML() {
     <div class="kpi"><span>ZUSCHAUER</span><b>${S.fans || '–'}</b><i>letztes Heimspiel${S.gate ? ' · ' + fmtMoney(S.gate) : ''}</i></div>
     <div class="kpi"><span>PLATZ</span><b>${GROUNDS[TEAMS[C.team].ground]}</b><i>${esc(TEAMS[C.team].short)}</i></div></div>
   <h3>TRAINING (SCHWERPUNKT)</h3><div class="row">${Object.entries(TRAIN).map(([k, [n]]) => `<button class="small ${C.train === k ? 'on' : ''}" data-act="ctrain" data-arg="${k}">${n.toUpperCase()}</button>`).join('')}</div>
-  <p class="muted">Wer sich im Training oder mit einem starken Spiel verbessert, bekommt einen Entwicklungspunkt – den verteilst du auf der Spielerkarte. Was du nicht verteilst, setzt das Training nach ${DP_AUTO} Spieltagen nach diesem Schwerpunkt.${(() => { const n = ensureSquad(C.team).reduce((s, p) => s + (p.dp || 0), 0); return n ? ` <b>Offen: ${n} Punkt${n === 1 ? '' : 'e'}.</b>` : ''; })()}</p>
+  <p class="muted">Wer sich im Training oder mit einem starken Spiel verbessert, bekommt einen Entwicklungspunkt – den verteilst du auf der Spielerkarte. Was bis zum Saisonende offen ist, setzt das Training nach diesem Schwerpunkt.${(() => { const n = ensureSquad(C.team).reduce((s, p) => s + (p.dp || 0), 0); return n ? ` <b>Offen: ${n} Punkt${n === 1 ? '' : 'e'}.</b>` : ''; })()}</p>
   <h3>WECHSELBÖRSE</h3>${mk ? `<div class="tblwrap"><table class="dt"><tr><th class="l">SPIELER</th><th>POS</th><th class="hs">ALTER</th><th>STÄRKE</th><th>HANDGELD</th><th></th></tr>${mk}</table></div>` : '<p class="muted">Im Sommer melden sich wechselwillige Spieler aus dem Kreis.</p>'}
   <h3>TROPHÄEN</h3><div class="tshelves">${tro}</div>
   <div class="row"><button class="small" data-act="cEigen">${C.custom ? 'VEREIN BEARBEITEN' : 'TRIKOT & PLATZ ÄNDERN'}</button><button class="small" data-act="cdel">SAISON LÖSCHEN</button></div>
