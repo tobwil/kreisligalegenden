@@ -1396,7 +1396,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Spielerwechsel') && r.txt.includes('Entwicklungspunkte') && r.txt.includes('Mehr Tore'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Kabine') && r.txt.includes('Spielerwechsel') && r.txt.includes('Entwicklungspunkte'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
@@ -1589,6 +1589,25 @@ test('Spielstand aus älterer Version lädt (ohne Schlüssel, Vereinsniveau, Rek
   });
   ok(r.old && r.hub, 'alter Spielstand lädt nicht: ' + JSON.stringify(r));
   ok(r.hint, 'kein „Zu leicht?“ nach 5:0');
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
+test('Kabine nach dem Spiel: Jubel mit Bierdusche, Remis auf der Bank, Niederlage im Halbdunkel; beim Zuschauen der Sieger', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(async () => {
+    const L = LIGEN[TEAMS[HOME_TEAM].lg].ids, out = {};
+    const end = (sc, o = {}) => { startMatch(L[0], L[1], Object.assign({ human: 0, flitzer: 0 }, o)); G.paused = true; G.score = sc; G.phase = 'end'; ACT.fulltime(); const c = menu.querySelector('canvas.kabine'); return c ? c.dataset.mood : null; };
+    out.win = end([3, 1]); out.draw = end([1, 1]); out.loss = end([0, 2]);
+    out.watch = end([0, 2], { human: -1 });   // Zuschauen: gezeigt wird der Sieger
+    // die Szene ist gezeichnet (Tafel, Spieler) und läuft weiter
+    end([2, 0]); await new Promise(res => setTimeout(res, 300));
+    const c = menu.querySelector('canvas.kabine'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let filled = 0, cols = new Set(); for (let i = 0; i < d.length; i += 16) { if (d[i + 3]) filled++; cols.add(d[i] << 16 | d[i + 1] << 8 | d[i + 2]); }
+    out.drawn = filled > d.length / 16 * 0.95 && cols.size > 12;
+    return out;
+  });
+  ok(r.win === 'win' && r.draw === 'draw' && r.loss === 'loss' && r.watch === 'win', 'Stimmung in der Kabine falsch: ' + JSON.stringify(r));
+  ok(r.drawn, 'Kabine nicht gezeichnet: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
