@@ -1193,6 +1193,47 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, du verteilst sie auf der Spielerkarte, sonst setzt das Training sie', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    NEWC.team = HOME_TEAM; ACT.ncGo(); const C = CAREER, sq = ensureSquad(C.team), out = {};
+    const st = sq.find(q => q.grp === 'ST'), gk = sq.find(q => q.grp === 'TW');
+    // Training: die Verbesserung landet als Punkt beim Spieler, nicht mehr direkt in einem Wert
+    const sum = p => ATTRS.reduce((s, a) => s + p[a], 0), before = sq.map(sum);
+    for (const p of sq) { p.dp = 0; p.dpWait = 0; p.pot = 95; p.ageAdj = 0; p.age = 19; }
+    const oR = Math.random; Math.random = () => 0.01; trainStep(); Math.random = oR;
+    out.trainPts = sq.every(p => p.dp === 1) && sq.every((p, i) => sum(p) === before[i]);
+    // Verteilen: + auf der Spielerkarte hebt den Wert um 1
+    const t0 = st.tmp, o0 = st.ovr; ACT.cplayer(st.pid); out.btns = menu.querySelectorAll('[data-act="cdp"]').length;
+    out.noTw = !menu.querySelector(`[data-act="cdp"][data-arg="${st.pid}|tw"]`);
+    menu.querySelector(`[data-act="cdp"][data-arg="${st.pid}|tmp"]`).click();
+    out.spent = st.tmp === t0 + 1 && st.dp === 0 && st.ovr >= o0 && !menu.querySelector('[data-act="cdp"]');
+    out.fieldTw = spendDP(Object.assign(st, { dp: 1 }), 'tw') === false; st.dp = 0;
+    out.gkTw = spendDP(Object.assign(gk, { dp: 1 }), 'tw') === true;
+    // Obergrenze 95
+    st.dp = 1; st.sch = 95; out.cap = spendDP(st, 'sch') === false && st.sch === 95; st.dp = 0;
+    // Kader zeigt offene Punkte
+    sq[3].dp = 2; ACT.ctab('kader'); out.badge = !!menu.querySelector('.badge.dp');
+    // nicht verteilt: nach 3 Spieltagen verteilt das Training nach dem Schwerpunkt (Torabschluss = Schuss/Kopfball)
+    const m = sq.find(q => q.grp === 'MF'); C.train = 'absch'; m.dp = 2; m.dpWait = 0; m.pot = 30; m.sch = 60; m.kop = 60;
+    Math.random = () => 0.99; for (let i = 0; i < 4; i++) trainStep(); Math.random = oR;
+    out.auto = m.dp === 0 && m.sch + m.kop === 122;
+    // starkes Spiel: Spieler des Spiels bekommt einen Bonuspunkt (nur eigener Verein)
+    const opp = LIGEN[C.lg].ids.find(i => i !== C.team); for (const p of sq) p.dp = 0;
+    const st2 = sq.find(q => q.grp === 'ST'), oppSq = ensureSquad(opp); for (const p of oppSq) p.dp = 0;
+    const xi = matchSquad(C.team).xi, live = { [C.team]: xi.map(p => ({ p, g: 0, a: 0, note: 3.5, potm: p === st2 })), [opp]: matchSquad(opp).xi.map(p => ({ p, g: 1, a: 0, note: 1, potm: false })) };
+    applyGame(C.team, opp, 1, 1, live);
+    out.potm = st2.dp === 1 && oppSq.every(p => !p.dp);
+    return out;
+  });
+  ok(r.trainPts, 'Training gibt keine Punkte oder ändert Werte direkt: ' + JSON.stringify(r));
+  ok(r.btns >= 7 && r.noTw && r.spent && r.fieldTw && r.gkTw && r.cap, 'Verteilen auf der Spielerkarte: ' + JSON.stringify(r));
+  ok(r.badge, 'Kader zeigt offene Punkte nicht: ' + JSON.stringify(r));
+  ok(r.auto, 'Training verteilt nicht nach 3 Spieltagen: ' + JSON.stringify(r));
+  ok(r.potm, 'Bonuspunkt für starkes Spiel (nur eigener Verein): ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 // Issue #19: Spielerkarte und Editor des Torwarts stürzten ab (Vereinstrikot ohne Torwartfarbe)
 test('Saison: Spielerkarte und Bearbeiten öffnen auch beim Torwart', async () => {
   const { page, ctx, errors } = await open();
@@ -1342,7 +1383,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Mehr Tore') && r.txt.includes('CPU unter Druck') && r.txt.includes('Weniger Abstauber'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Entwicklungspunkte') && r.txt.includes('Mehr Tore') && r.txt.includes('CPU unter Druck'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');

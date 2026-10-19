@@ -201,6 +201,7 @@ function applyGame(h, a, gh, ga, live) {
       if (x.yc) { s.yc++; c.yc++; p.ycs++; if (p.ycs % 5 === 0) { p.ban = Math.max(p.ban, 1); p.banNew = true; if (tid === CT()) news('Sperre', `${p.name} gesperrt`, `Die fünfte Gelbe Karte: ${p.name} muss ein Spiel zuschauen.`); } }
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
+      if (tid === CT() && (x.potm || x.g > 0 || (x.note != null && x.note <= 2)) && Math.random() < (x.potm ? 1 : 0.5)) p.dp = (p.dp || 0) + 1;   // starkes Spiel: Bonus-Entwicklungspunkt
       p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100);
       if (!x.sub && Math.random() < 0.012 + (devAge(p) > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
@@ -370,14 +371,31 @@ function careerAfterMatch() {
 
 // ---------- Training ----------
 const TRAIN = { bal: ['Ausgewogen', ATTRS.filter(a => a !== 'tw')], kond: ['Kondition', ['aus', 'tmp']], tech: ['Technik & Passspiel', ['tec', 'pas']], absch: ['Torabschluss', ['sch', 'kop']], abw: ['Zweikampf', ['zwk', 'kop']], tw: ['Torwarttraining', ['tw']] };
-function trainStep() {
+// Entwicklungspunkte (nur eigener Verein): wer sich verbessert, bekommt einen Punkt und du entscheidest auf der Spielerkarte, wohin er geht.
+// Nicht verteilte Punkte setzt das Training nach DP_AUTO Spieltagen selbst nach dem Schwerpunkt – wer sich nicht kümmert, verpasst nichts.
+const DP_AUTO = 3, DP_MAX = 95;
+const dpKeys = p => ATTRS.filter(a => p.grp === 'TW' || a !== 'tw');
+function spendDP(p, k) {
+  if (!(p.dp > 0) || !dpKeys(p).includes(k) || p[k] >= DP_MAX) return false;
+  p[k]++; p.dp--; p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr); if (!p.dp) p.dpWait = 0;
+  return true;
+}
+function autoDP(p) {
   const C = CAREER, focus = TRAIN[C.train] || TRAIN.bal;
+  while (p.dp > 0) {
+    const ks = (p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw')).filter(k => p[k] < DP_MAX);
+    const k = ks.length ? pick(ks) : dpKeys(p).find(a => p[a] < DP_MAX);
+    if (!k) { p.dp = 0; break; }
+    spendDP(p, k);
+  }
+  p.dpWait = 0;
+}
+function trainStep() {
+  const C = CAREER;
   for (const p of C.squads[C.team] || []) {
     const room = p.pot - p.ovr, da = devAge(p), ageK = da < 22 ? 1.4 : da < 26 ? 1 : da < 30 ? 0.5 : 0.2;
-    if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) {
-      const ks = p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw');
-      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
-    }
+    if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) p.dp = (p.dp || 0) + 1;
+    if (p.dp > 0 && (p.dpWait = (p.dpWait || 0) + 1) > DP_AUTO) autoDP(p);
   }
 }
 // ---------- Saisonende: Bilanz, Entwicklung, Abgänge, Nachwuchs, Wechselbörse ----------
