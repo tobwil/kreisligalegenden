@@ -49,6 +49,9 @@ const LEGAL = FAN + ' Echte Vereinsnamen aller Kreisligen Deutschlands (Stand He
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 10, items: K => [
+    ['Entwicklungspunkte', 'In der Saison: wer sich im Training oder mit einem starken Spiel verbessert, bekommt einen Punkt – du entscheidest auf der Spielerkarte, ob dein Stürmer schneller wird oder besser köpft'],
+  ] },
   { id: 9, items: K => [
     ['Mehr Tore', 'Kreisliga eben: die Abwehr steht vor dem eigenen Tor löchriger, Bälle werden zurückgelegt statt nur hoch reingeschlagen, und Distanzschüsse gehen öfter rein'],
   ] },

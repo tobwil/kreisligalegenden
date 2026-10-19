@@ -1193,6 +1193,57 @@ test('Saison: zwei komplette Saisons (Kreisliga, Kreispokal, Meister, Playoffs b
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
+test('Saison: Entwicklungspunkte – Training und starke Spiele bringen Punkte, du verteilst sie auf der Spielerkarte, Rest setzt das Training am Saisonende; Fitness in ganzen Prozent', async () => {
+  const { page, ctx, errors } = await open();
+  const r = await page.evaluate(() => {
+    NEWC.team = HOME_TEAM; ACT.ncGo(); const C = CAREER, sq = ensureSquad(C.team), out = {};
+    const st = sq.find(q => q.grp === 'ST'), gk = sq.find(q => q.grp === 'TW');
+    // Training: die Verbesserung landet als Punkt beim Spieler, nicht mehr direkt in einem Wert
+    const sum = p => ATTRS.reduce((s, a) => s + p[a], 0), before = sq.map(sum);
+    for (const p of sq) { p.dp = 0; p.pot = 95; p.ageAdj = 0; p.age = 19; }
+    const oR = Math.random; Math.random = () => 0.01; trainStep(); Math.random = oR;
+    out.trainPts = sq.every(p => p.dp === 1) && sq.every((p, i) => sum(p) === before[i]);
+    // das Kreisblatt meldet neue Punkte, der KADER-Reiter zeigt sie an
+    out.news = C.news[0] && C.news[0].h.includes('verbessern') && /Kader/.test(C.news[0].t);
+    ACT.ctab('elf'); const tb = menu.querySelector('[data-act="ctab"][data-arg="kader"] .badge.dp'); out.tab = !!tb && tb.textContent === '+' + sq.length;
+    // Karte ohne Punkte erklärt, woher sie kommen
+    const nb = sq.find(q => q !== st); nb.dp = 0; ACT.cplayer(nb.pid); out.hint = /keine offen/.test(menu.textContent) && !menu.querySelector('[data-act="cdp"]');
+    // Verteilen: + auf der Spielerkarte hebt den Wert um 1
+    const t0 = st.tmp, o0 = st.ovr; ACT.cplayer(st.pid); out.btns = menu.querySelectorAll('[data-act="cdp"]').length;
+    out.noTw = !menu.querySelector(`[data-act="cdp"][data-arg="${st.pid}|tw"]`);
+    menu.querySelector(`[data-act="cdp"][data-arg="${st.pid}|tmp"]`).click();
+    out.spent = st.tmp === t0 + 1 && st.dp === 0 && st.ovr >= o0 && !menu.querySelector('[data-act="cdp"]');
+    out.fieldTw = spendDP(Object.assign(st, { dp: 1 }), 'tw') === false; st.dp = 0;
+    out.gkTw = spendDP(Object.assign(gk, { dp: 1 }), 'tw') === true;
+    // Obergrenze 95
+    st.dp = 1; st.sch = 95; out.cap = spendDP(st, 'sch') === false && st.sch === 95; st.dp = 0;
+    // Kader zeigt offene Punkte
+    sq[3].dp = 2; ACT.ctab('kader'); out.badge = !!menu.querySelector('.badge.dp');
+    // offene Punkte bleiben die ganze Saison liegen (auch beim Simulieren) …
+    const m = sq.find(q => q.grp === 'MF'); C.train = 'absch'; m.dp = 2; m.pot = 30; m.sch = 60; m.kop = 60;
+    Math.random = () => 0.99; for (let i = 0; i < 30; i++) trainStep(); Math.random = oR;
+    out.keep = m.dp === 2 && m.sch + m.kop === 120;
+    // … erst am Saisonende verteilt das Training nach dem Schwerpunkt (Torabschluss = Schuss/Kopfball)
+    autoDP(m); out.auto = m.dp === 0 && m.sch + m.kop === 122;
+    // starkes Spiel: Spieler des Spiels bekommt einen Bonuspunkt (nur eigener Verein)
+    const opp = LIGEN[C.lg].ids.find(i => i !== C.team); for (const p of sq) p.dp = 0;
+    const st2 = sq.find(q => q.grp === 'ST'), oppSq = ensureSquad(opp); for (const p of oppSq) p.dp = 0;
+    const xi = matchSquad(C.team).xi, live = { [C.team]: xi.map(p => ({ p, g: 0, a: 0, note: 3.5, potm: p === st2 })), [opp]: matchSquad(opp).xi.map(p => ({ p, g: 1, a: 0, note: 1, potm: false })) };
+    applyGame(C.team, opp, 1, 1, live);
+    out.potm = st2.dp === 1 && oppSq.every(p => !p.dp);
+    // Fitness bleibt in ganzen Prozent (Ausdauer 67 brachte 97,59999… %)
+    for (const p of sq) { p.fit = 83; p.aus = 67; } betweenGames([C.team]); out.fitInt = sq.every(p => Number.isInteger(p.fit)); ACT.ctab('elf'); out.noDec = !/\d\.\d+%/.test(menu.textContent);
+    return out;
+  });
+  ok(r.trainPts, 'Training gibt keine Punkte oder ändert Werte direkt: ' + JSON.stringify(r));
+  ok(r.btns >= 7 && r.noTw && r.spent && r.fieldTw && r.gkTw && r.cap, 'Verteilen auf der Spielerkarte: ' + JSON.stringify(r));
+  ok(r.badge && r.tab && r.news && r.hint, 'Offene Punkte nicht sichtbar (Kader, Reiter, Kreisblatt, Karte): ' + JSON.stringify(r));
+  ok(r.keep && r.auto, 'Punkte verschwinden vor Saisonende oder Training verteilt nicht: ' + JSON.stringify(r));
+  ok(r.potm, 'Bonuspunkt für starkes Spiel (nur eigener Verein): ' + JSON.stringify(r));
+  ok(r.fitInt && r.noDec, 'Fitness mit Nachkommastellen: ' + JSON.stringify(r));
+  ok(!errors.length, errors.join('; ')); await ctx.close();
+});
+
 // Issue #19: Spielerkarte und Editor des Torwarts stürzten ab (Vereinstrikot ohne Torwartfarbe)
 test('Saison: Spielerkarte und Bearbeiten öffnen auch beim Torwart', async () => {
   const { page, ctx, errors } = await open();
@@ -1342,7 +1393,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Mehr Tore') && r.txt.includes('CPU unter Druck') && r.txt.includes('Weniger Abstauber'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Entwicklungspunkte') && r.txt.includes('Mehr Tore') && r.txt.includes('CPU unter Druck'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
@@ -1448,16 +1499,24 @@ test('Touch: zwei Knöpfe passen sich an (Angriff/Abwehr), PASS tippen passt, ha
   const vUp = await aimShot(-60), vDown = await aimShot(60);
   ok(vUp != null && vDown != null && vUp < 0 && vDown > 0, 'Zielen mit dem Daumen: ' + vUp + ' / ' + vDown);
   const def = () => page.evaluate(() => { G.phase = 'play'; G.sp = null; SETTINGS.autoswitch = false;   // Live-Spiel: kein Auto-Wechsel weg vom Verteidiger, wenn der Test länger braucht
-    const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d; });
+    const a = teamP(1).find(q => grpOf(q) === 'ST'), d = teamP(0).find(q => grpOf(q) === 'AB'); for (const q of G.players) if (q !== a && q !== d && !isGK(q)) place(q, q.team ? 8 : CW - 8, 3); place(a, CW / 2, MY); a.hx = -1; a.hy = 0; giveBall(a, true); a.think = 9; a.cd = 99; /* kein Übersteiger des Stürmers, der den Verteidiger stolpern lässt (seit #26 dribbelt er unter Druck kurz weiter) */ a.vx = a.vy = 0; place(d, CW / 2 + 1.5, MY); d.cd = 0; d.stun = 0; d.act = null; G.ctrl = d; G.manT = G.t; tbMode = ''; window.__d = d;
+    // Versuche des Verteidigers direkt mitzählen: auf einem langsamen Rechner ist das Tackling bis zur Prüfung oft schon wieder vorbei (Abklingzeit, Stolpern, Ball zurückerobert)
+    window.__tk = 0; window.__sl = 0;
+    if (!window.__tkHook) { window.__tkHook = 1; const oT = window.tackle, oS = window.slide;
+      window.tackle = (x, ...r) => { const c0 = x.cd; const v = oT(x, ...r); if (x === window.__d && x.cd > 0 && !(c0 > 0)) window.__tk++; return v; };
+      window.slide = (x, ...r) => { const c0 = x.cd; const v = oS(x, ...r); if (x === window.__d && x.cd > 0 && !(c0 > 0)) window.__sl++; return v; }; } });
   await def(); await page.waitForTimeout(80);
   const lb = await page.evaluate(() => document.querySelector('.tb-b span').textContent);
   ok(lb === 'TACKLING', 'Abwehr-Beschriftung: ' + lb);
   await drag('.tb-b', 0, -40);
-  const sl = await page.evaluate(() => ({ ok: !!(__d.act && __d.act.type === 'slide' || __d.cd > 0.5), ctrl: G.ctrl === __d, act: __d.act && __d.act.type, cd: +__d.cd.toFixed(2), own: G.ball.owner && G.ball.owner.team, ph: G.phase }));
+  await page.waitForFunction(() => __sl > 0, null, { timeout: 1000 }).catch(() => {});
+  const sl = await page.evaluate(() => ({ ok: __sl > 0, ctrl: G.ctrl === __d, act: __d.act && __d.act.type, cd: +__d.cd.toFixed(2), own: G.ball.owner && G.ball.owner.team, ph: G.phase }));
   ok(sl.ok, 'TACKLING ziehen grätscht nicht: ' + JSON.stringify(sl));
   await def(); await page.waitForTimeout(80);
-  const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y); await page.waitForTimeout(80);
-  const tk = await page.evaluate(() => ({ ok: __d.d.ms.tk > 0 || (__d.act && ['tackle', 'stumble'].includes(__d.act.type)) || __d.cd > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));
+  // Tippen = Tackling: sofort, wenn er dran ist, sonst per Anlauf (der CPU-Stürmer sichert nach dem Ballgewinn erst und dribbelt ein Stück) – bis zu 1 s warten
+  const c = await ctr('.tb-b'); await page.mouse.click(c.x, c.y);
+  await page.waitForFunction(() => __tk > 0, null, { timeout: 1000 }).catch(() => {});
+  const tk = await page.evaluate(() => ({ ok: __tk > 0, act: __d.act, cd: __d.cd, ph: G.phase, ctrl: G.ctrl === __d, own: G.ball.owner && G.ball.owner.team, LASTIN, lbl: document.querySelector('.tb-b span').textContent, cls: document.querySelector('.tb-b').className }));
   ok(tk.ok, 'TACKLING tippen tackelt nicht ' + JSON.stringify(tk));
   // TACKLING halten = stellen: der Verteidiger hält Abstand zwischen Gegner und Tor und tackelt nicht sofort
   await def(); await page.evaluate(() => { const a = G.ball.owner; place(__d, a.x + 5, a.y + 3); __d.d.ms.tk = 0; });

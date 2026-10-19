@@ -201,7 +201,8 @@ function applyGame(h, a, gh, ga, live) {
       if (x.yc) { s.yc++; c.yc++; p.ycs++; if (p.ycs % 5 === 0) { p.ban = Math.max(p.ban, 1); p.banNew = true; if (tid === CT()) news('Sperre', `${p.name} gesperrt`, `Die fünfte Gelbe Karte: ${p.name} muss ein Spiel zuschauen.`); } }
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
-      p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100);
+      if (tid === CT() && (x.potm || x.g > 0 || (x.note != null && x.note <= 2)) && Math.random() < (x.potm ? 1 : 0.5)) { p.dp = (p.dp || 0) + 1; p.dpNew = true; }   // starkes Spiel: Bonus-Entwicklungspunkt
+      p.fit = Math.round(clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100));
       if (!x.sub && Math.random() < 0.012 + (devAge(p) > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
     }
@@ -211,7 +212,7 @@ function applyGame(h, a, gh, ga, live) {
 // zwischen zwei Spieltagen: Fitness erholt, Sperren und Verletzungen laufen ab, Training
 function betweenGames(tids) {
   for (const tid of tids) for (const p of ensureSquad(tid)) {
-    p.fit = clamp(p.fit + 14 + A_fit(p), 40, 100);
+    p.fit = Math.round(clamp(p.fit + 14 + A_fit(p), 40, 100));   // ganze Prozent (Ausdauer bringt Kommazahlen)
     if (p.inj > 0 && !p.injNew) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false; p.injNew = false;
     p.form *= 0.92;
   }
@@ -370,15 +371,33 @@ function careerAfterMatch() {
 
 // ---------- Training ----------
 const TRAIN = { bal: ['Ausgewogen', ATTRS.filter(a => a !== 'tw')], kond: ['Kondition', ['aus', 'tmp']], tech: ['Technik & Passspiel', ['tec', 'pas']], absch: ['Torabschluss', ['sch', 'kop']], abw: ['Zweikampf', ['zwk', 'kop']], tw: ['Torwarttraining', ['tw']] };
-function trainStep() {
+// Entwicklungspunkte (nur eigener Verein): wer sich verbessert, bekommt einen Punkt und du entscheidest auf der Spielerkarte, wohin er geht.
+// Punkte bleiben die ganze Saison offen; was am Saisonende noch übrig ist, setzt das Training nach dem Schwerpunkt – wer sich nicht kümmert, verpasst nichts.
+const DP_MAX = 95;
+const dpKeys = p => ATTRS.filter(a => p.grp === 'TW' || a !== 'tw');
+function spendDP(p, k) {
+  if (!(p.dp > 0) || !dpKeys(p).includes(k) || p[k] >= DP_MAX) return false;
+  p[k]++; p.dp--; p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
+  return true;
+}
+function autoDP(p) {
   const C = CAREER, focus = TRAIN[C.train] || TRAIN.bal;
+  while (p.dp > 0) {
+    const ks = (p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw')).filter(k => p[k] < DP_MAX);
+    const k = ks.length ? pick(ks) : dpKeys(p).find(a => p[a] < DP_MAX);
+    if (!k) { p.dp = 0; break; }
+    spendDP(p, k);
+  }
+}
+function trainStep() {
+  const C = CAREER;
   for (const p of C.squads[C.team] || []) {
     const room = p.pot - p.ovr, da = devAge(p), ageK = da < 22 ? 1.4 : da < 26 ? 1 : da < 30 ? 0.5 : 0.2;
-    if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) {
-      const ks = p.grp === 'TW' ? (C.train === 'tw' || C.train === 'bal' ? ['tw', 'tw', 'pas'] : ['tw']) : focus[1].filter(k => k !== 'tw');
-      const k = pick(ks.length ? ks : ['pas']); p[k] = Math.min(95, p[k] + 1); p.ovr = ovr(p); p.pot = Math.max(p.pot, p.ovr);
-    }
+    if (Math.random() < 0.09 * ageK * (room > 0 ? 1 : 0.25)) { p.dp = (p.dp || 0) + 1; p.dpNew = true; }
   }
+  // Kreisblatt: wer hat neue Punkte (Training und Bonus aus dem letzten Spiel)
+  const fresh = (C.squads[C.team] || []).filter(p => p.dpNew); for (const p of fresh) p.dpNew = false;
+  if (fresh.length) news('Training', fresh.length === 1 ? `${fresh[0].name} kann sich verbessern` : `${fresh.length} Spieler können sich verbessern`, `Neue Entwicklungspunkte für ${fresh.map(p => p.name).join(', ')}. Im Kader antippen und verteilen – was bis zum Saisonende offen ist, setzt das Training.`);
 }
 // ---------- Saisonende: Bilanz, Entwicklung, Abgänge, Nachwuchs, Wechselbörse ----------
 function seasonSummary() {
@@ -416,6 +435,7 @@ function endSeason() {
   for (const [tid, sq] of Object.entries(C.squads)) {
     const mine = +tid === C.team, keep = [];
     for (const p of sq) {
+      if (mine && p.dp > 0) autoDP(p);   // offene Entwicklungspunkte setzt am Saisonende das Training
       p.age++; p.seasons++;
       // Entwicklung: Junge wachsen Richtung Potenzial, Ältere bauen ab
       const da = devAge(p), delta = da <= 22 ? rnd(1, 4) : da <= 26 ? rnd(0, 2.5) : da <= 30 ? rnd(-1, 1) : rnd(-3.5, -0.5);
