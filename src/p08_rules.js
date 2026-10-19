@@ -91,7 +91,7 @@ function humanControl(dt) {
     const n = !b.owner ? bestChaser(me) : nearestTo(me, b.owner.x, b.owner.y, G.pl ? (G.pl.find(s => s !== G.slot && s.team === me) || {}).ctrl : undefined);
     const still = Math.hypot(IN.x, IN.y) < 0.2;
     const o = b.owner && b.owner.team !== me ? b.owner : null, beaten = o && (o.x - c.x) * atkDir(me) < -2.5 && dist(c.x, c.y, o.x, o.y) > 2;
-    const front = beaten && G.t - (G.autoT || 0) > 0.7 ? switchCands()[0] : null;
+    const front = beaten && G.t - (G.autoT || 0) > 0.7 ? coverCands()[0] : null;
     if (front && (o.x - front.x) * atkDir(me) > 0.5 && dist(front.x, front.y, o.x, o.y) < 16) { G.ctrl = c = front; G.autoT = G.t; markSwitch(); }
     else if (n && n !== c && (still || dist(c.x, c.y, b.x, b.y) - dist(n.x, n.y, b.x, b.y) > 8) && dist(c.x, c.y, b.x, b.y) - dist(n.x, n.y, b.x, b.y) > 2.5) { G.ctrl = c = n; G.autoT = G.t; markSwitch(); }
   }
@@ -248,22 +248,30 @@ function containSpot(p, o) {
 // Spielerwechsel merken: Zeitpunkt und Stickstellung (für den Schwung des neuen Spielers)
 function markSwitch() { G.swT = G.t; }
 function bestChaser(t) { let best = null, bt = 1e9; for (const p of teamP(t)) { if (isGK(p)) continue; const q = interceptOf(p); if (q.t < bt) { bt = q.t; best = p; } } return best; }
-// Spielerwechsel in der Abwehr wie bei EA FC: nicht stur der Nächste zum Ball (der ist oft schon überlaufen), sondern der Verteidiger,
-// der am besten in den Laufweg des Gegners kommt; bevorzugt einer zwischen Ball und eigenem Tor. Mit Richtung (Stick) beim Drücken:
-// der Mitspieler in dieser Richtung. Schnell nochmal drücken schaltet zum Nächsten in der Liste weiter.
+// Wer zum Wechseln in Frage kommt: Feldspieler ohne den aktuellen (zu zweit: ohne den des Mitspielers)
+function switchPool() {
+  const me = G.human, c = G.ctrl, taken = G.pl ? new Set(G.pl.filter(sl => sl !== G.slot).map(sl => sl.ctrl)) : null;
+  return teamP(me).filter(p => !isGK(p) && p !== c && !(taken && taken.has(p)));
+}
+// Spielerwechsel per Taste: der Mitspieler, der dem Ball am nächsten ist – vorhersehbar, der kleine Pfeil zeigt ihn schon vorher.
+// Mit Richtung (Stick) beim Drücken: der Mitspieler in dieser Richtung. Schnell nochmal drücken schaltet zum Nächsten in der Liste weiter.
 function switchCands(dx = 0, dy = 0) {
-  const me = G.human, b = G.ball, c = G.ctrl, o = b.owner && b.owner.team !== me ? b.owner : null, s = atkDir(me), ox = ownX(me);
-  const taken = G.pl ? new Set(G.pl.filter(sl => sl !== G.slot).map(sl => sl.ctrl)) : null;
-  // Gefahrenpunkt: wo der Ball gleich ist (Ballführer mit Laufrichtung, etwas Richtung eigenes Tor), sonst wo der freie Ball hinrollt
-  let tx = o ? o.x + o.vx * 0.7 : b.x + b.vx * 0.5, ty = o ? o.y + o.vy * 0.7 : b.y + b.vy * 0.5;
-  tx += (ox - tx) * 0.1; ty += (MY - ty) * 0.1;
-  const all = teamP(me).filter(p => !isGK(p) && p !== c && !(taken && taken.has(p)));
+  const b = G.ball, c = G.ctrl, all = switchPool();
   if (Math.hypot(dx, dy) > 0.5 && c) {   // mit Richtung: wer in dieser Richtung vom aktuellen Spieler steht, der Nächste zuerst
     const m = Math.hypot(dx, dy), dir = all.filter(p => { const d = dist(p.x, p.y, c.x, c.y) || 1; return ((p.x - c.x) * dx + (p.y - c.y) * dy) / d / m > 0.45; });
     if (dir.length) return dir.sort((a, q) => dist(a.x, a.y, c.x, c.y) - dist(q.x, q.y, c.x, c.y));
   }
+  return all.sort((a, q) => dist(a.x, a.y, b.x, b.y) - dist(q.x, q.y, b.x, b.y));
+}
+// Auto-Wechsel, wenn dein Spieler überlaufen ist (wie bei EA FC): nicht der Nächste zum Ball (der läuft oft nur hinterher), sondern der
+// Verteidiger, der am besten in den Laufweg des Gegners kommt; bevorzugt einer zwischen Ball und eigenem Tor.
+function coverCands() {
+  const me = G.human, b = G.ball, o = b.owner && b.owner.team !== me ? b.owner : null, s = atkDir(me), ox = ownX(me);
+  // Gefahrenpunkt: wo der Ball gleich ist (Ballführer mit Laufrichtung, etwas Richtung eigenes Tor), sonst wo der freie Ball hinrollt
+  let tx = o ? o.x + o.vx * 0.7 : b.x + b.vx * 0.5, ty = o ? o.y + o.vy * 0.7 : b.y + b.vy * 0.5;
+  tx += (ox - tx) * 0.1; ty += (MY - ty) * 0.1;
   const score = p => { const d = dist(p.x, p.y, tx, ty), goalSide = (p.x - tx) * s < -0.5; return d - (goalSide ? 5 : 0) + (goalSide ? 0 : Math.max(0, (p.x - tx) * s) * 0.6); };
-  return all.sort((a, q) => score(a) - score(q));
+  return switchPool().sort((a, q) => score(a) - score(q));
 }
 function switchPlayer() {
   const cands = switchCands(IN.x, IN.y), quick = G.t - (G.manT || 0) < 0.8;
