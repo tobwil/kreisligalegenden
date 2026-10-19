@@ -69,7 +69,7 @@ function render() {
   drawTutMarks();
   const items = [];
   const showSel = !G.demo && G.human >= 0 && !G.watch && G.phase !== 'replay';
-  const selCol = p => { if (!showSel) return false; if (G.pl) { const s = slotOfP(p); return s ? MP_COL[s.i] : false; } return p === G.ctrl ? (G.ball.owner === p ? '#ffc83a' : '#7cf2ff') : false; };
+  const selCol = p => { if (!showSel) return false; if (G.pl) { const s = slotOfP(p); return s ? MP_COL[s.i] : false; } return p === G.ctrl ? '#ffc83a' : false; };   // dein Spieler immer gelb – Hellblau heißt nur noch „Passziel“
   for (const p of G.players) if (!p.off) items.push({ y: p.y, draw: () => drawPlayerAt(p, selCol(p)) });
   for (const side of [0, 1]) { items.push({ y: GY1 - 0.05, draw: () => drawGoalBack(side) }); items.push({ y: GY2 + 0.05, draw: () => drawGoalFront(side) }); }
   for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) items.push({ y, draw: () => drawCornerFlag(x, y, t) });
@@ -173,16 +173,16 @@ function drawCtrlHUD(c, col, num) {
     const m = Math.hypot(hv.x, hv.y), ux = hv.x / m, uy = hv.y / m, x0 = sx(c.x, c.y), y0 = sy(c.y, c.z) - 26;
     for (let i = 0; i < 5; i++) { const px = Math.round(x0 + ux * (10 + i * 4) * 1.4), py = Math.round(y0 + uy * (10 + i * 4) * 0.7); ctx.fillStyle = '#000'; ctx.fillRect(px - 1, py - 1, 4, 4); ctx.fillStyle = i === 4 ? '#ffc83a' : '#7cf2ff'; ctx.fillRect(px, py, 2, 2); }
   }
-  // Abwehr: kleiner Pfeil über dem Spieler, den du beim nächsten Wechsel bekommst
+  // Abwehr: grauer Halbring an den Füßen des Spielers, den du beim nächsten Wechsel bekommst
   if (c && !G.watch && !G.pl && G.phase === 'play' && G.ball.owner && G.ball.owner.team !== c.team) {
     const n = switchCands()[0];
-    if (n) { const x = sx(n.x, n.y), y = sy(n.y, n.z) - 36; ctx.globalAlpha = 0.75; ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = '#f3ead6'; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); ctx.globalAlpha = 1; }
+    if (n) { ctx.globalAlpha = 0.85; drawRing(sx(n.x, n.y), sy(n.y), '#e4e7ef', 9, 2, true); ctx.globalAlpha = 1; }   // dezent: grauer Halbring vorn an den Füßen
   }
   // Steuermarke über dem eigenen Spieler
   if (c && (G.human >= 0 || G.pl) && !G.watch && !c.off) {
     const x = sx(c.x, c.y), y = sy(c.y, c.z) - 38 - (Math.floor(G.t * 3) % 2);
     if (zx(x) < 4 || zx(x) > W - 4) { const ex = zx(x) < 4 ? 4 : W - 10, ey = clamp(zy(sy(c.y) - 20), 30, H - 30); zoomOff(); ctx.fillStyle = '#000'; ctx.fillRect(ex - 1, ey - 1, 8, 8); ctx.fillStyle = col; ctx.fillRect(ex, ey, 6, 6); zoomOn(); }   // Randmarke im Bildschirm (ohne Zoom)
-    else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 1, 7, 3); ctx.fillRect(x - 1, y + 2, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 2, y, 5, 1); ctx.fillRect(x - 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 1, 1); }
+    else if (G.ball.owner !== c) { ctx.fillStyle = '#000'; ctx.fillRect(x - 6, y - 4, 13, 4); ctx.fillRect(x - 5, y, 11, 2); ctx.fillRect(x - 3, y + 2, 7, 2); ctx.fillRect(x - 1, y + 4, 3, 2); ctx.fillStyle = col; ctx.fillRect(x - 5, y - 3, 11, 2); ctx.fillRect(x - 4, y - 1, 9, 2); ctx.fillRect(x - 2, y + 1, 5, 2); ctx.fillRect(x, y + 3, 1, 2); }   // großer Pfeil über deinem Spieler
     if (G.ball.owner === c && !isGK(c) && G.phase === 'play' && (PROF.games < 15 || G.tut) && !c.charge && !G.pl && opps(c).some(o => !isGK(o) && dist(o.x, o.y, c.x, c.y) < 4)) {
       const K = KEYN(), tk = TRICK_N[trickKind(c, IN.x, IN.y)];
       text(LASTIN === 'touch' ? 'STICK KREISEN: TRICK' : `${K.f || 'F'}: ${tk}`, sx(c.x, c.y), sy(c.y) + 13, '#7cf2ff', 8, 'center');

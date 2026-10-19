@@ -49,11 +49,14 @@ const LEGAL = FAN + ' Echte Vereinsnamen aller Kreisligen Deutschlands (Stand He
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 13, items: K => [
+    ['Dein Spieler, deutlich markiert', 'Gelber Ring und großer gelber Pfeil – immer, mit und ohne Ball. Hellblau zeigt nur noch, wohin dein Pass geht, ein grauer Halbring, wen du beim nächsten Wechsel bekommst'],
+  ] },
   { id: 12, items: K => [
     ['Ab in die Kabine', 'Nach dem Abpfiff siehst du deine Jungs in der Kabine: Bierdusche nach dem Sieg, hängende Köpfe nach der Niederlage'],
   ] },
   { id: 11, items: K => [
-    ['Spielerwechsel', `${K.touch ? 'WECHSEL' : K.pass} holt jetzt immer den Mitspieler, der dem Ball am nächsten ist – genau den mit dem weißen Pfeil. Ein Druck reicht`],
+    ['Spielerwechsel', `${K.touch ? 'WECHSEL' : K.pass} holt jetzt immer den Mitspieler, der dem Ball am nächsten ist – genau den mit dem grauen Halbring an den Füßen. Ein Druck reicht`],
   ] },
   { id: 10, items: K => [
     ['Entwicklungspunkte', 'In der Saison: wer sich im Training oder mit einem starken Spiel verbessert, bekommt einen Punkt – du entscheidest auf der Spielerkarte, ob dein Stürmer schneller wird oder besser köpft'],
@@ -154,7 +157,7 @@ const ACT = {
   controls() {
     const L = LAY(), N = L.keyN, k = x => x === 'LEER' ? 'LEERTASTE' : x, alt = q => (L[q] || []).slice(1).map(c => c.replace(/^Key/, '').replace(/^(Shift)(Left|Right)$/, 'SHIFT').replace('Space', 'LEERTASTE')).filter((v, i, A) => A.indexOf(v) === i && v !== k(N[q]));
     const ks = q => [k(N[q])].concat(alt(q)).join(' / ');
-    const D = L.def || { tk: 'b', sl: 'c', pr: 'k' }, dt = q => q === 'a' ? 'Spieler wechseln – zum Mitspieler, der dem Ball am nächsten ist (weißer Pfeil); mit Richtung gedrückt: der Mitspieler in dieser Richtung; schnell nochmal = zum Nächsten' : q === D.tk ? 'Tackling (nur von vorn, von hinten gibt es Fouls); aus ein paar Metern kurz antippen = dein Spieler sprintet hin und tackelt; weiter weg gehalten = stellen: dein Spieler bleibt zwischen Gegner und Tor, loslassen nah dran = Tackling' : q === D.sl ? 'Grätsche (Ball zuerst treffen!)' : q === D.pr ? 'halten = ein Mitspieler presst mit' : '–';
+    const D = L.def || { tk: 'b', sl: 'c', pr: 'k' }, dt = q => q === 'a' ? 'Spieler wechseln – zum Mitspieler, der dem Ball am nächsten ist (grauer Halbring an den Füßen); mit Richtung gedrückt: der Mitspieler in dieser Richtung; schnell nochmal = zum Nächsten' : q === D.tk ? 'Tackling (nur von vorn, von hinten gibt es Fouls); aus ein paar Metern kurz antippen = dein Spieler sprintet hin und tackelt; weiter weg gehalten = stellen: dein Spieler bleibt zwischen Gegner und Tor, loslassen nah dran = Tackling' : q === D.sl ? 'Grätsche (Ball zuerst treffen!)' : q === D.pr ? 'halten = ein Mitspieler presst mit' : '–';
     show(`<div class="panel narrow"><h2>STEUERUNG</h2>
       <div class="row"><span class="tag">TASTATUR</span>${Object.entries(LAYOUTS).map(([id, l]) => `<button class="small ${SETTINGS.keys === id || (!LAYOUTS[SETTINGS.keys] && id === 'wasd') ? 'on' : ''}" data-act="optKeys" data-arg="${id}">${l.n}</button>`).join('')}</div>
       <div class="keys">
