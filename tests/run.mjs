@@ -468,7 +468,7 @@ test('Flanke halten = kurzer bis langer Pfosten; Kopfball: Spieler läuft selbst
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
-test('Spielerwechsel in der Abwehr: Verteidiger vor dem Gegner statt des überlaufenen, mit Richtung, schnell weiterschalten, Auto-Wechsel beim Überlaufen', async () => {
+test('Spielerwechsel in der Abwehr: per Taste der Nächste zum Ball (wie angezeigt), mit Richtung, schnell weiterschalten, Auto-Wechsel beim Überlaufen zum Verteidiger davor', async () => {
   const { page, ctx, errors } = await open();
   const r = await page.evaluate(() => {
     SETTINGS.keys = 'legenden'; LASTIN = 'key'; SETTINGS.autoswitch = false;
@@ -485,15 +485,18 @@ test('Spielerwechsel in der Abwehr: Verteidiger vor dem Gegner statt des überla
       P = { behind, front, side, up, o, s };
     };
     const press = k => { KEY[k] = KEYP[k] = true; frame(); KEY[k] = false; frame(); };
-    setup(); press('KeyS'); out.smart = G.ctrl === P.front;
-    press('KeyS'); out.cycle = G.ctrl !== P.front && G.ctrl !== P.behind;
+    // ein Druck reicht: der Mitspieler am nächsten zum Ball (side 7 m vor front 9 m), genau der mit dem kleinen Pfeil
+    setup(); const shown = switchCands()[0]; press('KeyS'); out.near = G.ctrl === P.side && shown === P.side;
+    press('KeyS'); out.cycle = G.ctrl === P.front;   // schnell nochmal: weiter zum Nächsten, nicht zurück
+    // weit weg gesteuert (Rückraum): ein Druck holt den Verteidiger direkt am Ball
+    setup(); G.ctrl = P.up; press('KeyS'); out.far = G.ctrl === P.behind;
     setup(); KEY.ArrowUp = true; press('KeyS'); KEY.ArrowUp = false; out.dir = G.ctrl === P.up;
     setup(); render(); out.drawn = true;
     // Auto-Wechsel: dein Spieler ist überlaufen und du läufst noch hinterher
     setup(); SETTINGS.autoswitch = true; KEY[P.s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; G.autoT = -9; frame(); out.auto = G.ctrl === P.front;
     return out;
   });
-  ok(r.smart, 'Wechsel nimmt nicht den Verteidiger vor dem Gegner: ' + JSON.stringify(r));
+  ok(r.near && r.far, 'Wechsel nimmt nicht den Spieler am nächsten zum Ball: ' + JSON.stringify(r));
   ok(r.cycle, 'schnell nochmal drücken schaltet nicht weiter: ' + JSON.stringify(r));
   ok(r.dir, 'Wechsel mit Richtung: ' + JSON.stringify(r));
   ok(r.auto && r.drawn, 'Auto-Wechsel beim Überlaufen: ' + JSON.stringify(r));
@@ -1393,7 +1396,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Entwicklungspunkte') && r.txt.includes('Mehr Tore') && r.txt.includes('CPU unter Druck'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('Spielerwechsel') && r.txt.includes('Entwicklungspunkte') && r.txt.includes('Mehr Tore'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');
