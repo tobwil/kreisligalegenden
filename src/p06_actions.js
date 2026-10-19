@@ -79,7 +79,7 @@ function passScore(p, q, kind) {
   let sc = gain * 3.2 + open * 0.11 + Math.min(lane, 4) * (kind === 'lob' ? 0.04 : 0.22) - Math.max(0, d - (kind === 'lob' ? 45 : 28)) * 0.05 - d * 0.004;
   if (G.offs === null && SETTINGS.offside) { const line = opps(p).map(o => prog(p.team, o.x)).sort((a, b) => b - a)[1] ?? 1; if (prog(p.team, q.x) > Math.max(line, prog(p.team, p.x), 0.5) + 0.003) sc -= 5; }
   if (lane < 1.2 && kind !== 'lob') sc -= 2.4; else if (lane < 2 && kind !== 'lob') sc -= 0.6;   // zugestellte Passwege meiden
-  if (inBox(1 - p.team, q.x, q.y)) sc += 0.35;
+  if (inBox(1 - p.team, q.x, q.y)) sc += Math.abs(q.y - MY) < 9 ? 0.75 : 0.35;   // zentral im Strafraum (auch zurückgelegt von der Grundlinie): Torchance
   if (kind === 'pass') sc -= interceptRisk(p, q) * (prog(p.team, p.x) > 0.62 ? 1.4 : 3);   // vorne darf es riskanter sein
   return sc;
 }
@@ -357,6 +357,7 @@ function tackle(d, c) {
   if (shields(c, d)) pr -= 0.14 + A_(c, 'tec') / 1000;   // Ball abgeschirmt: Rücken zum Gegner, langsam – schwer dranzukommen
   if (G.human >= 0 && !isHumanTeam(d.team)) pr += (G.diff.tackle - 1) * 0.12;
   if (isHumanCtrl(d)) pr += G.diff.htk ?? 0.12;   // Arcade: dein Tackling sitzt öfter
+  else if (prog(c.team, c.x) > 0.7) pr -= 0.08;     // Kreisliga-Abwehr: vor dem eigenen Tor geht der Verteidiger öfter ins Leere
   if (d.d.trait === 'Blutgrätsche' || d.d.trait === 'Dampfwalze') pr += 0.05;
   AU.tackle();
   if (G.human >= 0 && !isHumanTeam(d.team) && isHumanTeam(c.team)) d.cd = G.diff.tkcd ?? 0.7;   // kein Dauerfeuer: derselbe CPU-Spieler greift nicht sofort wieder an

@@ -180,7 +180,9 @@ function carrierAI(p, dt) {
   // Optionen bewerten
   const opts = [];
   const sq = shotQuality(p);
-  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 3.1 + (d < 11 ? 0.9 : d < 17 ? 0.55 : d < 22 ? 0.1 : 0) - (d > 23 ? 0.6 : 0) + (inBox(1 - t, p.x, p.y) ? 0.25 : 0) });
+  // Fernschuss durch eine zugestellte Schussbahn: lieber weiterspielen (sonst landet er fast immer in den Beinen der Abwehr)
+  const wall = d > 18 && opps(p).some(o => !isGK(o) && segDist(o.x, o.y, p.x, p.y, gx, MY) < 1 && dist(o.x, o.y, p.x, p.y) < d);
+  if (d < 30 && !(p.shotCD > G.t)) opts.push({ k: 'shot', v: sq * 3.1 + (d < 11 ? 0.9 : d < 17 ? 0.75 : d < 22 ? 0.3 : 0) - (d > 23 ? 0.6 : 0) + (inBox(1 - t, p.x, p.y) ? 0.25 : 0) - (wall ? 0.5 : 0) });
   // Pässe
   let bp = null, bv = -1e9;
   for (const q of mates(p)) { if (isGK(q) && pr > 3) continue; const v = passScore(p, q, 'pass'); if (v > bv) { bv = v; bp = q; } }
@@ -199,11 +201,11 @@ function carrierAI(p, dt) {
   // Flanke
   if (Math.abs(p.y - MY) > 12 && Math.abs(p.x - gx) < 26) {
     const inB = mates(p).filter(q => !isGK(q) && Math.abs(q.x - gx) < 18 && Math.abs(q.y - MY) < 14).length;
-    if (inB) opts.push({ k: 'cross', v: 0.9 + inB * 0.25 + (Math.abs(p.x - gx) < 14 ? 0.3 : 0) });
+    if (inB) opts.push({ k: 'cross', v: 0.75 + inB * 0.25 + (Math.abs(p.x - gx) < 14 ? 0.3 : 0) });
   }
   // Dribbeln
   const space = spaceAhead(p);
-  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen
+  opts.push({ k: 'drib', v: clamp(space / 9, 0, 1) * 1.3 * clamp(pr / 3, 0.25, 1) + (d < 22 && space > 4 ? 0.3 : 0) + (pr > 4 ? 0.35 : 0.1) + (prog(t, p.x) > 0.62 ? 0.3 : 0) + (prog(t, p.x) > 0.75 && !inBox(1 - t, p.x, p.y) && space > 3 ? 0.3 : 0) });   // im letzten Drittel Richtung Tor ziehen, rein in den Strafraum
   // Befreiungsschlag in Not
   if (prog(t, p.x) < 0.18 && pr < 1.6 && bv < 0.4) opts.push({ k: 'clear', v: 1.4 - pr * 0.25 });
   else if (panic > 0.45 && prog(t, p.x) < 0.35) opts.push({ k: 'clear', v: 0.15 + panic * 0.7 });   // Panik: hinten raus, egal wohin
@@ -318,7 +320,7 @@ function planSave(g) {
   const lat = Math.abs(c.y - g.y), hz = c.z;
   let ok = false, catchIt = false;
   if (lat <= reach && hz < 2.65 && (onT || lat < 1.2)) {
-    let pr = 1.0 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
+    let pr = 0.82 - (lat / Math.max(0.5, reach)) ** 2 * 0.55 - Math.max(0, v - 19) * 0.022 + (tw - 65) / 90 - (hz > 1.9 ? 0.1 : 0);
     if (sh && sh.fk && hz > 1.6 && lat > 1.8) pr -= 0.25;   // Freistoß in den Winkel
     if (sh && sh.finesse && lat > 1.6) pr -= 0.18;           // Schlenzer an den Innenpfosten
     if (sh && sh.pen) pr = 0;   // Elfmeter: eigene Regel
