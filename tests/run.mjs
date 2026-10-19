@@ -492,6 +492,12 @@ test('Spielerwechsel in der Abwehr: per Taste der Nächste zum Ball (wie angezei
     setup(); G.ctrl = P.up; press('KeyS'); out.far = G.ctrl === P.behind;
     setup(); KEY.ArrowUp = true; press('KeyS'); KEY.ArrowUp = false; out.dir = G.ctrl === P.up;
     setup(); render(); out.drawn = true;
+    // Markierung: dein Spieler ohne Ball hat den gelben Ring (kein Hellblau mehr), der nächste beim Wechsel nur einen grauen Halbring
+    const rings = [], oRing = window.drawRing; window.drawRing = (...a) => { rings.push(a); return oRing(...a); };
+    render(); window.drawRing = oRing;
+    const sxy = p => [sx(p.x, p.y), sy(p.y)], at = (p, r) => { const [x, y] = sxy(p); return r[0] === x && r[1] === y; };
+    out.ownRing = rings.some(r => at(G.ctrl, r) && r[2] === '#ffc83a' && !r[5]);
+    out.nextRing = rings.some(r => at(switchCands()[0], r) && r[5] === true) && !rings.some(r => r[2] === '#7cf2ff');
     // Auto-Wechsel: dein Spieler ist überlaufen und du läufst noch hinterher
     setup(); SETTINGS.autoswitch = true; KEY[P.s > 0 ? 'ArrowRight' : 'ArrowLeft'] = true; G.autoT = -9; frame(); out.auto = G.ctrl === P.front;
     return out;
@@ -500,6 +506,7 @@ test('Spielerwechsel in der Abwehr: per Taste der Nächste zum Ball (wie angezei
   ok(r.cycle, 'schnell nochmal drücken schaltet nicht weiter: ' + JSON.stringify(r));
   ok(r.dir, 'Wechsel mit Richtung: ' + JSON.stringify(r));
   ok(r.auto && r.drawn, 'Auto-Wechsel beim Überlaufen: ' + JSON.stringify(r));
+  ok(r.ownRing && r.nextRing, 'Markierung: gelber Ring für deinen Spieler, grauer Halbring für den nächsten: ' + JSON.stringify(r));
   ok(!errors.length, errors.join('; ')); await ctx.close();
 });
 
@@ -1396,7 +1403,7 @@ test('Was ist neu: einmal pro Update nur für Wiederkehrer, Tasten passend zur E
     return out;
   });
   ok(r.fresh, 'Neue Spieler sehen das Was-ist-neu-Fenster: ' + JSON.stringify(r));
-  ok(r.shown && r.items === 3 && r.txt.includes('Kabine') && r.txt.includes('Spielerwechsel') && r.txt.includes('Entwicklungspunkte'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
+  ok(r.shown && r.items === 3 && r.txt.includes('deutlich markiert') && r.txt.includes('Kabine') && r.txt.includes('Spielerwechsel'), 'Was-ist-neu fehlt oder falsche Tasten: ' + JSON.stringify(r));
   ok(r.next === 3, 'wer Stand 1 schon kennt, sieht nur das Neue (höchstens drei): ' + JSON.stringify(r));
   ok(r.focus === "LOS GEHT'S" && r.menu && r.once && r.resume, 'Was-ist-neu: Knopf, Hauptmenü danach oder nur einmal: ' + JSON.stringify(r));
   const shot = await page.screenshot(); ok(shot.length > 1000, 'Screenshot');

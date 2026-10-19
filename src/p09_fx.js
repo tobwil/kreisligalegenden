@@ -42,16 +42,18 @@ function drawBall(b) {
   else { ctx.fillRect(x - 1, y - 1, 2, 1); ctx.fillRect(x + 1, y + 2, 1, 1); }
   ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, y - 2, 1, 1);
 }
+// Ring am Boden um die Füße (Pixel-Ellipse, 2 px dick mit schwarzem Rand). half = nur die vordere Hälfte (dezent)
+function drawRing(x, gy, col, rx, th, half = false) {
+  const ry = rx * 0.42, pts = [];
+  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2, py = Math.sin(a); if (half && py < 0.1) continue; pts.push([Math.round(x + Math.cos(a) * rx), Math.round(gy + py * ry)]); }
+  ctx.fillStyle = '#000'; for (const [px, py] of pts) ctx.fillRect(px - 1, py - 1, th + 2, th + 1);
+  ctx.fillStyle = col; for (const [px, py] of pts) ctx.fillRect(px, py, th, th - 1);
+}
 function drawPlayerAt(p, sel) {
   const x = sx(p.x, p.y), gy = sy(p.y), y = sy(p.y, p.z);
   const sh = clamp(1 - p.z / 1.5, 0.35, 1);
   ctx.fillStyle = `rgba(0,0,0,${0.3 * sh})`; ctx.fillRect(x - 5, gy - 1, 10, 2); ctx.fillRect(x - 3, gy - 2, 6, 4);
-  if (sel) {
-    const c = typeof sel === 'string' ? sel : '#ffc83a', b = Math.floor(G.t * 4) % 2;
-    const parts = [[x - 9 - b, gy - 1, 2, 2], [x + 8 + b, gy - 1, 2, 2], [x - 6, gy + 2 + b, 13, 1], [x - 6, gy - 4 - b, 13, 1]];
-    ctx.fillStyle = '#000'; for (const [px, py, w, h] of parts) ctx.fillRect(px - 1, py - 1, w + 2, h + 2);
-    ctx.fillStyle = c; for (const [px, py, w, h] of parts) ctx.fillRect(px, py, w, h);
-  }
+  if (sel) drawRing(x, gy, typeof sel === 'string' ? sel : '#ffc83a', 10 + Math.floor(G.t * 4) % 2, 2);
   const act = p.rp ? p.rp.type : p.act && p.act.type, flip = p.face < 0;
   const pose = celebPose(p) || p.pose;
   if (act === 'dive') {
