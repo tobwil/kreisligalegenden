@@ -49,6 +49,9 @@ const LEGAL = FAN + ' Echte Vereinsnamen aller Kreisligen Deutschlands (Stand He
 // Bei einem spielrelevanten Update: neuen Eintrag oben einfügen (höhere Nummer, höchstens drei Punkte). Tasten je nach Eingabe.
 const NEWS_KEY = 'krl_news';
 const NEWS = [
+  { id: 12, items: K => [
+    ['Ab in die Kabine', 'Nach dem Abpfiff siehst du deine Jungs in der Kabine: Bierdusche nach dem Sieg, hängende Köpfe nach der Niederlage'],
+  ] },
   { id: 11, items: K => [
     ['Spielerwechsel', `${K.touch ? 'WECHSEL' : K.pass} holt jetzt immer den Mitspieler, der dem Ball am nächsten ist – genau den mit dem weißen Pfeil. Ein Druck reicht`],
   ] },
@@ -287,6 +290,7 @@ const ACT = {
       <p class="res">${G.T[0].k} ${G.score[0]} : ${G.score[1]} ${G.T[1].k}</p>
       ${G.so ? `<p class="muted" style="text-align:center">nach Elfmeterschießen ${G.so.k[0].reduce((a, b) => a + b, 0)}:${G.so.k[1].reduce((a, b) => a + b, 0)}</p>` : G.half > 2 ? '<p class="muted" style="text-align:center">nach Verlängerung</p>' : ''}
       <p class="muted" style="text-align:center">${verdict}</p>
+      ${kabineHTML()}
       ${scorersHTML()}
       ${flairHTML(fl)}
       ${mvp ? `<div class="potm"><canvas id="mvpc" width="40" height="40"></canvas><div><h3>SPIELER DES SPIELS</h3><b style="font-family:var(--pix);font-size:12px">${esc(mvp.d.name.toUpperCase())}</b><div>${G.T[mvp.team].k} · NOTE ${fmtNote(mvp.d.note)}${mvp.d.ms.g ? ` · ${mvp.d.ms.g} TOR${mvp.d.ms.g > 1 ? 'E' : ''}` : ''}${mvp.d.ms.sv ? ` · ${mvp.d.ms.sv} PARADEN` : ''}</div></div></div>` : ''}
@@ -294,6 +298,7 @@ const ACT = {
       ${notesHTML()}
       ${res ? `<p class="muted">${res}</p>` : ''}
       <div class="row sfoot">${G.career ? '<button class="main" data-act="chub" autofocus>WEITER</button>' : `<button class="main" data-act="rematch" autofocus>REVANCHE</button>${diffHint()}<button data-act="toMain">HAUPTMENÜ</button>`}${G.human >= 0 && !G.watch ? '<button data-act="share">ERGEBNIS TEILEN</button>' : ''}</div></div>`, { back: G.career ? ACT.chub : ACT.toMain });
+    kabineStart();
     const cvs = document.getElementById('mvpc'); if (cvs && mvp) cvs.getContext('2d').drawImage(portrait(mvp.d, G.kits[mvp.team]), 0, 0);
   },
   rematch() { const o = G.opts; startMatch(G.tid[0], G.tid[1], o || {}); },
