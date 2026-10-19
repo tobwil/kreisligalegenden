@@ -146,7 +146,7 @@ function tableHTML() {
 const noteAvg = s => s.nn ? fmtNote(Math.round(s.ns / s.nn * 10) / 10) : '–';
 function squadHTML() {
   const C = CAREER, sq = ensureSquad(C.team).slice().sort((a, b) => 'TWABMFST'.indexOf(a.grp) - 'TWABMFST'.indexOf(b.grp) || b.ovr - a.ovr);
-  const fit = p => `<span class="fbar"><i style="width:${p.fit}%;background:${p.fit > 80 ? 'var(--green)' : p.fit > 60 ? 'var(--gold)' : 'var(--hot)'}"></i></span>`;
+  const fit = p => `<span class="fbar"><i style="width:${Math.round(p.fit)}%;background:${p.fit > 80 ? 'var(--green)' : p.fit > 60 ? 'var(--gold)' : 'var(--hot)'}"></i></span>`;
   const dpN = sq.reduce((n, p) => n + (p.dp || 0), 0);
   return `${dpN ? `<p><span class="badge dp">+${dpN}</span> Offene Entwicklungspunkte: Spieler mit grünem Plus antippen und verteilen.</p>` : ''}<div class="tblwrap"><table class="dt"><tr><th>#</th><th class="l">SPIELER</th><th>POS</th><th class="hs">ALTER</th><th>STÄRKE</th><th class="hm">POT</th><th class="hm">FIT</th><th class="hm">FORM</th><th>SP</th><th>T</th><th class="hs">NOTE</th></tr>
   ${sq.map(p => `<tr><td>${p.num}</td><td class="l"><button class="link" data-act="cplayer" data-arg="${p.pid}">${esc(p.name)}</button>${p.inj > 0 ? ' <span class="badge inj">VERL</span>' : ''}${p.ban > 0 ? ' <span class="badge inj">GESP</span>' : ''}${p.trait ? ` <span class="badge">${esc(p.trait.toUpperCase())}</span>` : ''}${p.dp > 0 ? ` <span class="badge dp">+${p.dp}</span>` : ''}</td><td>${p.grp}</td><td class="hs">${p.age}</td><td>${p.ovr}</td><td class="hm">${p.pot}</td><td class="hm">${fit(p)}</td><td class="hm">${p.form > 0.8 ? '↗' : p.form < -0.8 ? '↘' : '→'}</td><td>${p.ss.sp}</td><td>${p.ss.g}</td><td class="hs">${noteAvg(p.ss)}</td></tr>`).join('')}</table></div>
@@ -164,7 +164,7 @@ function showPlayer(pid) {
     <div class="row">${dpKeys(p).map(a => `<button class="small" data-act="cdp" data-arg="${p.pid}|${a}" ${p[a] >= DP_MAX ? 'disabled' : ''}>+ ${ATTR_N[a].toUpperCase()} ${p[a]}</button>`).join('')}</div>` : ''}
     <div class="kpis"><div class="kpi"><span>SAISON</span><b>${p.ss.sp} SP · ${p.ss.g} T · ${p.ss.a} V</b><i>Note ${noteAvg(p.ss)}${p.grp === 'TW' ? ` · ${p.ss.co} Gegentore` : ''}</i></div>
       <div class="kpi"><span>KARRIERE</span><b>${p.cs.sp} SP · ${p.cs.g} T · ${p.cs.a} V</b><i>Note ${noteAvg(p.cs)} · ${p.cs.yc} Gelb · ${p.cs.rc} Rot</i></div>
-      <div class="kpi"><span>ZUSTAND</span><b>${p.fit}% FIT</b><i>${p.inj > 0 ? `verletzt (${p.inj} Sp.)` : p.ban > 0 ? `gesperrt (${p.ban} Sp.)` : p.form > 0.8 ? 'in Form' : p.form < -0.8 ? 'außer Form' : 'normal'}</i></div></div>
+      <div class="kpi"><span>ZUSTAND</span><b>${Math.round(p.fit)}% FIT</b><i>${p.inj > 0 ? `verletzt (${p.inj} Sp.)` : p.ban > 0 ? `gesperrt (${p.ban} Sp.)` : p.form > 0.8 ? 'in Form' : p.form < -0.8 ? 'außer Form' : 'normal'}</i></div></div>
     <div class="row"><button class="main" data-act="chub" autofocus>ZURÜCK</button>${mine ? `<button data-act="cpEdit" data-arg="${p.pid}">BEARBEITEN</button><button data-act="crel" data-arg="${p.pid}">VERABSCHIEDEN</button>` : ''}</div></div>`, { back: ACT.chub });
   bindHubCanvases();
 }
@@ -176,8 +176,8 @@ function lineupHTML() {
   return `<h3>FORMATION</h3><div class="row">${FORM_KEYS.map(f => `<button class="small ${C.form === f ? 'on' : ''}" data-act="cform" data-arg="${f}">${f}</button>`).join('')}</div>
   <h3>AUSRICHTUNG</h3><div class="row">${MENT.map((m, i) => `<button class="small ${C.ment === i ? 'on' : ''}" data-act="cment" data-arg="${i}">${m}</button>`).join('')}</div>
   <h3>STARTELF ${C.xi ? '(EIGENE)' : '(CO-TRAINER)'} · ${pick == null ? 'POSITION ANTIPPEN ZUM TAUSCHEN' : 'JETZT SPIELER WÄHLEN'}</h3>
-  <div class="subs"><div class="btns">${xi.map((p, i) => `<button class="small ${pick === i ? 'on' : ''}" data-act="cxiPick" data-arg="${i}">${F[i][0].padEnd(2)} ${esc(p.name.toUpperCase().slice(0, 13))} <i>${p.grp !== SLOT_GRP[F[i][0]] ? '⚠ ' : ''}${p.ovr} · ${p.fit}%</i></button>`).join('')}</div>
-  <div class="btns">${others.map(p => `<button class="small" data-act="cxiSwap" data-arg="${p.pid}" ${pick == null || p.inj > 0 || p.ban > 0 ? 'disabled' : ''}>${p.grp} ${esc(p.name.toUpperCase().slice(0, 13))} <i>${p.inj > 0 ? 'VERL' : p.ban > 0 ? 'GESP' : `${p.ovr} · ${p.fit}%`}</i></button>`).join('')}</div></div>
+  <div class="subs"><div class="btns">${xi.map((p, i) => `<button class="small ${pick === i ? 'on' : ''}" data-act="cxiPick" data-arg="${i}">${F[i][0].padEnd(2)} ${esc(p.name.toUpperCase().slice(0, 13))} <i>${p.grp !== SLOT_GRP[F[i][0]] ? '⚠ ' : ''}${p.ovr} · ${Math.round(p.fit)}%</i></button>`).join('')}</div>
+  <div class="btns">${others.map(p => `<button class="small" data-act="cxiSwap" data-arg="${p.pid}" ${pick == null || p.inj > 0 || p.ban > 0 ? 'disabled' : ''}>${p.grp} ${esc(p.name.toUpperCase().slice(0, 13))} <i>${p.inj > 0 ? 'VERL' : p.ban > 0 ? 'GESP' : `${p.ovr} · ${Math.round(p.fit)}%`}</i></button>`).join('')}</div></div>
   <div class="row"><button class="small" data-act="cxiAuto">CO-TRAINER STELLT AUF</button></div>
   <h3>ELFMETERSCHÜTZE</h3><div class="row">${xi.filter(p => p.grp !== 'TW').sort((a, b) => b.sch - a.sch).slice(0, 5).map(p => `<button class="small ${pk && pk.pid === p.pid ? 'on' : ''}" data-act="cpk" data-arg="${p.pid}">${esc(p.name.toUpperCase())} ${p.sch}</button>`).join('')}</div>
   <p class="muted">⚠ = Spieler auf fremder Position (schwächer). Verletzte und gesperrte Spieler setzt der Co-Trainer automatisch aus.</p>`;

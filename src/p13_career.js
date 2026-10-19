@@ -202,7 +202,7 @@ function applyGame(h, a, gh, ga, live) {
       if (x.rc) { s.rc++; c.rc++; p.ban = Math.max(p.ban, 2); p.banNew = true; if (tid === CT()) news('Sperre', `Rot für ${p.name}`, `${p.name} ist für zwei Spiele gesperrt.`); }
       if (x.potm) { s.potm++; c.potm++; }
       if (tid === CT() && (x.potm || x.g > 0 || (x.note != null && x.note <= 2)) && Math.random() < (x.potm ? 1 : 0.5)) p.dp = (p.dp || 0) + 1;   // starkes Spiel: Bonus-Entwicklungspunkt
-      p.fit = clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100);
+      p.fit = Math.round(clamp(p.fit - (x.sub ? 6 : 14) - (devAge(p) > 30 ? 3 : 0), 40, 100));
       if (!x.sub && Math.random() < 0.012 + (devAge(p) > 31 ? 0.008 : 0)) { p.inj = 1 + ((Math.random() * 3) | 0); p.injNew = true; if (tid === CT()) news('Verletzung', `${p.name} fällt aus`, `${p.name} hat sich verletzt und fehlt ${p.inj === 1 ? 'ein Spiel' : p.inj + ' Spiele'}. Der Betreuer hat das Eisspray schon nachbestellt.`); }
       const sk = CAREER.S.scorers; if (x.g) sk[p.pid] = (sk[p.pid] || 0) + x.g;
     }
@@ -212,7 +212,7 @@ function applyGame(h, a, gh, ga, live) {
 // zwischen zwei Spieltagen: Fitness erholt, Sperren und Verletzungen laufen ab, Training
 function betweenGames(tids) {
   for (const tid of tids) for (const p of ensureSquad(tid)) {
-    p.fit = clamp(p.fit + 14 + A_fit(p), 40, 100);
+    p.fit = Math.round(clamp(p.fit + 14 + A_fit(p), 40, 100));   // ganze Prozent (Ausdauer bringt Kommazahlen)
     if (p.inj > 0 && !p.injNew) p.inj--; if (p.ban > 0 && !p.banNew) p.ban--; p.banNew = false; p.injNew = false;
     p.form *= 0.92;
   }
