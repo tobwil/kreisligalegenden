@@ -520,8 +520,10 @@ function passAssist(dt) {
 // Jeder Gegner bekommt pro Pass einen Versuch (Schwierigkeit, Zweikampf, Ballgeschwindigkeit); daneben gegriffen = der Ball rollt durch.
 function missesPass(p) {
   const b = G.ball, ps = b.passer;
-  if (!ps || ps.team === p.team || !isHumanTeam(ps.team) || isHumanTeam(p.team) || isGK(p) || !['pass', 'through'].includes(b.kind) || b.z > 0.6) return false;
+  if (!ps || ps.team === p.team || isGK(p) || !['pass', 'through'].includes(b.kind) || b.z > 0.6) return false;
   if (p.icptFid === b.fid) return p.icptMiss;
+  // Kreisliga-Abwehr: auch Pässe der CPU in den Strafraum-Bereich gehen ab und zu durch, weil einer falsch steht oder danebentritt
+  if (!isHumanTeam(ps.team) || isHumanTeam(p.team)) { if (prog(ps.team, b.x) < 0.7 || isHumanCtrl(p)) return false; p.icptFid = b.fid; p.icptMiss = Math.random() < 0.25; if (p.icptMiss && !p.act) p.act = { type: 'stumble', t: 0, dur: 0.22 }; return p.icptMiss; }
   const v = Math.hypot(b.vx, b.vy), near = dist(p.x, p.y, ps.x, ps.y) < 3.5;
   let pr = (G.diff.icpt ?? 0.55) + (A_(p, 'zwk') - 60) / 250 - Math.max(0, v - 12) * 0.03;
   if (near) pr *= 0.55;   // direkt angeschossen: kaum Zeit zu reagieren
